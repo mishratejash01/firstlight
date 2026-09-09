@@ -101,15 +101,40 @@ async function readSetting<T>(key: string, fallback: T): Promise<T> {
 }
 
 /**
- * Builds the search phrase from what the story is actually about.
+ * The search terms to try, best first.
  *
- * Entities the model marked `about` are better search terms than the headline,
- * which is written to be read rather than to be matched — "Iran claims capture
- * of US underwater drone" finds nothing, "Strait of Hormuz" finds 240 images.
+ * Two things matter here, both learned the hard way. Entities the model marked
+ * `about` are far better search terms than the headline, which is written to be
+ * read rather than matched — "Iran claims capture of US underwater drone" finds
+ * nothing, "Strait of Hormuz" finds hundreds.
+ *
+ * And they must be tried ONE AT A TIME. Joining two entity names into a single
+ * query — "Islamic Revolutionary Guard Corps Anduril Industries" — narrows it
+ * to nothing, which is why every article was falling back to a card.
+ *
+ * Places first, then organisations, then people: a photograph of a strait
+ * illustrates a story about a strait, while a stock portrait of a named
+ * individual is usually either unavailable or the wrong person entirely.
  */
-function buildQuery(subjects: string[], fallback: string): string {
-  const usable = subjects.map((s) => s.trim()).filter((s) => s.length > 2).slice(0, 2);
-  return usable.length ? usable.join(" ") : fallback;
+function buildQueries(
+  subjects: { name: string; type: string }[],
+  fallback: string,
+): string[] {
+  const priority: Record<string, number> = {
+    Place: 0,
+    Organization: 1,
+    GovernmentOrganization: 1,
+    Event: 2,
+    Product: 3,
+    Person: 4,
+  };
+
+  const ordered = [...subjects]
+    .filter((s) => s.name.trim().length > 2)
+    .sort((a, b) => (priority[a.type] ?? 5) - (priority[b.type] ?? 5))
+    .map((s) => s.name.trim());
+
+  return [...new Set([...ordered, fallback])].slice(0, 5);
 }
 
 export async function illustrateArticle({
@@ -120,7 +145,7 @@ export async function illustrateArticle({
 }: {
   headline: string;
   section: string;
-  subjects: string[];
+  subjects: { name: string; type: string }[];
   uploadedBy?: string | null;
 }): Promise<Illustration | null> {
   if (!configureCloudinary()) return null;
@@ -132,8 +157,17 @@ export async function illustrateArticle({
   const supabase = createAdminClient();
 
   if (allowPhotos) {
-    const query = buildQuery(subjects, section);
-    const found = await searchLicensedImage(query);
+    const queries = buildQueries(subjects, section);
+
+    let found = null;
+    let usedQuery = section;
+    for (const query of queries) {
+      found = await searchLicensedImage(query);
+      if (found) {
+        usedQuery = query;
+        break;
+      }
+    }
 
     if (found) {
       const uploaded = await uploadRemote(found.url, "newswebsite/illustrations");
@@ -147,7 +181,7 @@ export async function illustrateArticle({
           bytes: uploaded.bytes,
           // The subject, not the headline: alt text describes the picture, not
           // the story it illustrates.
-          alt_text: found.title ?? query,
+          alt_text: found.title ?? usedQuery,
           credit,
           licence: found.licence,
           licence_url: found.licenceUrl,
@@ -159,7 +193,7 @@ export async function illustrateArticle({
 
         return {
           url: uploaded.url,
-          alt: found.title ?? query,
+          alt: found.title ?? usedQuery,
           credit,
           kind: "photo",
         };
