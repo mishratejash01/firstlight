@@ -24,7 +24,7 @@ export default async function EditDraftPage(props: PageProps<"/contribute/[id]">
   const [{ data: article }, { data: categories }] = await Promise.all([
     supabase
       .from("articles")
-      .select("id, slug, headline, standfirst, body, summary, status, category_id, updated_at, categories ( slug, name )")
+      .select("id, slug, headline, standfirst, body, summary, status, category_id, updated_at, hero_image_url, hero_image_alt, hero_image_credit, categories ( slug, name )")
       .eq("id", id)
       .maybeSingle(),
     supabase
