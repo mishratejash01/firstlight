@@ -28,17 +28,21 @@ create trigger tags_set_updated_at
 
 alter table public.tags enable row level security;
 
-create policy "tags: public read active"
+-- ---------------------------------------------------------------------------
+-- Policies. One per role per action; see user_roles for the rationale.
+-- ---------------------------------------------------------------------------
+
+create policy "tags: anon read active"
   on public.tags
   for select
-  to anon, authenticated
+  to anon
   using (is_active);
 
-create policy "tags: editorial read all"
+create policy "tags: read"
   on public.tags
   for select
   to authenticated
-  using (app.is_editorial());
+  using (is_active or app.is_editorial());
 
 -- Editors coin tags in the course of filing, so this is not admin-gated.
 create policy "tags: editorial insert"
