@@ -3,7 +3,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { slugify, withUniqueSuffix } from "@/lib/format/slug";
 import { submitToIndexNow } from "@/lib/seo/indexnow";
-import { DRAFTING_MODEL } from "./config";
+import { draftingModelId } from "./config";
 import { draftArticle } from "./draft";
 import type { DraftedArticle } from "./schemas";
 
@@ -91,7 +91,7 @@ async function publishDraft(
       status: delayMinutes > 0 ? "scheduled" : "published",
       published_at: publishedAt,
       ai_assisted: true,
-      ai_model: DRAFTING_MODEL,
+      ai_model: draftingModelId(),
       ai_generated_at: new Date().toISOString(),
       ai_unverified_claims: draft.unverifiedClaims,
     })
