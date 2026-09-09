@@ -87,21 +87,41 @@ export type AccountRow = {
   lastSignInAt: string | null;
 };
 
-/** Lists accounts. Privileged, and gated before the privileged client exists. */
-export async function listAccounts(): Promise<AccountRow[]> {
+/**
+ * Lists accounts. Privileged, and gated before the privileged client exists.
+ *
+ * Returns a discriminated result rather than a bare array: an empty list and a
+ * failed lookup look identical to a caller, and "Accounts (0)" on a page that
+ * plainly has accounts is exactly the kind of silent wrongness that makes an
+ * administrator stop trusting the dashboard.
+ */
+export async function listAccounts(): Promise<
+  { ok: true; accounts: AccountRow[] } | { ok: false; reason: string }
+> {
   const admin = await requireAdminUser();
-  if (!admin) return [];
+  if (!admin) return { ok: false, reason: "Administrator role required." };
 
-  const client = createAdminClient();
-  const { data, error } = await client.auth.admin.listUsers({ page: 1, perPage: 200 });
-  if (error) return [];
+  let data;
+  try {
+    const client = createAdminClient();
+    const result = await client.auth.admin.listUsers({ page: 1, perPage: 200 });
+    if (result.error) return { ok: false, reason: result.error.message };
+    data = result.data;
+  } catch (error) {
+    return {
+      ok: false,
+      reason: error instanceof Error ? error.message : "Could not reach the account service.",
+    };
+  }
 
-  return data.users.map((user) => ({
+  const accounts = data.users.map((user) => ({
     id: user.id,
     email: user.email ?? null,
     createdAt: user.created_at,
     lastSignInAt: user.last_sign_in_at ?? null,
   }));
+
+  return { ok: true, accounts };
 }
 
 /** Shows or hides a section in the site navigation. */
