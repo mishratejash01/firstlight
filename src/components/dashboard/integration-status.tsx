@@ -29,7 +29,7 @@ export function IntegrationStatus() {
       configured: Boolean(aiProviderName()),
       purpose: `Drafting, triage, tag and headline suggestions, wire summaries. Routed via ${aiProviderName()}.`,
       missing:
-        "Set ANTHROPIC_API_KEY, or set AI_GATEWAY_API_KEY and add a card to the Vercel AI Gateway — it refuses requests until one is on file, even for free credits.",
+        "No provider key set. Free options needing no card: GOOGLE_GENERATIVE_AI_API_KEY (aistudio.google.com/apikey) or GROQ_API_KEY (console.groq.com/keys). The Vercel AI Gateway also works but requires a card on file, even for its free credits.",
     },
     {
       name: "Cloudinary",
