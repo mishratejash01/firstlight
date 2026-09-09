@@ -38,13 +38,17 @@ const MODELS: Record<Provider, { drafting: string; assist: string; fallbacks: st
     // Pinned rather than using the -latest aliases: an alias silently moving to
     // a new model changes how the paper writes, which is not something that
     // should happen without anyone choosing it.
-    drafting: process.env.AI_DRAFTING_MODEL ?? "gemini-3.8-flash",
+    // 3.5 leads on observed availability, not age: gemini-3.8-flash returned
+    // 503 "high demand" on two of three attempts while 3.5 answered every
+    // time. For an unattended pipeline, a model that responds beats a newer
+    // one that sometimes does.
+    drafting: process.env.AI_DRAFTING_MODEL ?? "gemini-3.5-flash",
     assist: process.env.AI_ASSIST_MODEL ?? "gemini-3.5-flash-lite",
     // Free-tier capacity is shared and does go down: "This model is currently
     // experiencing high demand" is a real, observed response. An unattended
     // scheduler that treats that as a failure just stops working for a while,
     // so it steps down a generation instead.
-    fallbacks: ["gemini-3.5-flash", "gemini-2.5-flash"],
+    fallbacks: ["gemini-3.8-flash", "gemini-2.5-flash"],
   },
   groq: {
     drafting: process.env.AI_DRAFTING_MODEL ?? "llama-3.3-70b-versatile",
