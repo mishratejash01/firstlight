@@ -1,10 +1,11 @@
+import { SITE_NAME } from "@/lib/site";
 import type { Metadata } from "next";
 
 import { EditorialNotice } from "@/components/site/editorial-notice";
 import { StaticPage } from "@/components/site/static-page";
 
 export const metadata: Metadata = {
-  title: "About — Newswebsite",
+  title: `About — ${SITE_NAME}`,
   description: "Who we are, what we cover, and how we are funded.",
   alternates: { canonical: "/about" },
 };
@@ -24,7 +25,7 @@ export default function AboutPage() {
 
       <div className="space-y-4 text-body leading-relaxed text-ink">
         <p>
-          Newswebsite reports on public life: government and policy, companies
+          {SITE_NAME} reports on public life: government and policy, companies
           and markets, research and health, sport, and the arts. We publish
           original reporting, we curate and credit work done by others, and we
           carry licensed wire copy — and we tell you which is which on every
