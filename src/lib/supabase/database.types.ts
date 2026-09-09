@@ -14,6 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_topics: {
+        Row: {
+          angle: string | null
+          cadence_hours: number
+          category_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          last_error: string | null
+          last_generated_at: string | null
+          times_generated: number
+          topic: string
+          updated_at: string
+        }
+        Insert: {
+          angle?: string | null
+          cadence_hours?: number
+          category_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_generated_at?: string | null
+          times_generated?: number
+          topic: string
+          updated_at?: string
+        }
+        Update: {
+          angle?: string | null
+          cadence_hours?: number
+          category_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_generated_at?: string | null
+          times_generated?: number
+          topic?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_topics_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       analytics_events: {
         Row: {
           anonymous_id: string | null
@@ -902,6 +955,30 @@ export type Database = {
           status?: string
           unsubscribed_at?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      site_settings: {
+        Row: {
+          description: string | null
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          description?: string | null
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          description?: string | null
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
         }
         Relationships: []
       }
