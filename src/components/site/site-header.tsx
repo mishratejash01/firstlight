@@ -1,6 +1,8 @@
+import { SITE_NAME } from "@/lib/site";
 import Link from "next/link";
 
 import { AccountMenu } from "@/components/site/account-menu";
+import { SocialLinks } from "@/components/site/social-links";
 import { getNavCategories } from "@/lib/queries/navigation";
 
 /**
@@ -43,14 +45,19 @@ export async function SiteHeader({ activeSlug }: { activeSlug?: string }) {
           href="/"
           className="text-nameplate font-extrabold tracking-[-0.04em] text-ink sm:text-nameplate-lg"
         >
-          Newswebsite
+          {SITE_NAME}
         </Link>
       </div>
 
       <nav aria-label="Sections">
-        <div className="mx-auto max-w-page px-4 sm:px-6">
+        <div className="mx-auto flex max-w-page items-center gap-4 px-4 sm:px-6">
+          {/* Two equal spacers either side keep the section strip optically
+              centred whether or not the social icons are configured, instead of
+              letting the strip shift left the day an account is added. */}
+          <div className="hidden flex-1 sm:block" aria-hidden="true" />
+
           {/* Edge-to-edge scroll on phones; the negative margin lets the first
- and last items sit flush with the page gutter while scrolling. */}
+              and last items sit flush with the page gutter while scrolling. */}
           <ul className="-mx-4 flex gap-6 overflow-x-auto px-4 pb-3 sm:mx-0 sm:flex-wrap sm:justify-center sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {categories.map((category) => {
               const active = category.slug === activeSlug;
@@ -71,6 +78,10 @@ export async function SiteHeader({ activeSlug }: { activeSlug?: string }) {
               );
             })}
           </ul>
+
+          <div className="hidden flex-1 justify-end pb-3 sm:flex">
+            <SocialLinks />
+          </div>
         </div>
       </nav>
     </header>
