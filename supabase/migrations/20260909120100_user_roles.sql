@@ -17,6 +17,9 @@ create table public.user_roles (
 );
 
 create index user_roles_user_id_idx on public.user_roles (user_id);
+-- Covers the foreign key so revoking an admin account does not force a
+-- sequential scan of every grant they ever made.
+create index user_roles_granted_by_idx on public.user_roles (granted_by);
 
 alter table public.user_roles enable row level security;
 
@@ -79,27 +82,29 @@ grant execute on function app.has_role(public.app_role) to authenticated;
 grant execute on function app.is_editorial() to authenticated;
 grant execute on function app.is_admin() to authenticated;
 
--- ---------------------------------------------------------------------------
--- Policies
---
--- Note there is intentionally no INSERT policy for ordinary users: role grants
--- are an admin-only operation. The very first admin is seeded out-of-band with
--- the service key, because at that point no admin exists to grant it.
--- ---------------------------------------------------------------------------
 
 -- A user can see which roles they hold, so the UI can route them to the right
 -- dashboard. They cannot see anyone else's.
-create policy "user_roles: read own"
-  on public.user_roles
-  for select
-  to authenticated
-  using ((select auth.uid()) = user_id);
 
-create policy "user_roles: admins read all"
+-- ---------------------------------------------------------------------------
+-- Policies
+--
+-- One policy per role per action. Postgres ORs permissive policies together
+-- and evaluates each one per row, so overlapping policies are folded into a
+-- single expression rather than split for readability.
+--
+-- There is intentionally no INSERT path for ordinary users: role grants are an
+-- admin-only operation. The first admin is seeded out-of-band with the service
+-- key, because at that point no admin exists to grant it.
+-- ---------------------------------------------------------------------------
+
+-- A user sees the roles they hold, so the UI can route them to the right
+-- dashboard. Admins see everyone's.
+create policy "user_roles: read"
   on public.user_roles
   for select
   to authenticated
-  using (app.is_admin());
+  using ((select auth.uid()) = user_id or app.is_admin());
 
 create policy "user_roles: admins grant"
   on public.user_roles
