@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser, isEditorial } from "@/lib/auth/roles";
 import { slugify, withUniqueSuffix } from "@/lib/format/slug";
-import { DRAFTING_MODEL } from "@/lib/ai/config";
+import { draftingModelId } from "@/lib/ai/config";
 import {
   draftArticle,
   suggestHeadlines,
@@ -99,7 +99,7 @@ export async function generateDraft(formData: FormData): Promise<ActionResult<{ 
       status: "draft",
       origin: "original",
       ai_assisted: true,
-      ai_model: DRAFTING_MODEL,
+      ai_model: draftingModelId(),
       ai_generated_at: new Date().toISOString(),
       ai_unverified_claims: draft.unverifiedClaims,
     })
