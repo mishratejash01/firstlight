@@ -1,3 +1,4 @@
+import { SITE_NAME } from "@/lib/site";
 import { after } from "next/server";
 import type { Metadata } from "next";
 
@@ -8,7 +9,7 @@ import { searchArticles } from "@/lib/queries/articles";
 import { captureRequestContext, logSearch } from "@/lib/analytics/server-events";
 
 export const metadata: Metadata = {
-  title: "Search — Newswebsite",
+  title: `Search — ${SITE_NAME}`,
   // Search result pages are thin and infinite in number; keeping them out of
   // the index avoids competing with the articles they point at.
   robots: { index: false, follow: true },
