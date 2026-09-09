@@ -85,7 +85,7 @@ export default async function AccountPage() {
     <>
       <SiteHeader />
 
-      <main className="route-enter mx-auto max-w-6xl px-4 sm:px-6">
+      <main className="route-enter mx-auto max-w-page px-4 sm:px-6">
         <div className="mx-auto max-w-measure py-10">
           {/* ---------------------------------------------------------- */}
           <div className="flex items-center gap-4">
@@ -99,7 +99,7 @@ export default async function AccountPage() {
               />
             ) : null}
             <div className="min-w-0">
-              <h1 className="font-serif text-[1.75rem] leading-tight text-ink">
+              <h1 className="text-[1.75rem] leading-tight text-ink">
                 {displayName ?? "Your profile"}
               </h1>
               <p className="mt-0.5 text-meta text-muted">
@@ -120,7 +120,7 @@ export default async function AccountPage() {
 
           {/* ---------------------------------------------------------- */}
           <section className="mt-12 border-t border-hairline pt-6">
-            <h2 className="font-serif text-section text-ink">Following</h2>
+            <h2 className="text-section text-ink">Following</h2>
 
             {follows?.length ? (
               <ul className="mt-4 divide-y divide-hairline border-t border-hairline">
@@ -163,7 +163,7 @@ export default async function AccountPage() {
 
           {/* ---------------------------------------------------------- */}
           <section className="mt-12 border-t border-hairline pt-6">
-            <h2 className="font-serif text-section text-ink">Newsletter</h2>
+            <h2 className="text-section text-ink">Newsletter</h2>
             <div className="mt-4">
               <NewsletterSignup context="account" />
             </div>
@@ -171,7 +171,7 @@ export default async function AccountPage() {
 
           {/* ---------------------------------------------------------- */}
           <section className="mt-12 border-t border-hairline pt-6">
-            <h2 className="font-serif text-section text-ink">
+            <h2 className="text-section text-ink">
               How your reading is measured
             </h2>
             <TrackingPreference />
@@ -187,7 +187,7 @@ export default async function AccountPage() {
           {/* Only shown to people who actually have newsroom access. */}
           {hasNewsroomAccess ? (
             <section className="mt-12 border-t border-hairline pt-6">
-              <h2 className="font-serif text-section text-ink">Newsroom</h2>
+              <h2 className="text-section text-ink">Newsroom</h2>
               <p className="mt-1 text-meta text-muted">
                 You have {user.roles.join(" and ")} access.
               </p>
