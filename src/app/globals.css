@@ -1,0 +1,122 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Design tokens.
+   These are the ONLY hardcoded values allowed in the codebase alongside UI
+   microcopy. Content, categories and placements always come from the database.
+   Tailwind 4 is CSS-first: everything declared in @theme becomes a utility,
+   e.g. --color-ink -> text-ink / bg-ink, --text-lead -> text-lead.
+--------------------------------------------------------------------------- */
+@theme {
+  /* Palette — six tokens, no more. Restraint is the point. */
+  --color-paper: #ffffff;    /* page background                              */
+  --color-ink: #14161c;      /* headlines, body text                         */
+  --color-muted: #5b5f6b;    /* bylines, timestamps, captions                */
+  --color-hairline: #e4e5e8; /* dividers only, never a full card border      */
+  --color-accent: #1b3b6f;   /* links, active nav, buttons — never a big fill */
+  --color-signal: #8c1d24;   /* breaking news tag only, used sparingly       */
+
+  /* Typography. Source Serif 4 carries editorial gravity; Source Sans 3 is
+     its purpose-built companion and stays legible at caption sizes. */
+  --font-serif: var(--font-source-serif), "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-source-sans), "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /* Type scale. Emphasis comes from size, weight and whitespace — never from
+     color or italics on isolated words. */
+  --text-meta: 0.8125rem;     /* 13px — bylines, timestamps, kickers         */
+  --text-meta--line-height: 1.4;
+  --text-body: 0.9375rem;     /* 15px — body copy                            */
+  --text-body--line-height: 1.65;
+  --text-lead: 1.0625rem;     /* 17px — deks and standfirsts                 */
+  --text-lead--line-height: 1.55;
+  --text-section: 1.375rem;   /* 22px — section shelf labels                 */
+  --text-section--line-height: 1.25;
+  --text-headline: 1.5rem;    /* 24px — card headlines                       */
+  --text-headline--line-height: 1.22;
+  --text-hero: 2.125rem;      /* 34px — hero headline, mobile                */
+  --text-hero--line-height: 1.1;
+  --text-hero-lg: 3rem;       /* 48px — hero headline, desktop               */
+  --text-hero-lg--line-height: 1.06;
+
+  /* Measure: body copy stays under ~75 characters. */
+  --container-measure: 38rem;
+
+  /* Radius: 2–4px on inputs and buttons only. Content blocks stay square. */
+  --radius-control: 3px;
+}
+
+/* ---------------------------------------------------------------------------
+   Base
+--------------------------------------------------------------------------- */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Serif is reserved for headlines and display, not applied globally. */
+h1, h2, h3, h4 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: -0.011em;
+  text-wrap: balance;
+}
+
+/* Deks and long paragraphs read better with a slightly looser measure. */
+p {
+  text-wrap: pretty;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Focus — visible everywhere, keyboard users are not second-class.
+--------------------------------------------------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+   Motion — exactly one deliberate moment: a subtle fade on route transitions.
+   No hover-lift, no scale, no shadow-pop.
+--------------------------------------------------------------------------- */
+@keyframes enter-fade {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.route-enter {
+  animation: enter-fade 220ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-enter {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
