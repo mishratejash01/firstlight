@@ -6,6 +6,8 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { getArticlesByAuthor } from "@/lib/queries/articles";
+import { getFollowState } from "@/lib/queries/follows";
+import { FollowButton } from "@/components/follow/follow-button";
 import { createClient } from "@/lib/supabase/server";
 
 export const revalidate = 300;
@@ -16,7 +18,7 @@ async function getAuthor(slug: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("authors")
-    .select("slug, display_name, title, bio, avatar_url, links")
+    .select("id, slug, display_name, title, bio, avatar_url, links")
     .eq("slug", slug)
     .eq("is_active", true)
     .maybeSingle();
@@ -43,6 +45,7 @@ export default async function AuthorPage(props: PageProps<"/author/[slug]">) {
   if (!author) notFound();
 
   const articles = await getArticlesByAuthor(slug, 40);
+  const follow = await getFollowState("author", author.id);
 
   return (
     <>
@@ -75,6 +78,17 @@ export default async function AuthorPage(props: PageProps<"/author/[slug]">) {
               {author.bio}
             </p>
           ) : null}
+          <div className="mt-4">
+            <FollowButton
+              targetType="author"
+              targetId={author.id}
+              label={author.display_name}
+              isSignedIn={follow.isSignedIn}
+              initiallyFollowing={follow.following}
+              followId={follow.followId}
+              returnTo={`/author/${author.slug}`}
+            />
+          </div>
         </div>
 
         {articles.length ? (
