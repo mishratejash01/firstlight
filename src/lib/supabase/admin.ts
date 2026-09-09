@@ -2,6 +2,8 @@ import "server-only";
 
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
+import type { Database } from "./database.types";
+
 import { SUPABASE_URL } from "./env";
 
 /**
@@ -30,7 +32,7 @@ export function createAdminClient() {
     );
   }
 
-  return createSupabaseClient(SUPABASE_URL(), secretKey, {
+  return createSupabaseClient<Database>(SUPABASE_URL(), secretKey, {
     auth: {
       // No user session to persist or refresh — this client is not a user.
       autoRefreshToken: false,
