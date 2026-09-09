@@ -1,3 +1,4 @@
+import { SITE_NAME } from "@/lib/site";
 import type { Metadata } from "next";
 import { Libre_Franklin } from "next/font/google";
 
@@ -16,7 +17,7 @@ const libreFranklin = Libre_Franklin({
 });
 
 export const metadata: Metadata = {
-  title: "Newswebsite",
+  title: SITE_NAME,
   description: "General-interest news reporting.",
 };
 
