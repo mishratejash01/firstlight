@@ -1,0 +1,50 @@
+# Trending topics pipeline.
+#
+# Polls Google Trends, triages what comes back, and writes up whatever passes.
+# Runs four times an hour because trends move fast — a search spike is often
+# spent within a couple of hours — but the daily article cap, shared with the
+# topic scheduler, is what actually governs output.
+#
+# Ingestion and triage run whatever the settings say; writing is gated on
+# `trending_auto_write`, and publishing on `autonomous_publishing_enabled`.
+
+name: Trending topics
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: trends
+  cancel-in-progress: false
+
+jobs:
+  trends:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run the trends pipeline
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: ${{ vars.SITE_URL || 'https://newswebsite-pi.vercel.app' }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "CRON_SECRET is not set on this repository."
+            exit 1
+          fi
+
+          response=$(curl -sS --max-time 300 -w '\n%{http_code}' \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "${SITE_URL}/api/cron/trends")
+
+          body=$(printf '%s' "$response" | sed '$d')
+          status=$(printf '%s' "$response" | tail -n1)
+
+          echo "$body"
+
+          if [ "$status" != "200" ]; then
+            echo "Trends endpoint returned HTTP ${status}"
+            exit 1
+          fi
