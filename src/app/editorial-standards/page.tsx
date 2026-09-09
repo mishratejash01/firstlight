@@ -1,10 +1,11 @@
+import { SITE_NAME } from "@/lib/site";
 import type { Metadata } from "next";
 
 import { EditorialNotice } from "@/components/site/editorial-notice";
 import { StaticPage } from "@/components/site/static-page";
 
 export const metadata: Metadata = {
-  title: "Editorial standards — Newswebsite",
+  title: `Editorial standards — ${SITE_NAME}`,
   description: "How we source, verify, review and label what we publish.",
   alternates: { canonical: "/editorial-standards" },
 };
