@@ -3,7 +3,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { slugify, withUniqueSuffix } from "@/lib/format/slug";
 import { submitToIndexNow } from "@/lib/seo/indexnow";
-import { DRAFTING_MODEL } from "@/lib/ai/config";
+import { draftingModelId } from "@/lib/ai/config";
 import { draftFromTrend } from "@/lib/ai/draft";
 import type { TrendNewsItem } from "./google-trends";
 
@@ -155,7 +155,7 @@ export async function writeUpTrends(limit = 3): Promise<WriteUpReport> {
         status: publishing ? (delayMinutes > 0 ? "scheduled" : "published") : "draft",
         published_at: publishing ? publishedAt : null,
         ai_assisted: true,
-        ai_model: DRAFTING_MODEL,
+        ai_model: draftingModelId(),
         ai_generated_at: new Date().toISOString(),
         ai_unverified_claims: draft.unverifiedClaims,
       })
