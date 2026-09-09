@@ -36,7 +36,10 @@ export async function SiteHeader({ activeSlug }: { activeSlug?: string }) {
           <p className="text-kicker text-muted">
             <time dateTime={now.toISOString().slice(0, 10)}>{today}</time>
           </p>
-          <AccountMenu />
+          <div className="flex items-center gap-4">
+            <SocialLinks className="sm:hidden" />
+            <AccountMenu />
+          </div>
         </div>
       </div>
 
@@ -56,9 +59,11 @@ export async function SiteHeader({ activeSlug }: { activeSlug?: string }) {
               letting the strip shift left the day an account is added. */}
           <div className="hidden flex-1 sm:block" aria-hidden="true" />
 
-          {/* Edge-to-edge scroll on phones; the negative margin lets the first
-              and last items sit flush with the page gutter while scrolling. */}
-          <ul className="-mx-4 flex gap-6 overflow-x-auto px-4 pb-3 sm:mx-0 sm:flex-wrap sm:justify-center sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* One line on a phone, scrolling edge to edge: the negative margin
+              lets the first and last sections sit flush with the page gutter.
+              Nothing shares this row below the sm breakpoint — the social marks
+              move up into the dateline so the sections keep the full width. */}
+          <ul className="-mx-4 flex min-w-0 flex-1 gap-6 overflow-x-auto px-4 pb-3 sm:mx-0 sm:flex-none sm:flex-wrap sm:justify-center sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {categories.map((category) => {
               const active = category.slug === activeSlug;
               return (
@@ -79,7 +84,7 @@ export async function SiteHeader({ activeSlug }: { activeSlug?: string }) {
             })}
           </ul>
 
-          <div className="hidden flex-1 justify-end pb-3 sm:flex">
+          <div className="hidden pb-3 sm:flex sm:flex-1 sm:justify-end">
             <SocialLinks />
           </div>
         </div>
