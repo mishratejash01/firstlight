@@ -25,7 +25,7 @@ export default function PrivacyPage() {
       </EditorialNotice>
 
       <div className="space-y-4 text-body leading-relaxed text-ink">
-        <h2 className="font-serif text-section text-ink">What we do not collect</h2>
+        <h2 className="text-section text-ink">What we do not collect</h2>
         <p>
           We do not store your IP address. We do not store your browser&rsquo;s
           user-agent string. We do not build advertising profiles and we do not
@@ -33,7 +33,7 @@ export default function PrivacyPage() {
           columns to hold that data do not exist.
         </p>
 
-        <h2 className="mt-8 font-serif text-section text-ink">
+        <h2 className="mt-8 text-section text-ink">
           Before you agree to anything
         </h2>
         <p>
@@ -45,7 +45,7 @@ export default function PrivacyPage() {
           something and nothing about who.
         </p>
 
-        <h2 className="mt-8 font-serif text-section text-ink">If you agree</h2>
+        <h2 className="mt-8 text-section text-ink">If you agree</h2>
         <p>
           With your agreement we additionally record how far you scroll, whether
           you finish an article, and which links you follow, tied to a random
@@ -60,14 +60,14 @@ export default function PrivacyPage() {
           all.
         </p>
 
-        <h2 className="mt-8 font-serif text-section text-ink">Changing your mind</h2>
+        <h2 className="mt-8 text-section text-ink">Changing your mind</h2>
         <p>
           Your choice is stored in a cookie on this site and is remembered for
           twelve months, after which we ask again. Clearing your cookies for this
           site resets it.
         </p>
 
-        <h2 className="mt-8 font-serif text-section text-ink">If you sign in</h2>
+        <h2 className="mt-8 text-section text-ink">If you sign in</h2>
         <p>
           Signing in creates an account identified by the email address from your
           Google sign-in. If you follow topics or authors, or subscribe to a
@@ -76,7 +76,7 @@ export default function PrivacyPage() {
           including other readers.
         </p>
 
-        <h2 className="mt-8 font-serif text-section text-ink">
+        <h2 className="mt-8 text-section text-ink">
           Retention, rights and contact
         </h2>
         <p>
