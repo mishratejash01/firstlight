@@ -26,7 +26,7 @@ export function NewDraftForm({
 
   return (
     <form action={action} className="border-b border-hairline pb-8">
-      <h2 className="font-serif text-section text-ink">Start a draft</h2>
+      <h2 className="text-section text-ink">Start a draft</h2>
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row">
         <div className="flex-1">
