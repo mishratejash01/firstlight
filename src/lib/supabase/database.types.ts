@@ -676,7 +676,7 @@ export type Database = {
           id?: string
           target_id: string
           target_type: string
-          user_id: string
+          user_id?: string
         }
         Update: {
           created_at?: string
