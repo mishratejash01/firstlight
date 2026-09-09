@@ -1,3 +1,4 @@
+import { SITE_NAME } from "@/lib/site";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -33,7 +34,7 @@ export async function generateMetadata(
   if (!author) return { title: "Not found" };
 
   return {
-    title: `${author.display_name} — Newswebsite`,
+    title: `${author.display_name} — ${SITE_NAME}`,
     description: author.bio ?? `Articles by ${author.display_name}.`,
     alternates: { canonical: `/author/${author.slug}` },
   };
