@@ -76,7 +76,7 @@ export default async function DeskPage() {
     >
       {/* ---------------------------------------------------------------- */}
       <section>
-        <h2 className="font-serif text-section text-ink">Review queue</h2>
+        <h2 className="text-section text-ink">Review queue</h2>
         <p className="mt-1 text-meta text-muted">
           Wire, original and curated copy all arrive here. Nothing publishes
           without a decision on this page.
@@ -87,7 +87,7 @@ export default async function DeskPage() {
             {queue.data.map((article) => (
               <li key={article.id} className="py-5">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                  <h3 className="font-serif text-[1.1rem] leading-snug text-ink">
+                  <h3 className="text-[1.1rem] leading-snug text-ink">
                     {article.headline}
                   </h3>
                   <StatusBadge status={article.status} />
@@ -137,7 +137,7 @@ export default async function DeskPage() {
 
       {/* ---------------------------------------------------------------- */}
       <section className="mt-12 border-t border-hairline pt-6">
-        <h2 className="font-serif text-section text-ink">Front page</h2>
+        <h2 className="text-section text-ink">Front page</h2>
         <p className="mt-1 text-meta text-muted">
           A pin overrides the ranking for one slot. Every pin expires, so a
           forgotten splash cannot sit there all night.
@@ -174,7 +174,7 @@ export default async function DeskPage() {
 
       {/* ---------------------------------------------------------------- */}
       <section className="mt-12 border-t border-hairline pt-6">
-        <h2 className="font-serif text-section text-ink">Recently published</h2>
+        <h2 className="text-section text-ink">Recently published</h2>
         <ul className="mt-4 divide-y divide-hairline border-t border-hairline">
           {published.data?.map((article) => (
             <li key={article.id} className="flex flex-wrap items-baseline justify-between gap-3 py-3">
@@ -211,7 +211,7 @@ export default async function DeskPage() {
 
       {/* ---------------------------------------------------------------- */}
       <section className="mt-12 border-t border-hairline pt-6">
-        <h2 className="font-serif text-section text-ink">Trending right now</h2>
+        <h2 className="text-section text-ink">Trending right now</h2>
         <p className="mt-1 text-meta text-muted">
           Views weighted by recency, refreshed every five minutes. The same
           signal the recommendation engine reads.
@@ -232,7 +232,7 @@ export default async function DeskPage() {
       </section>
 
       <section className="mt-10 border-t border-hairline pt-6">
-        <h2 className="font-serif text-section text-ink">Underperforming this week</h2>
+        <h2 className="text-section text-ink">Underperforming this week</h2>
         <p className="mt-1 text-meta text-muted">
           Published work readers are not finishing. Drop-off is the point at
           which fewer than half of those who started are still reading — usually
@@ -256,7 +256,7 @@ export default async function DeskPage() {
       </section>
 
       <section className="mt-10 border-t border-hairline pt-6">
-        <h2 className="font-serif text-section text-ink">Top entry points</h2>
+        <h2 className="text-section text-ink">Top entry points</h2>
         <p className="mt-1 text-meta text-muted">
           Views count every arrival. Identified readers counts only those who
           agreed to tracking, so it is always the smaller number — the rest are
@@ -278,7 +278,7 @@ export default async function DeskPage() {
       </section>
 
       <section className="mt-10 border-t border-hairline pt-6">
-        <h2 className="font-serif text-section text-ink">What readers searched for</h2>
+        <h2 className="text-section text-ink">What readers searched for</h2>
         <p className="mt-1 text-meta text-muted">
           Ordered by unmet demand. A query returning nothing is a commissioning
           brief.
