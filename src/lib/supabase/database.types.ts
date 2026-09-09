@@ -741,6 +741,57 @@ export type Database = {
           },
         ]
       }
+      media_assets: {
+        Row: {
+          alt_text: string | null
+          bytes: number | null
+          caption: string | null
+          created_at: string
+          credit: string | null
+          duration: number | null
+          format: string | null
+          height: number | null
+          id: string
+          public_id: string
+          resource_type: string
+          secure_url: string
+          uploaded_by: string | null
+          width: number | null
+        }
+        Insert: {
+          alt_text?: string | null
+          bytes?: number | null
+          caption?: string | null
+          created_at?: string
+          credit?: string | null
+          duration?: number | null
+          format?: string | null
+          height?: number | null
+          id?: string
+          public_id: string
+          resource_type: string
+          secure_url: string
+          uploaded_by?: string | null
+          width?: number | null
+        }
+        Update: {
+          alt_text?: string | null
+          bytes?: number | null
+          caption?: string | null
+          created_at?: string
+          credit?: string | null
+          duration?: number | null
+          format?: string | null
+          height?: number | null
+          id?: string
+          public_id?: string
+          resource_type?: string
+          secure_url?: string
+          uploaded_by?: string | null
+          width?: number | null
+        }
+        Relationships: []
+      }
       news_events: {
         Row: {
           category_id: string | null
