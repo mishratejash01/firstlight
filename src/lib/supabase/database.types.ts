@@ -371,6 +371,9 @@ export type Database = {
       articles: {
         Row: {
           ai_assisted: boolean
+          ai_generated_at: string | null
+          ai_model: string | null
+          ai_unverified_claims: string[]
           attribution_label: string | null
           attribution_url: string | null
           author_id: string | null
@@ -402,6 +405,9 @@ export type Database = {
         }
         Insert: {
           ai_assisted?: boolean
+          ai_generated_at?: string | null
+          ai_model?: string | null
+          ai_unverified_claims?: string[]
           attribution_label?: string | null
           attribution_url?: string | null
           author_id?: string | null
@@ -433,6 +439,9 @@ export type Database = {
         }
         Update: {
           ai_assisted?: boolean
+          ai_generated_at?: string | null
+          ai_model?: string | null
+          ai_unverified_claims?: string[]
           attribution_label?: string | null
           attribution_url?: string | null
           author_id?: string | null
@@ -1044,6 +1053,97 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      wire_items: {
+        Row: {
+          ai_suggested_tags: string[] | null
+          ai_summary: string | null
+          author_name: string | null
+          body: string | null
+          content_hash: string
+          external_id: string
+          id: string
+          ingested_at: string
+          link: string | null
+          promoted_article_id: string | null
+          published_at: string | null
+          raw_categories: string[]
+          raw_payload: Json
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source_id: string
+          status: string
+          suggested_category_id: string | null
+          summary: string | null
+          title: string
+        }
+        Insert: {
+          ai_suggested_tags?: string[] | null
+          ai_summary?: string | null
+          author_name?: string | null
+          body?: string | null
+          content_hash: string
+          external_id: string
+          id?: string
+          ingested_at?: string
+          link?: string | null
+          promoted_article_id?: string | null
+          published_at?: string | null
+          raw_categories?: string[]
+          raw_payload?: Json
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_id: string
+          status?: string
+          suggested_category_id?: string | null
+          summary?: string | null
+          title: string
+        }
+        Update: {
+          ai_suggested_tags?: string[] | null
+          ai_summary?: string | null
+          author_name?: string | null
+          body?: string | null
+          content_hash?: string
+          external_id?: string
+          id?: string
+          ingested_at?: string
+          link?: string | null
+          promoted_article_id?: string | null
+          published_at?: string | null
+          raw_categories?: string[]
+          raw_payload?: Json
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_id?: string
+          status?: string
+          suggested_category_id?: string | null
+          summary?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wire_items_promoted_article_id_fkey"
+            columns: ["promoted_article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wire_items_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wire_items_suggested_category_id_fkey"
+            columns: ["suggested_category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
