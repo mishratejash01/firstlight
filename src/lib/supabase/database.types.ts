@@ -958,6 +958,30 @@ export type Database = {
         }
         Relationships: []
       }
+      robots_cache: {
+        Row: {
+          crawl_delay_seconds: number | null
+          fetch_failed: boolean
+          fetched_at: string
+          host: string
+          rules: Json
+        }
+        Insert: {
+          crawl_delay_seconds?: number | null
+          fetch_failed?: boolean
+          fetched_at?: string
+          host: string
+          rules?: Json
+        }
+        Update: {
+          crawl_delay_seconds?: number | null
+          fetch_failed?: boolean
+          fetched_at?: string
+          host?: string
+          rules?: Json
+        }
+        Relationships: []
+      }
       site_settings: {
         Row: {
           description: string | null
@@ -979,6 +1003,51 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           value?: Json
+        }
+        Relationships: []
+      }
+      source_documents: {
+        Row: {
+          byline: string | null
+          content: string | null
+          error: string | null
+          excerpt: string | null
+          fetched_at: string
+          host: string
+          id: string
+          published_at: string | null
+          status: string
+          title: string | null
+          url: string
+          word_count: number | null
+        }
+        Insert: {
+          byline?: string | null
+          content?: string | null
+          error?: string | null
+          excerpt?: string | null
+          fetched_at?: string
+          host: string
+          id?: string
+          published_at?: string | null
+          status?: string
+          title?: string | null
+          url: string
+          word_count?: number | null
+        }
+        Update: {
+          byline?: string | null
+          content?: string | null
+          error?: string | null
+          excerpt?: string | null
+          fetched_at?: string
+          host?: string
+          id?: string
+          published_at?: string | null
+          status?: string
+          title?: string | null
+          url?: string
+          word_count?: number | null
         }
         Relationships: []
       }
