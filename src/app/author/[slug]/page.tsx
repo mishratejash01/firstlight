@@ -67,9 +67,9 @@ export default async function AuthorPage(props: PageProps<"/author/[slug]">) {
         }}
       />
 
-      <main className="route-enter mx-auto max-w-6xl px-4 sm:px-6">
+      <main className="route-enter mx-auto max-w-page px-4 sm:px-6">
         <div className="border-b border-hairline py-8">
-          <h1 className="font-serif text-hero text-ink">{author.display_name}</h1>
+          <h1 className="text-hero text-ink">{author.display_name}</h1>
           {author.title ? (
             <p className="mt-1 text-lead text-muted">{author.title}</p>
           ) : null}
@@ -92,7 +92,7 @@ export default async function AuthorPage(props: PageProps<"/author/[slug]">) {
         </div>
 
         {articles.length ? (
-          <div className="grid gap-x-6 gap-y-10 py-10 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="story-grid py-10">
             {articles.map((article) => (
               <ArticleCard key={article.id} article={article} />
             ))}
