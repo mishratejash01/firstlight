@@ -6,7 +6,7 @@ import type { Metadata } from "next";
 import { JsonLd } from "@/components/seo/json-ld";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
-import { logPageView } from "@/lib/analytics/server-events";
+import { captureRequestContext, logPageView } from "@/lib/analytics/server-events";
 import { formatClockTime, formatDate, formatDateTime } from "@/lib/format/datetime";
 import { renderMarkdown } from "@/lib/format/markdown";
 import { liveBlogJsonLd } from "@/lib/seo/json-ld";
@@ -74,7 +74,8 @@ export default async function LiveEventPage(props: PageProps<"/live/[slug]">) {
   const { event, updates, linked } = result;
   const url = `${SITE_URL}/live/${event.slug}`;
 
-  after(() => logPageView({ path: `/live/${slug}` }));
+  const requestContext = await captureRequestContext();
+  after(() => logPageView({ path: `/live/${slug}`, context: requestContext }));
 
   return (
     <>
