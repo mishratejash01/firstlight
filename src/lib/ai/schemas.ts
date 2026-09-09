@@ -81,3 +81,42 @@ export const summarySchema = z.object({
   summary: z.string().describe("Two or three sentences."),
   standfirst: z.string().describe("A single line to sit under the headline."),
 });
+
+/**
+ * Triage: is this trending search term something a general news publication
+ * should write about?
+ *
+ * The category matters as much as the verdict. A trend rejected as "commerce"
+ * and one rejected as "unverifiable" are different problems, and lumping both
+ * into a boolean loses the information an editor needs to tune the pipeline.
+ */
+export const trendTriageSchema = z.object({
+  newsworthy: z
+    .boolean()
+    .describe(
+      "True only if a serious general-interest news publication would cover this. Box-office totals, share prices, fixture previews, celebrity gossip and astrology are not news.",
+    ),
+  category: z
+    .enum([
+      "news",
+      "sport_result",
+      "entertainment",
+      "commerce",
+      "astrology",
+      "gambling",
+      "unverifiable",
+      "unclear",
+    ])
+    .describe("What kind of trend this is."),
+  reason: z.string().describe("One sentence, plainly stated."),
+  suggestedSection: z
+    .string()
+    .describe("Which section it belongs in, if newsworthy. Empty string otherwise."),
+  suggestedAngle: z
+    .string()
+    .describe(
+      "If newsworthy, the angle worth taking given the coverage supplied. Empty string otherwise.",
+    ),
+});
+
+export type TrendTriage = z.infer<typeof trendTriageSchema>;
