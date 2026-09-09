@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { SITE_NAME } from "@/lib/site";
 import type { Metadata } from "next";
 
@@ -57,9 +59,9 @@ export default function EditorialStandardsPage() {
         <p>
           If you find an error in an AI-written article, tell us and we will
           correct it under the same{" "}
-          <a href="/corrections" className="text-accent underline underline-offset-4">
+          <Link href="/corrections" className="text-accent underline underline-offset-4">
             corrections policy
-          </a>{" "}
+          </Link>{" "}
           as anything else we publish.
         </p>
 
