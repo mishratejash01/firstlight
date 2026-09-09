@@ -4,6 +4,7 @@ import Link from "next/link";
 import { BreakingTag } from "./breaking-tag";
 import { Byline } from "./byline";
 import type { ArticleCardData } from "@/lib/queries/articles";
+import { cloudinaryImage } from "@/lib/media/transform";
 
 /**
  * The splash. One per front page.
@@ -22,7 +23,7 @@ export function HeroStory({ article }: { article: ArticleCardData }) {
         <Link href={href} tabIndex={-1} aria-hidden="true">
           <div className="relative mb-4 aspect-[16/9] w-full overflow-hidden bg-hairline">
             <Image
-              src={article.hero_image_url}
+              src={cloudinaryImage(article.hero_image_url, "hero") ?? article.hero_image_url}
               alt={article.hero_image_alt ?? ""}
               fill
               priority
