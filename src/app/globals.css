@@ -85,6 +85,9 @@
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
+    /* Anything jumped to by a fragment link clears the sticky section bar
+       instead of landing underneath it. */
+    scroll-padding-top: 6rem;
   }
 
   body {
