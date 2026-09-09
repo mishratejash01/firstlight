@@ -37,27 +37,23 @@ create trigger authors_set_updated_at
 alter table public.authors enable row level security;
 
 -- Author bio pages are public.
-create policy "authors: public read active"
+
+-- ---------------------------------------------------------------------------
+-- Policies. One per role per action; see user_roles for the rationale.
+-- ---------------------------------------------------------------------------
+
+-- Author bio pages are public.
+create policy "authors: anon read active"
   on public.authors
   for select
-  to anon, authenticated
+  to anon
   using (is_active);
 
-create policy "authors: editorial read all"
+create policy "authors: read"
   on public.authors
   for select
   to authenticated
-  using (app.is_editorial());
-
--- A writer maintains their own bio. USING and WITH CHECK are both present and
--- both pinned to the caller: without WITH CHECK a writer could rewrite the row
--- to point user_id at someone else and take over their byline.
-create policy "authors: update own profile"
-  on public.authors
-  for update
-  to authenticated
-  using ((select auth.uid()) = user_id)
-  with check ((select auth.uid()) = user_id);
+  using (is_active or app.is_editorial());
 
 create policy "authors: editorial insert"
   on public.authors
@@ -65,12 +61,15 @@ create policy "authors: editorial insert"
   to authenticated
   with check (app.is_editorial());
 
-create policy "authors: editorial update"
+-- A writer maintains their own bio; editors maintain anyone's. USING and
+-- WITH CHECK are both pinned: without WITH CHECK a writer could repoint
+-- user_id at someone else and take over their byline.
+create policy "authors: update"
   on public.authors
   for update
   to authenticated
-  using (app.is_editorial())
-  with check (app.is_editorial());
+  using ((select auth.uid()) = user_id or app.is_editorial())
+  with check ((select auth.uid()) = user_id or app.is_editorial());
 
 -- Deleting a byline would orphan published work, so it is admin-only and
 -- expected to be rare; deactivating is the normal path.
