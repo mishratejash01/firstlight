@@ -3,7 +3,7 @@ import "server-only";
 import { Output, generateText } from "ai";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { ASSIST_MODEL, aiIsConfigured } from "@/lib/ai/config";
+import { aiIsConfigured, assistModel } from "@/lib/ai/config";
 import { trendTriageSchema, type TrendTriage } from "@/lib/ai/schemas";
 import type { TrendNewsItem } from "./google-trends";
 
@@ -65,7 +65,7 @@ export async function triageTrend(input: {
       .join("\n");
 
     const { output } = await generateText({
-      model: ASSIST_MODEL,
+      model: assistModel(),
       system: TRIAGE_SYSTEM,
       prompt: [
         `Trending search term: ${input.term}`,
