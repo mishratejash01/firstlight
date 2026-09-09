@@ -23,7 +23,7 @@ export default function EditorialStandardsPage() {
       </EditorialNotice>
 
       <div className="space-y-4 text-body leading-relaxed text-ink">
-        <h2 className="font-serif text-section text-ink">Human review</h2>
+        <h2 className="text-section text-ink">Human review</h2>
         <p>
           Nothing publishes automatically. Every article — original reporting,
           licensed wire copy, or a curated summary — enters the same review queue
@@ -32,7 +32,7 @@ export default function EditorialStandardsPage() {
           a published state.
         </p>
 
-        <h2 className="mt-8 font-serif text-section text-ink">How we use software</h2>
+        <h2 className="mt-8 text-section text-ink">How we use software</h2>
         <p>
           We use AI tools inside the newsroom to suggest topic tags, draft
           summaries for editors reading the queue, and help structure drafts.
@@ -41,7 +41,7 @@ export default function EditorialStandardsPage() {
           records.
         </p>
 
-        <h2 className="mt-8 font-serif text-section text-ink">Sourcing and attribution</h2>
+        <h2 className="mt-8 text-section text-ink">Sourcing and attribution</h2>
         <p>
           Where we summarise reporting done by another organisation, we publish a
           short original summary and link to the original. We do not reproduce
@@ -50,13 +50,13 @@ export default function EditorialStandardsPage() {
           the licence permits it.
         </p>
 
-        <h2 className="mt-8 font-serif text-section text-ink">Independence</h2>
+        <h2 className="mt-8 text-section text-ink">Independence</h2>
         <p>
           [Placeholder: state the separation between commercial and editorial
           decisions, and how conflicts of interest are declared and handled.]
         </p>
 
-        <h2 className="mt-8 font-serif text-section text-ink">Complaints</h2>
+        <h2 className="mt-8 text-section text-ink">Complaints</h2>
         <p>
           [Placeholder: name the editor responsible for complaints, give the
           contact route, and state the response time you commit to.]
