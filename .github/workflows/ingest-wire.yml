@@ -1,0 +1,48 @@
+# Wire feed ingestion schedule.
+#
+# Vercel Cron is the natural home for this, but Hobby accounts are limited to
+# one run per day — useless for a news wire, where a story is stale within the
+# hour. GitHub Actions schedules are not plan-limited, so it drives the polling
+# and the Vercel cron stays as a once-daily safety net in case this workflow is
+# ever disabled.
+#
+# GitHub may delay scheduled runs under load; ingestion is idempotent, so a late
+# run costs nothing but freshness.
+
+name: Ingest wire feeds
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  # Lets an editor force a run from the Actions tab without waiting.
+  workflow_dispatch:
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Poll feeds
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: ${{ vars.SITE_URL || 'https://newswebsite-pi.vercel.app' }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "CRON_SECRET is not set on this repository. Ingestion cannot run."
+            exit 1
+          fi
+
+          response=$(curl -sS --max-time 180 -w '\n%{http_code}' \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "${SITE_URL}/api/cron/ingest-wire")
+
+          body=$(printf '%s' "$response" | sed '$d')
+          status=$(printf '%s' "$response" | tail -n1)
+
+          echo "$body"
+
+          if [ "$status" != "200" ]; then
+            echo "Ingestion endpoint returned HTTP ${status}"
+            exit 1
+          fi
