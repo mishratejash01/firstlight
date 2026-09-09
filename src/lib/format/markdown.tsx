@@ -13,8 +13,13 @@ import { cloudinaryImage, cloudinaryVideoPoster } from "@/lib/media/transform";
  * every time. Producing React elements means markup in the source is text, not
  * markup, no matter what anyone writes.
  *
+ * Body copy is set in the serif at 18px. A news page is read, not scanned,
+ * and the serif is what tells a reader before they read a word that this is
+ * reporting rather than interface. The sans is left to furniture: bylines,
+ * captions, timestamps and navigation.
+ *
  * Supported: '## '/'### ' headings, paragraphs, '- ' lists, '> ' quotes,
- * **bold**, *italic*, [text](url), and ![alt](url "optional caption") for
+ * **bold**, *italic*, [text](url), and ![alt](url"optional caption") for
  * images and video. Anything else renders as literal text.
  */
 
@@ -34,7 +39,7 @@ function parseBlocks(markdown: string): Block[] {
 
   const flushParagraph = () => {
     if (paragraph.length) {
-      blocks.push({ kind: "paragraph", text: paragraph.join(" ").trim() });
+      blocks.push({ kind: "paragraph", text: paragraph.join("").trim() });
       paragraph = [];
     }
   };
@@ -57,7 +62,9 @@ function parseBlocks(markdown: string): Block[] {
     // A line that is nothing but an image is a figure, not a paragraph
     // containing an image — that distinction is what lets it break out of the
     // text measure and carry a caption.
-    const media = /^!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)$/.exec(line.trim());
+    const media = /^!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)$/.exec(
+      line.trim(),
+    );
     if (media) {
       flushParagraph();
       flushList();
@@ -141,7 +148,9 @@ function renderInline(text: string, keyPrefix: string): ReactNode {
           key={key}
           href={href}
           className="text-accent underline underline-offset-[3px] decoration-hairline hover:decoration-accent"
-          {...(external ? { rel: "noopener noreferrer", target: "_blank" } : {})}
+          {...(external
+            ? { rel: "noopener noreferrer", target: "_blank" }
+            : {})}
         >
           {label}
         </a>
@@ -149,7 +158,11 @@ function renderInline(text: string, keyPrefix: string): ReactNode {
     }
 
     if (part.startsWith("**") && part.endsWith("**")) {
-      return <strong key={key} className="font-semibold">{part.slice(2, -2)}</strong>;
+      return (
+        <strong key={key} className="font-semibold">
+          {part.slice(2, -2)}
+        </strong>
+      );
     }
     if (part.startsWith("*") && part.endsWith("*")) {
       return <em key={key}>{part.slice(1, -1)}</em>;
@@ -171,11 +184,17 @@ export function renderMarkdown(markdown: string | null | undefined): ReactNode {
         // is what lets a search engine lift one section as a snippet. h2 is
         // correct here: the article headline already owns the page's h1.
         return block.level === 2 ? (
-          <h2 key={key} className="mt-9 mb-3 font-serif text-[1.3rem] leading-snug text-ink">
+          <h2
+            key={key}
+            className="mt-9 mb-3 text-[1.5rem] leading-snug text-ink"
+          >
             {renderInline(block.text, key)}
           </h2>
         ) : (
-          <h3 key={key} className="mt-7 mb-2 font-serif text-[1.1rem] leading-snug text-ink">
+          <h3
+            key={key}
+            className="mt-7 mb-2 text-[1.2rem] leading-snug text-ink"
+          >
             {renderInline(block.text, key)}
           </h3>
         );
@@ -185,39 +204,63 @@ export function renderMarkdown(markdown: string | null | undefined): ReactNode {
         const isVideo = /\.(mp4|webm|mov)(\?|$)/i.test(block.url);
 
         return (
-          <figure key={key} className="my-7">
-            {isVideo ? (
-              <video
-                controls
-                preload="metadata"
-                poster={cloudinaryVideoPoster(block.url) ?? undefined}
-                className="w-full bg-hairline"
-              >
-                <source src={block.url} />
-                Your browser cannot play this video.
-              </video>
-            ) : (
-              <Image
-                src={cloudinaryImage(block.url, "hero") ?? block.url}
-                alt={block.alt}
-                width={1200}
-                height={675}
-                sizes="(max-width: 768px) 100vw, 700px"
-                className="h-auto w-full bg-hairline object-cover"
-              />
-            )}
-            {block.caption ? (
-              <figcaption className="mt-2 text-meta leading-relaxed text-muted">
-                {block.caption}
-              </figcaption>
-            ) : null}
+          <figure key={key} className="media-wide">
+            {/* Shrink-wraps the media so a caption sits under the picture's own
+ left edge. Without it, a portrait frame that has scaled down to
+ sit inside the height cap keeps a caption ranged to the full
+ breakout width, floating well clear of the image above it. */}
+            <div className="mx-auto w-fit max-w-full">
+              {isVideo ? (
+                // The 16:9 box is reserved before the file is touched, so the copy
+                // below does not jump once metadata loads. Anything that is not
+                // 16:9 letterboxes against the ink rather than being cropped —
+                // a player letterboxes, it does not recompose the shot.
+                <video
+                  controls
+                  playsInline
+                  preload="metadata"
+                  poster={cloudinaryVideoPoster(block.url) ?? undefined}
+                  className="aspect-video w-full rounded-media bg-ink object-contain"
+                >
+                  <source src={block.url} />
+                  Your browser cannot play this video.
+                </video>
+              ) : (
+                // No object-cover here on purpose. A card in a grid has to crop
+                // to keep the row even; a photograph inside a story does not, and
+                // cropping every one to 16:9 would quietly ruin every portrait
+                // frame a picture desk files.
+                //
+                // The height cap is what makes that safe. Left alone, a portrait
+                // frame at the full breakout width runs about 1,250px tall and
+                // swallows the screen, so tall images scale down to the cap and
+                // centre instead. A landscape frame is nowhere near it and fills
+                // the breakout as intended.
+                <Image
+                  src={cloudinaryImage(block.url, "hero") ?? block.url}
+                  alt={block.alt}
+                  width={1600}
+                  height={900}
+                  sizes="(max-width: 1024px) 100vw, 672px"
+                  className="mx-auto block h-auto max-h-[40rem] w-auto max-w-full rounded-media bg-hairline"
+                />
+              )}
+              {block.caption ? (
+                <figcaption className="mt-2 text-meta leading-relaxed text-muted">
+                  {block.caption}
+                </figcaption>
+              ) : null}
+            </div>
           </figure>
         );
       }
 
       case "list":
         return (
-          <ul key={key} className="my-4 list-disc space-y-2 pl-5 text-body text-ink">
+          <ul
+            key={key}
+            className="my-5 list-disc space-y-2 pl-5 text-prose text-ink"
+          >
             {block.items.map((item, i) => (
               <li key={`${key}-${i}`}>{renderInline(item, `${key}-${i}`)}</li>
             ))}
@@ -228,7 +271,7 @@ export function renderMarkdown(markdown: string | null | undefined): ReactNode {
         return (
           <blockquote
             key={key}
-            className="my-6 border-l-2 border-hairline pl-4 font-serif text-lead text-ink"
+            className="my-7 border-l-2 border-ink pl-5 text-[1.25rem] leading-[1.45] text-ink"
           >
             {renderInline(block.text, key)}
           </blockquote>
@@ -236,7 +279,7 @@ export function renderMarkdown(markdown: string | null | undefined): ReactNode {
 
       default:
         return (
-          <p key={key} className="my-4 text-body leading-relaxed text-ink">
+          <p key={key} className="my-5 text-prose text-ink">
             {renderInline(block.text, key)}
           </p>
         );
