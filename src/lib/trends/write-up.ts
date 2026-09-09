@@ -241,7 +241,7 @@ export async function writeUpTrends(limit = 3): Promise<WriteUpReport> {
       // search terms than the headline does.
       subjects: draft.entities
         .filter((entity) => entity.relation === "about")
-        .map((entity) => entity.name),
+        .map((entity) => ({ name: entity.name, type: entity.type })),
     });
 
     const { data: article, error } = await supabase
