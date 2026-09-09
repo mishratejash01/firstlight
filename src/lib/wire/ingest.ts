@@ -38,7 +38,7 @@ async function fetchFeed(url: string): Promise<string> {
       signal: controller.signal,
       headers: {
         // Identify ourselves. Publishers block anonymous scrapers, and rightly.
-        "User-Agent": "NewswebsiteWireBot/1.0 (+https://newswebsite-pi.vercel.app)",
+        "User-Agent": "TheFederalPostWireBot/1.0 (+https://newswebsite-pi.vercel.app)",
         Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml",
       },
       cache: "no-store",
