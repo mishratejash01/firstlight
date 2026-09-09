@@ -55,6 +55,17 @@ create index reading_events_article_idx
 create index reading_events_user_idx
   on public.reading_events (user_id, occurred_at desc)
   where user_id is not null;
+-- Foreign key covering indexes. This table grows without bound, so an
+-- uncovered cascade delete on a tag or author would be a long lock.
+create index reading_events_category_idx
+  on public.reading_events (category_id)
+  where category_id is not null;
+create index reading_events_tag_idx
+  on public.reading_events (tag_id)
+  where tag_id is not null;
+create index reading_events_author_idx
+  on public.reading_events (author_id)
+  where author_id is not null;
 
 alter table public.reading_events enable row level security;
 
