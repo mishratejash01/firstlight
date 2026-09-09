@@ -47,9 +47,11 @@ export default async function CategoryPage(props: PageProps<"/[category]">) {
     <>
       <SiteHeader activeSlug={category.slug} />
 
-      <main className="route-enter mx-auto max-w-6xl px-4 sm:px-6">
+      <main className="route-enter mx-auto max-w-page px-4 sm:px-6">
         <div className="border-b border-hairline py-8">
-          <h1 className="font-serif text-hero text-ink">{category.name}</h1>
+          <h1 className="text-hero font-bold tracking-[-0.02em] text-ink">
+            {category.name}
+          </h1>
           {category.description ? (
             <p className="mt-2 max-w-measure text-lead text-muted">
               {category.description}
@@ -58,7 +60,7 @@ export default async function CategoryPage(props: PageProps<"/[category]">) {
         </div>
 
         {lead ? (
-          <div className="border-b border-hairline py-8">
+          <div className="py-10">
             <HeroStory article={lead} />
           </div>
         ) : (
@@ -68,9 +70,13 @@ export default async function CategoryPage(props: PageProps<"/[category]">) {
         )}
 
         {rest.length ? (
-          <div className="grid gap-x-6 gap-y-10 py-10 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="story-grid border-t border-hairline py-10">
             {rest.map((article) => (
-              <ArticleCard key={article.id} article={article} />
+              <ArticleCard
+                key={article.id}
+                article={article}
+                showEyebrow={false}
+              />
             ))}
           </div>
         ) : null}
