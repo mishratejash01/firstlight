@@ -6,6 +6,19 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  images: {
+    // Hero images are stored as absolute URLs in the database so the source can
+    // change without a migration. Only hosts listed here are optimisable, which
+    // stops an editor pasting a URL that turns our image pipeline into an open
+    // proxy for arbitrary remote content.
+    remotePatterns: [
+      // Development seed placeholders.
+      { protocol: "https", hostname: "picsum.photos" },
+      { protocol: "https", hostname: "fastly.picsum.photos" },
+      // Supabase Storage, where real editorial images will live.
+      { protocol: "https", hostname: "jjucyhrrlntziuwesvfw.supabase.co", pathname: "/storage/v1/object/public/**" },
+    ],
+  },
 };
 
 export default nextConfig;
