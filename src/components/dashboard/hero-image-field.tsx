@@ -50,7 +50,7 @@ export function HeroImageField({
 
       {url ? (
         <div className="mt-2">
-          <div className="relative aspect-[16/9] w-full max-w-md overflow-hidden bg-hairline">
+          <div className="relative aspect-[16/9] w-full max-w-md overflow-hidden rounded-media bg-hairline">
             <Image
               src={cloudinaryImage(url, "card") ?? url}
               alt={alt}
