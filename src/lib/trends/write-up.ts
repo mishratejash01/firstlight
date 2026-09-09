@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { slugify, withUniqueSuffix } from "@/lib/format/slug";
 import { submitToIndexNow } from "@/lib/seo/indexnow";
 import { draftingModelId } from "@/lib/ai/config";
+import { attachStructuredData } from "@/lib/ai/attach-structure";
 import { draftFromTrend } from "@/lib/ai/draft";
 import { getSourceDocuments } from "@/lib/fetch/extract";
 import { illustrateArticle } from "@/lib/media/illustrate";
@@ -275,6 +276,11 @@ export async function writeUpTrends(limit = 3): Promise<WriteUpReport> {
       .from("trending_topics")
       .update({ status: "written", article_id: article.id })
       .eq("id", trend.id);
+
+    // Tags, entities, key facts and FAQs. Without these the article renders
+    // but carries no entity markup, no key-numbers block, and nothing for the
+    // recommendation engine to relate it to.
+    await attachStructuredData(supabase, article.id, draft);
 
     if (trend.cluster_key) clustersWrittenThisRun.add(trend.cluster_key);
 
