@@ -809,14 +809,19 @@ export type Database = {
           bytes: number | null
           caption: string | null
           created_at: string
+          creator: string | null
           credit: string | null
           duration: number | null
           format: string | null
           height: number | null
           id: string
+          licence: string | null
+          licence_url: string | null
+          provider: string | null
           public_id: string
           resource_type: string
           secure_url: string
+          source_url: string | null
           uploaded_by: string | null
           width: number | null
         }
@@ -825,14 +830,19 @@ export type Database = {
           bytes?: number | null
           caption?: string | null
           created_at?: string
+          creator?: string | null
           credit?: string | null
           duration?: number | null
           format?: string | null
           height?: number | null
           id?: string
+          licence?: string | null
+          licence_url?: string | null
+          provider?: string | null
           public_id: string
           resource_type: string
           secure_url: string
+          source_url?: string | null
           uploaded_by?: string | null
           width?: number | null
         }
@@ -841,14 +851,19 @@ export type Database = {
           bytes?: number | null
           caption?: string | null
           created_at?: string
+          creator?: string | null
           credit?: string | null
           duration?: number | null
           format?: string | null
           height?: number | null
           id?: string
+          licence?: string | null
+          licence_url?: string | null
+          provider?: string | null
           public_id?: string
           resource_type?: string
           secure_url?: string
+          source_url?: string | null
           uploaded_by?: string | null
           width?: number | null
         }
