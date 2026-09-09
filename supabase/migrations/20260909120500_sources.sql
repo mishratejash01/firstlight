@@ -34,17 +34,21 @@ create trigger sources_set_updated_at
 
 alter table public.sources enable row level security;
 
-create policy "sources: public read active"
+-- ---------------------------------------------------------------------------
+-- Policies. One per role per action; see user_roles for the rationale.
+-- ---------------------------------------------------------------------------
+
+create policy "sources: anon read active"
   on public.sources
   for select
-  to anon, authenticated
+  to anon
   using (is_active);
 
-create policy "sources: editorial read all"
+create policy "sources: read"
   on public.sources
   for select
   to authenticated
-  using (app.is_editorial());
+  using (is_active or app.is_editorial());
 
 create policy "sources: admins insert"
   on public.sources
