@@ -73,3 +73,32 @@ export async function logPageView({ articleId, categoryId, path }: PageViewInput
     // counter failed is a far worse outcome than a missing row.
   }
 }
+
+/**
+ * Internal site search.
+ *
+ * Recorded with the result count so that "searched and found nothing" is
+ * distinguishable from "searched and read something" — the first is a content
+ * gap, the second is not.
+ */
+export async function logSearch({
+  query,
+  resultCount,
+}: {
+  query: string;
+  resultCount: number;
+}) {
+  try {
+    const supabase = await createClient();
+    await supabase.from("analytics_events").insert({
+      event_type: "internal_search",
+      search_query: query,
+      path: "/search",
+      properties: { result_count: resultCount },
+      device_type: await deviceType(),
+      is_server_side: true,
+    });
+  } catch {
+    // Never let instrumentation break search.
+  }
+}
