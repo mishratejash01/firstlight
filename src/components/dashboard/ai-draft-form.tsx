@@ -45,7 +45,7 @@ export function AiDraftForm({
   if (!open) {
     return (
       <div className="mt-6 border-t border-hairline pt-6">
-        <h2 className="font-serif text-section text-ink">Draft with AI</h2>
+        <h2 className="text-section text-ink">Draft with AI</h2>
         <p className="mt-1 max-w-measure text-meta leading-relaxed text-muted">
           Give it a topic and it writes a structured first draft — headline,
           standfirst, body, tags, key facts and entities — straight into your
@@ -64,7 +64,7 @@ export function AiDraftForm({
 
   return (
     <div className="mt-6 border-t border-hairline pt-6">
-      <h2 className="font-serif text-section text-ink">Draft with AI</h2>
+      <h2 className="text-section text-ink">Draft with AI</h2>
 
       <div className="mt-3 border-l-2 border-signal pl-4">
         <p className="text-meta font-semibold text-signal">Everything it writes needs checking</p>
