@@ -80,7 +80,7 @@ export default async function WireQueuePage() {
             return (
               <li key={item.id} className="py-6">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                  <h2 className="font-serif text-[1.15rem] leading-snug text-ink">
+                  <h2 className="text-[1.15rem] leading-snug text-ink">
                     {item.title}
                   </h2>
                   <span className="shrink-0 text-meta text-muted">
