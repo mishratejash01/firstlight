@@ -53,7 +53,7 @@ export default async function AdminAudiencePage() {
       <AdminNav current="/admin/audience" />
 
       <section className="pt-8">
-        <h2 className="font-serif text-section text-ink">Newsletter</h2>
+        <h2 className="text-section text-ink">Newsletter</h2>
         <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3">
           {[
             { label: "Confirmed", value: subscriberCounts.confirmed ?? 0, hint: "Opted in and receiving" },
@@ -62,7 +62,7 @@ export default async function AdminAudiencePage() {
           ].map((stat) => (
             <div key={stat.label}>
               <dt className="text-meta text-muted">{stat.label}</dt>
-              <dd className="mt-0.5 font-serif text-[1.6rem] tabular-nums text-ink">
+              <dd className="mt-0.5 text-[1.6rem] tabular-nums text-ink">
                 {stat.value}
               </dd>
               <dd className="text-meta text-muted">{stat.hint}</dd>
@@ -76,7 +76,7 @@ export default async function AdminAudiencePage() {
       </section>
 
       <section className="mt-12 border-t border-hairline pt-6">
-        <h2 className="font-serif text-section text-ink">Are readers coming back?</h2>
+        <h2 className="text-section text-ink">Are readers coming back?</h2>
         <p className="mt-1 max-w-measure text-meta leading-relaxed text-muted">
           Each row is everyone first seen on that day, and how many returned 1, 7
           and 30 days later. Readers who declined tracking are counted on the day
@@ -111,7 +111,7 @@ export default async function AdminAudiencePage() {
       </section>
 
       <section className="mt-12 border-t border-hairline pt-6">
-        <h2 className="font-serif text-section text-ink">Most followed</h2>
+        <h2 className="text-section text-ink">Most followed</h2>
         <p className="mt-1 max-w-measure text-meta leading-relaxed text-muted">
           Topics and writers readers have chosen to follow. A strong following is
           a signal worth commissioning against.
