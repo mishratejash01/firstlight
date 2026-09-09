@@ -87,7 +87,7 @@ export default async function AdminPeoplePage() {
       <AdminNav current="/admin/people" />
 
       <section className="pt-8">
-        <h2 className="font-serif text-section text-ink">What each role can do</h2>
+        <h2 className="text-section text-ink">What each role can do</h2>
         <dl className="mt-4 divide-y divide-hairline border-t border-hairline">
           {ROLES.map((role) => (
             <div key={role.role} className="py-3">
@@ -104,7 +104,7 @@ export default async function AdminPeoplePage() {
       </section>
 
       <section className="mt-12 border-t border-hairline pt-6">
-        <h2 className="font-serif text-section text-ink">
+        <h2 className="text-section text-ink">
           Accounts{accountResult.ok ? ` (${accounts.length})` : ""}
         </h2>
 
