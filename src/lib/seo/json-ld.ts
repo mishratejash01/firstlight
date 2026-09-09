@@ -1,3 +1,4 @@
+import { SITE_NAME } from "@/lib/site";
 import type { ArticleDetail } from "@/lib/queries/article-detail";
 
 /**
@@ -15,7 +16,7 @@ import type { ArticleDetail } from "@/lib/queries/article-detail";
 
 const PUBLISHER = {
   "@type": "NewsMediaOrganization",
-  name: "Newswebsite",
+  name: SITE_NAME,
 } as const;
 
 export type EntityLink = {
