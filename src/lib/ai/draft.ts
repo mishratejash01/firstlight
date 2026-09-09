@@ -146,6 +146,10 @@ async function generateStructured<S extends z.ZodTypeAny>(
         system: options.system,
         prompt: options.prompt,
         output: Output.object({ schema: options.schema }),
+        // One attempt per model. The SDK's default of three means a model that
+        // is out of capacity is retried for close to a minute before the chain
+        // moves on, which is the slow way to reach the same answer.
+        maxRetries: 1,
       });
       return output as z.infer<S>;
     } catch (error) {
