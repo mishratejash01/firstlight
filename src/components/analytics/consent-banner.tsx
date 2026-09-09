@@ -21,7 +21,7 @@ export function ConsentBanner({
     >
       <div className="mx-auto flex max-w-4xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 id="consent-heading" className="font-serif text-body font-semibold text-ink">
+          <h2 id="consent-heading" className="text-body font-semibold text-ink">
             Measuring how this site is read
           </h2>
           <p className="mt-1 max-w-prose text-meta text-muted">
