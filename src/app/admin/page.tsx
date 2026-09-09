@@ -114,7 +114,7 @@ export default async function AdminOverviewPage() {
       ) : null}
 
       <section className="pt-8">
-        <h2 className="font-serif text-section text-ink">Needs attention</h2>
+        <h2 className="text-section text-ink">Needs attention</h2>
 
         {attention.length ? (
           <div className="mt-4">
@@ -134,7 +134,7 @@ export default async function AdminOverviewPage() {
       </section>
 
       <section className="mt-12 border-t border-hairline pt-6">
-        <h2 className="font-serif text-section text-ink">For reference</h2>
+        <h2 className="text-section text-ink">For reference</h2>
         <p className="mt-1 text-meta text-muted">
           Current state of the newsroom. Nothing here needs action.
         </p>
@@ -143,7 +143,7 @@ export default async function AdminOverviewPage() {
           {reference.map((stat) => (
             <div key={stat.label}>
               <dt className="text-meta text-muted">{stat.label}</dt>
-              <dd className="mt-0.5 font-serif text-[1.6rem] tabular-nums text-ink">
+              <dd className="mt-0.5 text-[1.6rem] tabular-nums text-ink">
                 {stat.value}
               </dd>
             </div>
@@ -152,7 +152,7 @@ export default async function AdminOverviewPage() {
       </section>
 
       <section className="mt-12 border-t border-hairline pt-6">
-        <h2 className="font-serif text-section text-ink">Connected services</h2>
+        <h2 className="text-section text-ink">Connected services</h2>
         <p className="mt-1 text-meta text-muted">
           Whether each external service is wired up. A feature that quietly does
           nothing is worse than one that says it is not configured.
@@ -161,7 +161,7 @@ export default async function AdminOverviewPage() {
       </section>
 
       <section className="mt-12 border-t border-hairline pt-6">
-        <h2 className="font-serif text-section text-ink">Common tasks</h2>
+        <h2 className="text-section text-ink">Common tasks</h2>
         <ul className="mt-4 divide-y divide-hairline border-t border-hairline">
           {[
             { href: "/admin/people", label: "Give someone editor or author access", hint: "People" },
