@@ -14,11 +14,13 @@ export function StaticPage({
   return (
     <>
       <SiteHeader />
-      <main className="route-enter mx-auto max-w-6xl px-4 sm:px-6">
+      <main className="route-enter mx-auto max-w-page px-4 sm:px-6">
         <div className="mx-auto max-w-measure py-10">
-          <h1 className="font-serif text-hero leading-tight text-ink">{title}</h1>
+          <h1 className="text-hero leading-tight text-ink">{title}</h1>
           {standfirst ? (
-            <p className="mt-3 text-lead leading-relaxed text-muted">{standfirst}</p>
+            <p className="mt-3 text-lead leading-relaxed text-muted">
+              {standfirst}
+            </p>
           ) : null}
           <div className="mt-8">{children}</div>
         </div>
