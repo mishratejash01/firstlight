@@ -157,6 +157,19 @@ export async function writeUpTrends(limit = 3): Promise<WriteUpReport> {
 
     const draft = result.data;
 
+    // Independent of the token-limit check: a body that ends without terminal
+    // punctuation was cut off somewhere, and an article that stops mid-sentence
+    // under the masthead is not recoverable after the fact.
+    const body = draft.bodyMarkdown.trimEnd();
+    if (!/[.!?"'\)\]]$/.test(body)) {
+      report.outcomes.push({
+        term: trend.term,
+        status: "failed",
+        reason: "Draft ended mid-sentence and was discarded.",
+      });
+      continue;
+    }
+
     // Match the section triage suggested, falling back to the first active one
     // rather than failing over a label mismatch.
     const section =
