@@ -1,3 +1,4 @@
+import { SITE_NAME } from "@/lib/site";
 import Link from "next/link";
 import type { Metadata } from "next";
 
@@ -6,7 +7,7 @@ import { StaticPage } from "@/components/site/static-page";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
-  title: "Masthead — Newswebsite",
+  title: `Masthead — ${SITE_NAME}`,
   description: "The people who report and edit this publication.",
   alternates: { canonical: "/masthead" },
 };
