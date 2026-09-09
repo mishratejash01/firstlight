@@ -1,3 +1,4 @@
+import { SITE_NAME } from "@/lib/site";
 import Link from "next/link";
 
 import { getNavCategories } from "@/lib/queries/navigation";
@@ -89,10 +90,10 @@ export async function SiteFooter() {
 
         <div className="mt-12 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-t border-hairline pt-6">
           <p className="text-[1.15rem] font-extrabold tracking-[-0.03em] text-ink">
-            Newswebsite
+            {SITE_NAME}
           </p>
           <p className="text-meta text-muted">
-            © {new Date().getFullYear()} Newswebsite. All rights reserved.
+            © {new Date().getFullYear()} {SITE_NAME}. All rights reserved.
           </p>
         </div>
       </div>
