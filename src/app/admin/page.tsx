@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { AdminNav } from "@/components/dashboard/admin-nav";
 import { AttentionCard } from "@/components/dashboard/attention-card";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { IntegrationStatus } from "@/components/dashboard/integration-status";
 import { requireAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { listAccounts } from "@/app/admin/actions";
@@ -151,11 +152,22 @@ export default async function AdminOverviewPage() {
       </section>
 
       <section className="mt-12 border-t border-hairline pt-6">
+        <h2 className="font-serif text-section text-ink">Connected services</h2>
+        <p className="mt-1 text-meta text-muted">
+          Whether each external service is wired up. A feature that quietly does
+          nothing is worse than one that says it is not configured.
+        </p>
+        <IntegrationStatus />
+      </section>
+
+      <section className="mt-12 border-t border-hairline pt-6">
         <h2 className="font-serif text-section text-ink">Common tasks</h2>
         <ul className="mt-4 divide-y divide-hairline border-t border-hairline">
           {[
             { href: "/admin/people", label: "Give someone editor or author access", hint: "People" },
             { href: "/admin/sections", label: "Add or remove a section from the site menu", hint: "Sections" },
+            { href: "/admin/sources", label: "Add a wire feed and record what its licence permits", hint: "Wire feeds" },
+            { href: "/desk/wire", label: "Review ingested wire items", hint: "Desk" },
             { href: "/desk", label: "Publish, schedule or pin a story", hint: "Desk" },
             { href: "/admin/audience", label: "See how readers are returning", hint: "Audience" },
           ].map((task) => (
