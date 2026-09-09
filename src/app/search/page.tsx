@@ -5,7 +5,7 @@ import { ArticleCard } from "@/components/article/article-card";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { searchArticles } from "@/lib/queries/articles";
-import { logSearch } from "@/lib/analytics/server-events";
+import { captureRequestContext, logSearch } from "@/lib/analytics/server-events";
 
 export const metadata: Metadata = {
   title: "Search — Newswebsite",
@@ -25,7 +25,10 @@ export default async function SearchPage(props: PageProps<"/search">) {
   // clearest commissioning signal the newsroom gets, so a zero-result search is
   // recorded as deliberately as a successful one.
   if (query) {
-    after(() => logSearch({ query, resultCount: results.length }));
+    const requestContext = await captureRequestContext();
+    after(() =>
+      logSearch({ query, resultCount: results.length, context: requestContext }),
+    );
   }
 
   return (
