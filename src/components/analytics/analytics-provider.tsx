@@ -1,13 +1,16 @@
 "use client";
 
 import Script from "next/script";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 import { ConsentBanner } from "./consent-banner";
 import {
+  CONSENT_SERVER_SNAPSHOT,
+  getConsentServerSnapshot,
+  notifyConsentChanged,
   readConsentCookie,
+  subscribeToConsent,
   writeConsentCookie,
-  type ConsentState,
 } from "@/lib/analytics/consent";
 
 /**
@@ -18,27 +21,30 @@ import {
  * state, and while Google considers that compliant, "no request is made" is a
  * position that needs no interpretation to defend.
  *
+ * The cookie is read through useSyncExternalStore rather than copied into
+ * component state, so there is exactly one source of truth. On the server the
+ * snapshot is a distinct sentinel, which is what keeps the banner out of the
+ * server-rendered HTML and prevents it flashing at readers who already decided.
+ *
  * First-party analytics is unaffected by this component: the server logs an
  * actorless page tally regardless, which identifies nobody. Consent is what
  * upgrades that to an attributable session.
  */
 export function AnalyticsProvider({ measurementId }: { measurementId?: string }) {
-  const [consent, setConsent] = useState<ConsentState>("unset");
-  // The banner must not flash on the server-rendered pass, where the cookie is
-  // unreadable and every reader would briefly look like a new one.
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    setConsent(readConsentCookie());
-    setHydrated(true);
-  }, []);
+  const consent = useSyncExternalStore(
+    subscribeToConsent,
+    readConsentCookie,
+    getConsentServerSnapshot,
+  );
 
   function decide(state: "granted" | "denied") {
     writeConsentCookie(state);
-    setConsent(state);
+    notifyConsentChanged();
   }
 
   const analyticsAllowed = consent === "granted";
+  const shouldAsk = consent === "unset";
+  const isServerRender = consent === CONSENT_SERVER_SNAPSHOT;
 
   return (
     <>
@@ -65,9 +71,7 @@ export function AnalyticsProvider({ measurementId }: { measurementId?: string })
         </>
       ) : null}
 
-      {hydrated && consent === "unset" ? (
-        <ConsentBanner onDecision={decide} />
-      ) : null}
+      {shouldAsk && !isServerRender ? <ConsentBanner onDecision={decide} /> : null}
     </>
   );
 }
