@@ -1,7 +1,6 @@
 import { SITE_NAME } from "@/lib/site";
 import type { Metadata } from "next";
 
-import { BreakingStrip } from "@/components/article/breaking-strip";
 import { HeroStory } from "@/components/article/hero-story";
 import { HeadlineRail } from "@/components/article/headline-rail";
 import { ArticleCard } from "@/components/article/article-card";
@@ -105,8 +104,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <SiteHeader />
-      {breaking ? <BreakingStrip article={breaking} /> : null}
+      <SiteHeader breaking={breaking} />
 
       <main className="route-enter mx-auto max-w-page px-4 sm:px-6">
         {/* The well and the rail. Stacked on a phone, eight columns to four
