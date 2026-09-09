@@ -20,13 +20,18 @@ create index article_tags_tag_id_idx on public.article_tags (tag_id, article_id)
 
 alter table public.article_tags enable row level security;
 
+-- ---------------------------------------------------------------------------
+-- Policies. One per role per action; see the articles migration for rationale.
+--
 -- Tag associations are only public for articles that are themselves public.
 -- The visibility test is spelled out rather than leaning on the articles
--- policy, so that this policy stays correct if that one is ever reworded.
-create policy "article_tags: public read for published articles"
+-- policy, so this stays correct if that one is ever reworded.
+-- ---------------------------------------------------------------------------
+
+create policy "article_tags: anon read for published articles"
   on public.article_tags
   for select
-  to anon, authenticated
+  to anon
   using (
     exists (
       select 1
@@ -38,19 +43,30 @@ create policy "article_tags: public read for published articles"
     )
   );
 
-create policy "article_tags: editorial read all"
+create policy "article_tags: read"
   on public.article_tags
   for select
   to authenticated
-  using (app.is_editorial());
+  using (
+    app.is_editorial()
+    or exists (
+      select 1
+      from public.articles a
+      where a.id = article_id
+        and a.status in ('published', 'scheduled')
+        and a.published_at is not null
+        and a.published_at <= now()
+    )
+  );
 
 -- An author tags their own drafts; editors tag anything.
-create policy "article_tags: authors tag own drafts"
+create policy "article_tags: insert"
   on public.article_tags
   for insert
   to authenticated
   with check (
-    exists (
+    app.is_editorial()
+    or exists (
       select 1
       from public.articles a
       where a.id = article_id
@@ -59,12 +75,13 @@ create policy "article_tags: authors tag own drafts"
     )
   );
 
-create policy "article_tags: authors untag own drafts"
+create policy "article_tags: delete"
   on public.article_tags
   for delete
   to authenticated
   using (
-    exists (
+    app.is_editorial()
+    or exists (
       select 1
       from public.articles a
       where a.id = article_id
@@ -72,15 +89,3 @@ create policy "article_tags: authors untag own drafts"
         and a.status in ('draft', 'in_review')
     )
   );
-
-create policy "article_tags: editorial insert"
-  on public.article_tags
-  for insert
-  to authenticated
-  with check (app.is_editorial());
-
-create policy "article_tags: editorial delete"
-  on public.article_tags
-  for delete
-  to authenticated
-  using (app.is_editorial());
