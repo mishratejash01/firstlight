@@ -335,7 +335,7 @@ export default async function ArticlePage(
               the second paragraph is just the old empty margin with pictures in
               it for a moment. */}
           <aside className="border-t border-hairline pt-8 lg:border-t-0 lg:pt-8">
-            <div className="lg:sticky lg:top-8">
+            <div className="lg:sticky lg:top-20">
               <HeadlineRail articles={latest} title="Latest" />
             </div>
           </aside>
