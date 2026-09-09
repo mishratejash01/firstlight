@@ -68,7 +68,7 @@ export default async function AdminSectionsPage() {
       <AdminNav current="/admin/sections" />
 
       <section className="pt-8">
-        <h2 className="font-serif text-section text-ink">
+        <h2 className="text-section text-ink">
           In the menu ({inNav.length})
         </h2>
         <p className="mt-1 max-w-measure text-meta leading-relaxed text-muted">
@@ -84,7 +84,7 @@ export default async function AdminSectionsPage() {
       </section>
 
       <section className="mt-12 border-t border-hairline pt-6">
-        <h2 className="font-serif text-section text-ink">
+        <h2 className="text-section text-ink">
           Not in the menu ({hidden.length})
         </h2>
         <p className="mt-1 max-w-measure text-meta leading-relaxed text-muted">
