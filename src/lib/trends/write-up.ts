@@ -29,6 +29,8 @@ export type WriteUpOutcome = {
   unverifiedClaimCount?: number;
   /** How many linked articles were actually readable. Zero means headlines only. */
   sourcesRead?: number;
+  /** The composite signal score this story was chosen on. */
+  score?: number;
   reason?: string;
 };
 
@@ -81,9 +83,9 @@ export async function writeUpTrends(limit = 3): Promise<WriteUpReport> {
 
   const { data: trends } = await supabase
     .from("trending_topics")
-    .select("id, term, news_items, triage_category, triage_reason")
+    .select("id, term, news_items, triage_category, triage_reason, signal_score, cluster_key")
     .eq("status", "newsworthy")
-    .order("traffic_rank", { ascending: false, nullsFirst: false })
+    .order("signal_score", { ascending: false })
     .limit(Math.min(limit, remaining));
 
   const { data: categories } = await supabase
@@ -93,7 +95,20 @@ export async function writeUpTrends(limit = 3): Promise<WriteUpReport> {
 
   const publishedSlugs: string[] = [];
 
+  const clustersWrittenThisRun = new Set<string>();
+
   for (const trend of trends ?? []) {
+    // One story per cluster per run. Two search terms pointing at the same
+    // event would otherwise become two articles saying the same thing.
+    if (trend.cluster_key && clustersWrittenThisRun.has(trend.cluster_key)) {
+      report.outcomes.push({
+        term: trend.term,
+        status: "skipped",
+        reason: "Another story from the same cluster was written this run.",
+      });
+      continue;
+    }
+
     const newsItems = (trend.news_items as unknown as TrendNewsItem[]) ?? [];
 
     // A trend with no matched coverage gives the model nothing to work from,
@@ -221,6 +236,8 @@ export async function writeUpTrends(limit = 3): Promise<WriteUpReport> {
       .update({ status: "written", article_id: article.id })
       .eq("id", trend.id);
 
+    if (trend.cluster_key) clustersWrittenThisRun.add(trend.cluster_key);
+
     if (publishing) publishedSlugs.push(article.slug);
 
     report.outcomes.push({
@@ -229,6 +246,7 @@ export async function writeUpTrends(limit = 3): Promise<WriteUpReport> {
       slug: article.slug,
       unverifiedClaimCount: draft.unverifiedClaims.length,
       sourcesRead: documents.length,
+      score: Number(trend.signal_score ?? 0),
     });
   }
 
