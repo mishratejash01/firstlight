@@ -35,8 +35,11 @@ type Provider = "google" | "groq" | "anthropic" | "gateway";
  */
 const MODELS: Record<Provider, { drafting: string; assist: string }> = {
   google: {
-    drafting: process.env.AI_DRAFTING_MODEL ?? "gemini-2.5-flash",
-    assist: process.env.AI_ASSIST_MODEL ?? "gemini-2.5-flash-lite",
+    // Pinned rather than using the -latest aliases: an alias silently moving to
+    // a new model changes how the paper writes, which is not something that
+    // should happen without anyone choosing it.
+    drafting: process.env.AI_DRAFTING_MODEL ?? "gemini-3.8-flash",
+    assist: process.env.AI_ASSIST_MODEL ?? "gemini-3.5-flash-lite",
   },
   groq: {
     drafting: process.env.AI_DRAFTING_MODEL ?? "llama-3.3-70b-versatile",
