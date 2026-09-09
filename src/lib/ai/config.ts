@@ -1,64 +1,119 @@
 import "server-only";
 
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createGroq } from "@ai-sdk/groq";
 import type { LanguageModel } from "ai";
 
 /**
- * AI model configuration.
+ * AI provider selection.
  *
- * Two routes to the same models, chosen by which credential is present:
+ * Four routes to a model, picked by whichever credential is present. The
+ * newsroom should not be blocked because one vendor wants a card on file, so
+ * the code treats the provider as a configuration detail rather than a
+ * dependency.
  *
- *   1. A direct Anthropic key (ANTHROPIC_API_KEY), used in preference when set.
- *   2. The Vercel AI Gateway (AI_GATEWAY_API_KEY), addressed by plain
- *      "provider/model" strings.
+ * Precedence, highest first:
+ *   1. GOOGLE_GENERATIVE_AI_API_KEY — Gemini. Free tier, no card, generous
+ *      limits, and reliable structured output. The default recommendation.
+ *   2. GROQ_API_KEY — Groq. Free tier, no card, extremely fast. Open models,
+ *      weaker at long-form editorial prose than the other two.
+ *   3. ANTHROPIC_API_KEY — Claude direct. Best drafting quality here; paid.
+ *   4. AI_GATEWAY_API_KEY — Vercel AI Gateway. One credential for every
+ *      provider, but it refuses to serve requests until a card is on file for
+ *      the team, even to spend its own free credits.
  *
- * The gateway is the nicer default — one credential, provider switching by
- * string, usage visible in the Vercel dashboard. But it refuses to serve
- * requests until a card is on file, which is a hard stop that has nothing to do
- * with the code. Supporting both means a billing gate on one platform does not
- * block the newsroom.
+ * Model ids are overridable by environment variable so a deprecated one can be
+ * swapped without a deploy from this file.
  */
 
-/** Long-form drafting. Quality matters more than latency here. */
-const DRAFTING_MODEL_ID = "claude-sonnet-5";
-/** Short structured jobs — tags, headlines, summaries, triage. Cheaper. */
-const ASSIST_MODEL_ID = "claude-haiku-4.5";
+type Provider = "google" | "groq" | "anthropic" | "gateway";
 
-/** Recorded against generated articles, so provenance survives a provider change. */
-export const DRAFTING_MODEL = DRAFTING_MODEL_ID;
+/**
+ * Defaults per provider: a stronger model for writing, a cheap fast one for
+ * triage, tags and summaries.
+ */
+const MODELS: Record<Provider, { drafting: string; assist: string }> = {
+  google: {
+    drafting: process.env.AI_DRAFTING_MODEL ?? "gemini-2.5-flash",
+    assist: process.env.AI_ASSIST_MODEL ?? "gemini-2.5-flash-lite",
+  },
+  groq: {
+    drafting: process.env.AI_DRAFTING_MODEL ?? "llama-3.3-70b-versatile",
+    assist: process.env.AI_ASSIST_MODEL ?? "llama-3.1-8b-instant",
+  },
+  anthropic: {
+    drafting: process.env.AI_DRAFTING_MODEL ?? "claude-sonnet-5",
+    assist: process.env.AI_ASSIST_MODEL ?? "claude-haiku-4.5",
+  },
+  gateway: {
+    drafting: process.env.AI_DRAFTING_MODEL ?? "anthropic/claude-sonnet-5",
+    assist: process.env.AI_ASSIST_MODEL ?? "anthropic/claude-haiku-4.5",
+  },
+};
 
-function usingDirectAnthropic(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
-}
-
-function resolve(modelId: string): LanguageModel {
-  if (usingDirectAnthropic()) {
-    const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    return anthropic(modelId);
-  }
-  // Gateway model strings are namespaced by provider.
-  return `anthropic/${modelId}`;
-}
-
-export function draftingModel(): LanguageModel {
-  return resolve(DRAFTING_MODEL_ID);
-}
-
-export function assistModel(): LanguageModel {
-  return resolve(ASSIST_MODEL_ID);
-}
-
-/** Which route is actually in use, for the integration status panel. */
-export function aiProviderName(): string | null {
-  if (usingDirectAnthropic()) return "Anthropic (direct)";
-  if (process.env.AI_GATEWAY_API_KEY) return "Vercel AI Gateway";
-  if (process.env.VERCEL_OIDC_TOKEN) return "Vercel AI Gateway (OIDC)";
+function activeProvider(): Provider | null {
+  if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) return "google";
+  if (process.env.GROQ_API_KEY) return "groq";
+  if (process.env.ANTHROPIC_API_KEY) return "anthropic";
+  if (process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN) return "gateway";
   return null;
 }
 
+function resolve(kind: "drafting" | "assist"): LanguageModel {
+  const provider = activeProvider();
+  if (!provider) throw new Error(AI_UNAVAILABLE_MESSAGE);
+
+  const modelId = MODELS[provider][kind];
+
+  switch (provider) {
+    case "google":
+      return createGoogleGenerativeAI({
+        apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+      })(modelId);
+    case "groq":
+      return createGroq({ apiKey: process.env.GROQ_API_KEY })(modelId);
+    case "anthropic":
+      return createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY })(modelId);
+    default:
+      // The gateway is the AI SDK's default provider, addressed by string.
+      return modelId;
+  }
+}
+
+export function draftingModel(): LanguageModel {
+  return resolve("drafting");
+}
+
+export function assistModel(): LanguageModel {
+  return resolve("assist");
+}
+
+/** Recorded against generated articles so provenance survives a provider change. */
+export function draftingModelId(): string {
+  const provider = activeProvider();
+  return provider ? MODELS[provider].drafting : "unknown";
+}
+
+/** Kept for the provenance column on rows written before a provider switch. */
+export const DRAFTING_MODEL = MODELS.gateway.drafting;
+
+const PROVIDER_LABELS: Record<Provider, string> = {
+  google: "Google Gemini",
+  groq: "Groq",
+  anthropic: "Anthropic",
+  gateway: "Vercel AI Gateway",
+};
+
+/** Which route is in use, for the integration status panel. */
+export function aiProviderName(): string | null {
+  const provider = activeProvider();
+  return provider ? PROVIDER_LABELS[provider] : null;
+}
+
 export function aiIsConfigured(): boolean {
-  return aiProviderName() !== null;
+  return activeProvider() !== null;
 }
 
 export const AI_UNAVAILABLE_MESSAGE =
-  "AI assist is not configured. Set ANTHROPIC_API_KEY, or set AI_GATEWAY_API_KEY and add a card to the Vercel AI Gateway.";
+  "AI assist is not configured. Set GOOGLE_GENERATIVE_AI_API_KEY (free, no card, aistudio.google.com/apikey) or GROQ_API_KEY (free, no card, console.groq.com/keys).";
