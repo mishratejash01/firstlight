@@ -95,7 +95,7 @@ export default async function AdminTopicsPage() {
 
       {isAdmin ? (
         <section className="mt-10 border-t border-hairline pt-6">
-          <h2 className="font-serif text-section text-ink">Controls</h2>
+          <h2 className="text-section text-ink">Controls</h2>
           <AutonomousControls
             enabled={enabled}
             dailyLimit={dailyLimit}
@@ -105,7 +105,7 @@ export default async function AdminTopicsPage() {
       ) : null}
 
       <section className="mt-12 border-t border-hairline pt-6">
-        <h2 className="font-serif text-section text-ink">
+        <h2 className="text-section text-ink">
           Topics ({topics?.length ?? 0})
         </h2>
         <p className="mt-1 max-w-measure text-meta leading-relaxed text-muted">
@@ -177,7 +177,7 @@ export default async function AdminTopicsPage() {
       </section>
 
       <section className="mt-12 border-t border-hairline pt-6">
-        <h2 className="font-serif text-section text-ink">Add a topic</h2>
+        <h2 className="text-section text-ink">Add a topic</h2>
         <TopicForm categories={categories ?? []} />
       </section>
 
