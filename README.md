@@ -1,4 +1,4 @@
-# Newswebsite
+# The Federal Post
 
 A general-interest news platform: politics, business, technology, world, health, science,
 sports, culture and opinion.
