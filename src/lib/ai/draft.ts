@@ -301,48 +301,96 @@ export async function summariseForQueue(input: {
 export async function draftFromTrend({
   term,
   newsItems,
+  documents,
   sectionName,
   angle,
 }: {
   term: string;
   newsItems: { title: string; source: string; url: string }[];
+  /**
+   * Full text read from the linked articles, where it could be fetched. This is
+   * what separates a real piece from a paragraph noting that other outlets are
+   * covering something.
+   */
+  documents?: {
+    url: string;
+    source: string;
+    title: string | null;
+    byline: string | null;
+    content: string;
+  }[];
   sectionName?: string;
   angle?: string;
 }): Promise<AiResult<DraftedArticle>> {
   return guarded(async () => {
-    const system = [
-      HOUSE_STYLE,
-      `
-You are writing about a story currently being reported by other outlets. You
-have their headlines and nothing more — not the articles themselves.
+    const sourced = documents?.filter((doc) => doc.content.trim().length > 0) ?? [];
+    const hasFullText = sourced.length > 0;
+
+    const groundingRule = hasFullText
+      ? `
+You have been given the full text of articles other outlets have published on
+this story. Write our own piece from them.
 
 Rules, without exception:
-- Attribute every factual claim to the outlet reporting it, in the prose, as a
+- Write original prose. Do not reproduce sentences or phrasing from the sources;
+  say it in our own words. Reproducing their copy is not reporting, it is
+  copying, and it is the one thing that will get this publication sued.
+- Attribute every fact to the outlet that reported it, in the prose, as a
   Markdown link: "according to [the BBC](url)".
-- Write only what the supplied headlines support. Where an obvious question is
-  unanswered by them, say that it is unanswered — do not fill it in.
-- Invent no quotations. You have none.
-- Invent no figures. If a headline carries a number, attribute it; if it does
-  not, do not produce one.
-- Open by stating what is being reported and by whom. Do not open with scene
-  setting you cannot have witnessed.
-- List in unverifiedClaims anything you inferred rather than read in a headline.
+- You may quote a source directly where the wording matters, but keep it short,
+  put it in quotation marks, and attribute it in the same sentence.
+- Use the specifics the sources give you: names, numbers, dates, places. That is
+  the whole point of having read them.
+- Where the sources disagree, say so and attribute both.
+- Where an obvious question is unanswered by all of them, say it is unanswered.
+- List in unverifiedClaims anything you inferred rather than read.
+        `.trim()
+      : `
+You have headlines only, not the articles behind them.
 
-An honest short piece that credits its sources is the goal. A long one padded
-with invention is a failure however well it reads.
-      `.trim(),
-    ].join("\n\n");
+Rules, without exception:
+- Attribute every claim to the outlet reporting it, as a Markdown link.
+- Write only what the headlines support. Where an obvious question is
+  unanswered, say so — do not fill it in.
+- Invent no quotations and no figures. You have none.
+- Keep it short. You do not have the material for a long piece, and padding one
+  out is worse than filing three honest paragraphs.
+- List in unverifiedClaims anything you inferred rather than read.
+        `.trim();
+
+    const system = [HOUSE_STYLE, groundingRule].join("\n\n");
 
     const coverage = newsItems
       .map((item) => `- ${item.source}: "${item.title}"  ${item.url}`)
       .join("\n");
 
+    const fullText = sourced
+      .map(
+        (doc, index) =>
+          [
+            `### Source ${index + 1} — ${doc.source}`,
+            doc.title ? `Headline: ${doc.title}` : "",
+            doc.byline ? `Byline: ${doc.byline}` : "",
+            `Link: ${doc.url}`,
+            "",
+            doc.content,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+      )
+      .join("\n\n---\n\n");
+
     const prompt = [
       `People are searching for: ${term}`,
       sectionName ? `Section: ${sectionName}` : "",
       angle ? `Angle: ${angle}` : "",
-      `\nCoverage currently reported by other outlets:\n${coverage}`,
-      `\nWrite the piece. 250–450 words is usually right for this — you have headlines, not documents.`,
+      coverage ? `\nHeadlines matched to this story:\n${coverage}` : "",
+      hasFullText
+        ? `\nFull text of what those outlets published:\n\n${fullText}`
+        : "",
+      hasFullText
+        ? `\nWrite the piece. 400-650 words. You have real material — use the specifics.`
+        : `\nWrite the piece. 200-350 words. You have headlines, not documents, so keep it short and honest.`,
     ]
       .filter(Boolean)
       .join("\n");
