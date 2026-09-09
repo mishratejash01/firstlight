@@ -41,3 +41,36 @@ export function writeConsentCookie(state: Exclude<ConsentState, "unset">): void 
     `${CONSENT_COOKIE}=${serialiseConsent(state)}` +
     `; Path=/; Max-Age=${CONSENT_MAX_AGE_SECONDS}; SameSite=Lax${secure}`;
 }
+
+/**
+ * Subscription plumbing so React can read the consent cookie as external
+ * state through useSyncExternalStore, rather than copying it into component
+ * state inside an effect. The cookie is the single source of truth; mirroring
+ * it into useState would mean two places that can disagree.
+ */
+type Listener = () => void;
+const listeners = new Set<Listener>();
+
+export function subscribeToConsent(listener: Listener): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+/** Call after writing the cookie so every reader re-renders. */
+export function notifyConsentChanged(): void {
+  for (const listener of listeners) listener();
+}
+
+/**
+ * Distinct from "unset" on purpose. During server rendering the cookie is
+ * unreadable, and treating that as "unset" would render the consent banner into
+ * the HTML for every reader — including those who already answered — producing
+ * a visible flash when hydration corrects it.
+ */
+export const CONSENT_SERVER_SNAPSHOT = "server" as const;
+
+export function getConsentServerSnapshot(): typeof CONSENT_SERVER_SNAPSHOT {
+  return CONSENT_SERVER_SNAPSHOT;
+}
