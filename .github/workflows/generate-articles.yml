@@ -1,0 +1,52 @@
+# Autonomous article generation.
+#
+# Only does anything when `autonomous_publishing_enabled` is true in
+# site_settings — the schedule can stay in place while the feature is off, and
+# switching it off in the dashboard stops publishing immediately without
+# touching this file.
+#
+# Hourly rather than more often: the per-topic cadence and the daily cap are the
+# real controls, and a tighter schedule would only mean more no-op runs.
+
+name: Generate articles
+
+on:
+  schedule:
+    - cron: "5 * * * *"
+  workflow_dispatch:
+
+# Never let two runs overlap. Both would read the same daily count and both
+# could publish up to the cap.
+concurrency:
+  group: generate-articles
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run a generation cycle
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: ${{ vars.SITE_URL || 'https://newswebsite-pi.vercel.app' }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "CRON_SECRET is not set on this repository."
+            exit 1
+          fi
+
+          response=$(curl -sS --max-time 300 -w '\n%{http_code}' \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "${SITE_URL}/api/cron/generate-articles")
+
+          body=$(printf '%s' "$response" | sed '$d')
+          status=$(printf '%s' "$response" | tail -n1)
+
+          echo "$body"
+
+          if [ "$status" != "200" ]; then
+            echo "Generation endpoint returned HTTP ${status}"
+            exit 1
+          fi
