@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { AccountMenu } from "@/components/site/account-menu";
 import { getNavCategories } from "@/lib/queries/navigation";
 
 /**
@@ -30,12 +31,7 @@ export async function SiteHeader({ activeSlug }: { activeSlug?: string }) {
         </Link>
         <div className="flex items-baseline gap-4">
           <span className="hidden text-meta text-muted sm:inline">{today}</span>
-          <Link
-            href="/login"
-            className="text-meta text-accent underline-offset-4 hover:underline"
-          >
-            Sign in
-          </Link>
+          <AccountMenu />
         </div>
       </div>
 
