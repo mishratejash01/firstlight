@@ -1107,6 +1107,80 @@ export type Database = {
         }
         Relationships: []
       }
+      trend_exclusions: {
+        Row: {
+          created_at: string
+          id: string
+          pattern: string
+          reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          pattern: string
+          reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          pattern?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
+      trending_topics: {
+        Row: {
+          approx_traffic: string | null
+          article_id: string | null
+          first_seen_at: string
+          id: string
+          last_seen_at: string
+          news_items: Json
+          region: string
+          status: string
+          term: string
+          traffic_rank: number | null
+          triage_category: string | null
+          triage_reason: string | null
+        }
+        Insert: {
+          approx_traffic?: string | null
+          article_id?: string | null
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          news_items?: Json
+          region?: string
+          status?: string
+          term: string
+          traffic_rank?: number | null
+          triage_category?: string | null
+          triage_reason?: string | null
+        }
+        Update: {
+          approx_traffic?: string | null
+          article_id?: string | null
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          news_items?: Json
+          region?: string
+          status?: string
+          term?: string
+          traffic_rank?: number | null
+          triage_category?: string | null
+          triage_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trending_topics_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
