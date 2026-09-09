@@ -4,9 +4,9 @@ import { Output, generateText } from "ai";
 
 import {
   AI_UNAVAILABLE_MESSAGE,
-  ASSIST_MODEL,
-  DRAFTING_MODEL,
   aiIsConfigured,
+  assistModel,
+  draftingModel,
 } from "./config";
 import {
   draftedArticleSchema,
@@ -122,7 +122,7 @@ export async function draftArticle({
       .join("\n");
 
     const { output } = await generateText({
-      model: DRAFTING_MODEL,
+      model: draftingModel(),
       system,
       prompt,
       output: Output.object({ schema: draftedArticleSchema }),
@@ -140,7 +140,7 @@ export async function suggestTags(input: {
 }): Promise<AiResult<string[]>> {
   return guarded(async () => {
     const { output } = await generateText({
-      model: ASSIST_MODEL,
+      model: assistModel(),
       system:
         "Suggest topic tags for a news article. Prefer tags that already exist in the publication's list over inventing near-duplicates.",
       prompt: [
@@ -166,7 +166,7 @@ export async function suggestHeadlines(input: {
 }): Promise<AiResult<string[]>> {
   return guarded(async () => {
     const { output } = await generateText({
-      model: ASSIST_MODEL,
+      model: assistModel(),
       system: `${HOUSE_STYLE}\n\nSuggest headlines only. Every one must be supported by the body copy — do not promise anything the piece does not deliver.`,
       prompt: `Current headline: ${input.headline}\n\nBody:\n${input.body.slice(0, 6000)}`,
       output: Output.object({ schema: headlineSuggestionSchema }),
@@ -183,7 +183,7 @@ export async function summariseForQueue(input: {
 }): Promise<AiResult<{ summary: string; standfirst: string }>> {
   return guarded(async () => {
     const { output } = await generateText({
-      model: ASSIST_MODEL,
+      model: assistModel(),
       system: `${HOUSE_STYLE}\n\nSummarise only what the body actually says. Add nothing.`,
       prompt: `Headline: ${input.headline}\n\nBody:\n${input.body.slice(0, 8000)}`,
       output: Output.object({ schema: summarySchema }),
@@ -257,7 +257,7 @@ with invention is a failure however well it reads.
       .join("\n");
 
     const { output } = await generateText({
-      model: DRAFTING_MODEL,
+      model: draftingModel(),
       system,
       prompt,
       output: Output.object({ schema: draftedArticleSchema }),
