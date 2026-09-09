@@ -35,9 +35,9 @@ export default async function SearchPage(props: PageProps<"/search">) {
     <>
       <SiteHeader />
 
-      <main className="route-enter mx-auto max-w-6xl px-4 sm:px-6">
+      <main className="route-enter mx-auto max-w-page px-4 sm:px-6">
         <div className="border-b border-hairline py-8">
-          <h1 className="font-serif text-hero text-ink">Search</h1>
+          <h1 className="text-hero text-ink">Search</h1>
           <form action="/search" method="get" className="mt-5 flex max-w-xl flex-col gap-2 sm:flex-row">
             <label htmlFor="q" className="sr-only">Search articles</label>
             <input
@@ -66,7 +66,7 @@ export default async function SearchPage(props: PageProps<"/search">) {
         ) : null}
 
         {results.length ? (
-          <div className="grid gap-x-6 gap-y-10 pb-12 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="story-grid pb-12">
             {results.map((article) => (
               <ArticleCard key={article.id} article={article} />
             ))}
