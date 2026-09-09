@@ -1,13 +1,9 @@
 import "server-only";
 
 import { Output, generateText } from "ai";
+import type { z } from "zod";
 
-import {
-  AI_UNAVAILABLE_MESSAGE,
-  aiIsConfigured,
-  assistModel,
-  draftingModel,
-} from "./config";
+import { AI_UNAVAILABLE_MESSAGE, aiIsConfigured, modelChain } from "./config";
 import {
   draftedArticleSchema,
   headlineSuggestionSchema,
@@ -66,6 +62,62 @@ Therefore:
 
 export type AiResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
+/** Overload and rate limiting are worth stepping down a model for; nothing else is. */
+function isCapacityError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+  return (
+    message.includes("high demand") ||
+    message.includes("overloaded") ||
+    message.includes("rate limit") ||
+    message.includes("quota") ||
+    message.includes("resource_exhausted") ||
+    message.includes("429") ||
+    message.includes("503")
+  );
+}
+
+/**
+ * Generates structured output, stepping down the model chain on capacity
+ * failures.
+ *
+ * Free-tier capacity is shared and genuinely does run out — "this model is
+ * currently experiencing high demand" is an observed response, not a
+ * hypothetical. An unattended scheduler that treats that as a hard failure
+ * simply stops working for a while and reports nothing useful.
+ *
+ * Only capacity errors step down. A malformed schema or a bad prompt fails
+ * identically on every model, so retrying it three times only makes the failure
+ * slower to find.
+ */
+async function generateStructured<S extends z.ZodTypeAny>(
+  kind: "drafting" | "assist",
+  options: { system: string; prompt: string; schema: S },
+): Promise<z.infer<S>> {
+  const models = modelChain(kind);
+  let lastError: unknown;
+
+  for (const model of models) {
+    try {
+      const { output } = await generateText({
+        model,
+        system: options.system,
+        prompt: options.prompt,
+        output: Output.object({ schema: options.schema }),
+      });
+      return output as z.infer<S>;
+    } catch (error) {
+      lastError = error;
+      if (!isCapacityError(error)) throw error;
+      console.warn(
+        "[ai] model at capacity, stepping down:",
+        error instanceof Error ? error.message : error,
+      );
+    }
+  }
+
+  throw lastError ?? new Error("Every model in the chain failed.");
+}
+
 async function guarded<T>(run: () => Promise<T>): Promise<AiResult<T>> {
   if (!aiIsConfigured()) return { ok: false, error: AI_UNAVAILABLE_MESSAGE };
 
@@ -121,14 +173,11 @@ export async function draftArticle({
       .filter(Boolean)
       .join("\n");
 
-    const { output } = await generateText({
-      model: draftingModel(),
+    return generateStructured("drafting", {
       system,
       prompt,
-      output: Output.object({ schema: draftedArticleSchema }),
+      schema: draftedArticleSchema,
     });
-
-    return output;
   });
 }
 
@@ -139,8 +188,7 @@ export async function suggestTags(input: {
   existingTags: string[];
 }): Promise<AiResult<string[]>> {
   return guarded(async () => {
-    const { output } = await generateText({
-      model: assistModel(),
+    const output = await generateStructured("assist", {
       system:
         "Suggest topic tags for a news article. Prefer tags that already exist in the publication's list over inventing near-duplicates.",
       prompt: [
@@ -152,7 +200,7 @@ export async function suggestTags(input: {
       ]
         .filter(Boolean)
         .join("\n\n"),
-      output: Output.object({ schema: tagSuggestionSchema }),
+      schema: tagSuggestionSchema,
     });
 
     return output.tags;
@@ -165,11 +213,10 @@ export async function suggestHeadlines(input: {
   body: string;
 }): Promise<AiResult<string[]>> {
   return guarded(async () => {
-    const { output } = await generateText({
-      model: assistModel(),
+    const output = await generateStructured("assist", {
       system: `${HOUSE_STYLE}\n\nSuggest headlines only. Every one must be supported by the body copy — do not promise anything the piece does not deliver.`,
       prompt: `Current headline: ${input.headline}\n\nBody:\n${input.body.slice(0, 6000)}`,
-      output: Output.object({ schema: headlineSuggestionSchema }),
+      schema: headlineSuggestionSchema,
     });
 
     return output.headlines;
@@ -182,14 +229,11 @@ export async function summariseForQueue(input: {
   body: string;
 }): Promise<AiResult<{ summary: string; standfirst: string }>> {
   return guarded(async () => {
-    const { output } = await generateText({
-      model: assistModel(),
+    return generateStructured("assist", {
       system: `${HOUSE_STYLE}\n\nSummarise only what the body actually says. Add nothing.`,
       prompt: `Headline: ${input.headline}\n\nBody:\n${input.body.slice(0, 8000)}`,
-      output: Output.object({ schema: summarySchema }),
+      schema: summarySchema,
     });
-
-    return output;
   });
 }
 
@@ -256,13 +300,10 @@ with invention is a failure however well it reads.
       .filter(Boolean)
       .join("\n");
 
-    const { output } = await generateText({
-      model: draftingModel(),
+    return generateStructured("drafting", {
       system,
       prompt,
-      output: Output.object({ schema: draftedArticleSchema }),
+      schema: draftedArticleSchema,
     });
-
-    return output;
   });
 }
