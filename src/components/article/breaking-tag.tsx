@@ -6,8 +6,8 @@
  */
 export function BreakingTag() {
   return (
-    <span className="inline-flex items-center gap-1.5 text-meta font-semibold text-signal">
-      <span aria-hidden="true" className="inline-block h-3 w-0.5 bg-signal" />
+    <span className="eyebrow inline-flex items-center gap-1.5 text-signal">
+      <span aria-hidden="true" className="inline-block h-2.5 w-0.5 bg-signal" />
       Breaking
     </span>
   );
