@@ -31,13 +31,16 @@ export default async function AdminOverviewPage() {
   const user = await requireAdmin("/admin");
   const supabase = await createClient();
 
-  const [accounts, roleRows, articles, subscribers, categories] = await Promise.all([
+  const [accountResult, roleRows, articles, subscribers, categories] = await Promise.all([
     listAccounts(),
     supabase.from("user_roles").select("user_id, role"),
     supabase.from("articles").select("status"),
     supabase.from("newsletter_subscribers").select("status"),
     supabase.from("categories").select("show_in_nav, is_active"),
   ]);
+
+  const accounts = accountResult.ok ? accountResult.accounts : [];
+  const accountsUnavailable = !accountResult.ok;
 
   const usersWithRoles = new Set((roleRows.data ?? []).map((r) => r.user_id));
   const readersOnly = accounts.filter((a) => !usersWithRoles.has(a.id));
@@ -78,11 +81,11 @@ export default async function AdminOverviewPage() {
     },
   ].filter((item) => item.count > 0);
 
-  const reference = [
+  const reference: { label: string; value: number | string }[] = [
     { label: "Published articles", value: articleCounts.published ?? 0 },
     { label: "Scheduled to publish", value: articleCounts.scheduled ?? 0 },
     { label: "Drafts in progress", value: articleCounts.draft ?? 0 },
-    { label: "Accounts in total", value: accounts.length },
+    { label: "Accounts in total", value: accountsUnavailable ? "—" : accounts.length },
     { label: "Confirmed subscribers", value: subscriberCounts.confirmed ?? 0 },
     {
       label: "Sections in the menu",
@@ -97,6 +100,17 @@ export default async function AdminOverviewPage() {
       standfirst="Everything that needs a decision, and the numbers behind the newsroom."
     >
       <AdminNav current="/admin" />
+
+      {accountsUnavailable ? (
+        <div className="mt-8 border-l-2 border-signal pl-4">
+          <p className="text-body text-ink">Account list unavailable</p>
+          <p className="mt-1 max-w-measure text-meta leading-relaxed text-muted">
+            The accounts service could not be reached, so figures involving
+            accounts are shown as a dash rather than as zero. Everything else on
+            this page is accurate.
+          </p>
+        </div>
+      ) : null}
 
       <section className="pt-8">
         <h2 className="font-serif text-section text-ink">Needs attention</h2>
