@@ -6,6 +6,7 @@ import { submitToIndexNow } from "@/lib/seo/indexnow";
 import { draftingModelId } from "@/lib/ai/config";
 import { draftFromTrend } from "@/lib/ai/draft";
 import { getSourceDocuments } from "@/lib/fetch/extract";
+import { illustrateArticle } from "@/lib/media/illustrate";
 import type { TrendNewsItem } from "./google-trends";
 
 /**
@@ -31,6 +32,8 @@ export type WriteUpOutcome = {
   sourcesRead?: number;
   /** The composite signal score this story was chosen on. */
   score?: number;
+  /** Whether the lead image is a licensed photograph or a generated card. */
+  illustration?: "photo" | "card" | "none";
   reason?: string;
 };
 
@@ -228,6 +231,18 @@ export async function writeUpTrends(limit = 3): Promise<WriteUpReport> {
 
     const publishedAt = new Date(Date.now() + delayMinutes * 60_000).toISOString();
 
+    // Illustrate before inserting, so a story never appears on the front page
+    // as a hole where the picture should be.
+    const illustration = await illustrateArticle({
+      headline: draft.headline,
+      section: section.name,
+      // Entities the model marked as the primary subject make far better image
+      // search terms than the headline does.
+      subjects: draft.entities
+        .filter((entity) => entity.relation === "about")
+        .map((entity) => entity.name),
+    });
+
     const { data: article, error } = await supabase
       .from("articles")
       .insert({
@@ -244,6 +259,9 @@ export async function writeUpTrends(limit = 3): Promise<WriteUpReport> {
         ai_model: draftingModelId(),
         ai_generated_at: new Date().toISOString(),
         ai_unverified_claims: draft.unverifiedClaims,
+        hero_image_url: illustration?.url ?? null,
+        hero_image_alt: illustration?.alt ?? null,
+        hero_image_credit: illustration?.credit ?? null,
       })
       .select("id, slug")
       .single();
@@ -269,6 +287,7 @@ export async function writeUpTrends(limit = 3): Promise<WriteUpReport> {
       unverifiedClaimCount: draft.unverifiedClaims.length,
       sourcesRead: documents.length,
       score: Number(trend.signal_score ?? 0),
+      illustration: illustration?.kind ?? "none",
     });
   }
 
