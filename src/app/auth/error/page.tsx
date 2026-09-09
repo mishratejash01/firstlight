@@ -20,7 +20,7 @@ export default async function AuthErrorPage(props: PageProps<"/auth/error">) {
 
   return (
     <main className="route-enter mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center px-6 py-16">
-      <h1 className="font-serif text-[1.75rem] leading-tight text-ink">
+      <h1 className="text-[1.75rem] leading-tight text-ink">
         Sign-in problem
       </h1>
       <p className="mt-3 text-body text-muted">{detail}</p>
