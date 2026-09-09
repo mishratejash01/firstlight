@@ -14,6 +14,7 @@ import { ReadingInstrumentation } from "@/components/analytics/reading-instrumen
 import { getArticle, getRelatedArticles } from "@/lib/queries/article-detail";
 import { captureRequestContext, logPageView } from "@/lib/analytics/server-events";
 import { renderMarkdown } from "@/lib/format/markdown";
+import { cloudinaryImage } from "@/lib/media/transform";
 import { formatDateTime } from "@/lib/format/datetime";
 import {
   breadcrumbJsonLd,
@@ -148,7 +149,7 @@ export default async function ArticlePage(props: PageProps<"/[category]/[slug]">
             <figure className="mt-6">
               <div className="relative aspect-[16/9] w-full overflow-hidden bg-hairline">
                 <Image
-                  src={article.hero_image_url}
+                  src={cloudinaryImage(article.hero_image_url, "hero") ?? article.hero_image_url}
                   alt={article.hero_image_alt ?? ""}
                   fill
                   priority
