@@ -101,7 +101,7 @@ export default async function LiveEventPage(props: PageProps<"/live/[slug]">) {
         })}
       />
 
-      <main className="route-enter mx-auto max-w-6xl px-4 sm:px-6">
+      <main className="route-enter mx-auto max-w-page px-4 sm:px-6">
         <div className="border-b border-hairline py-8">
           <div className="flex flex-wrap items-center gap-3">
             {event.is_live ? (
@@ -122,7 +122,7 @@ export default async function LiveEventPage(props: PageProps<"/live/[slug]">) {
             ) : null}
           </div>
 
-          <h1 className="mt-3 font-serif text-hero leading-tight text-ink lg:text-hero-lg">
+          <h1 className="mt-3 text-hero leading-tight text-ink lg:text-hero-lg">
             {event.title}
           </h1>
           {event.summary ? (
@@ -151,7 +151,7 @@ export default async function LiveEventPage(props: PageProps<"/live/[slug]">) {
                   <div className="flex items-baseline gap-3">
                     <a
                       href={`#${update.anchor}`}
-                      className="font-serif text-[1.05rem] text-accent"
+                      className="text-[1.05rem] text-accent"
                       aria-label={`Link to update at ${formatClockTime(update.published_at)}`}
                     >
                       {formatClockTime(update.published_at)}
@@ -161,7 +161,7 @@ export default async function LiveEventPage(props: PageProps<"/live/[slug]">) {
                     ) : null}
                   </div>
 
-                  <h3 className="mt-1.5 font-serif text-[1.3rem] leading-snug text-ink">
+                  <h3 className="mt-1.5 text-[1.3rem] leading-snug text-ink">
                     {update.headline}
                   </h3>
                   <div className="mt-1">{renderMarkdown(update.body)}</div>
@@ -184,14 +184,14 @@ export default async function LiveEventPage(props: PageProps<"/live/[slug]">) {
             {/* The hub links out to each substantive piece and each piece links
                 back. That reciprocal structure is what concentrates the ranking
                 signal, and is what distinguishes this from thin duplicate pages. */}
-            <h2 className="font-serif text-section text-ink">Related coverage</h2>
+            <h2 className="text-section text-ink">Related coverage</h2>
             {linked.length ? (
               <ul className="mt-4 divide-y divide-hairline border-t border-hairline">
                 {linked.map((row, index) => {
                   const article = row.articles!;
                   return (
                     <li key={`${article.slug}-${index}`} className="py-4">
-                      <h3 className="font-serif text-[1.05rem] leading-snug text-ink">
+                      <h3 className="text-[1.05rem] leading-snug text-ink">
                         <Link
                           href={`/${article.categories.slug}/${article.slug}`}
                           className="hover:text-accent"
