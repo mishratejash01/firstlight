@@ -31,7 +31,7 @@ export function BreakingStrip({ article }: { article: ArticleCardData }) {
           <div className="ticker-track">
             <Link
               href={href}
-              className="ticker-copy text-body text-paper underline-offset-4 hover:underline sm:pe-0"
+              className="ticker-copy text-lead text-paper underline-offset-4 hover:underline sm:pe-0"
             >
               {article.headline}
             </Link>
@@ -40,7 +40,7 @@ export function BreakingStrip({ article }: { article: ArticleCardData }) {
                 nothing is moving and one copy is all that is needed. */}
             <span
               aria-hidden="true"
-              className="ticker-copy text-body text-paper sm:hidden"
+              className="ticker-copy text-lead text-paper sm:hidden"
             >
               {article.headline}
             </span>
