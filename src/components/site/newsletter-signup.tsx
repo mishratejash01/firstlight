@@ -46,7 +46,7 @@ export function NewsletterSignup({ context }: { context: string }) {
 
   return (
     <form onSubmit={submit} className="max-w-md">
-      <label htmlFor={`newsletter-${context}`} className="font-serif text-body font-semibold text-ink">
+      <label htmlFor={`newsletter-${context}`} className="text-body font-semibold text-ink">
         The morning briefing
       </label>
       <p className="mt-1 text-meta text-muted">
