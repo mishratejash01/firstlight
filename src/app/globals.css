@@ -72,28 +72,38 @@
 
 /* ---------------------------------------------------------------------------
    Base
+
+   Wrapped in @layer base, and that is load-bearing rather than tidiness. CSS
+   written after `@import "tailwindcss"` with no layer of its own is *unlayered*,
+   and unlayered rules beat every layered one no matter how specific the loser
+   is. Left outside a layer, the `a` rule below silently defeated every text
+   colour utility on every link on the site — `text-accent` on a section link,
+   `text-paper` on the breaking bar — because Tailwind's utilities live in
+   @layer utilities. Inside the layer these are defaults again, which is all
+   they were ever meant to be.
 --------------------------------------------------------------------------- */
-html {
-  -webkit-text-size-adjust: 100%;
-}
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
 
-body {
-  background-color: var(--color-paper);
-  color: var(--color-ink);
-  font-family: var(--font-sans);
-  font-size: var(--text-body);
-  line-height: 1.65;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
 
-/* Headlines are the same face as everything else, separated by weight and by
-   the tighter tracking a grotesque needs once it is set large. */
-h1, h2, h3, h4 {
-  font-weight: 700;
-  letter-spacing: -0.019em;
-  text-wrap: balance;
-}
+  /* Headlines are the same face as everything else, separated by weight and by
+     the tighter tracking a grotesque needs once it is set large. */
+  h1, h2, h3, h4 {
+    font-weight: 700;
+    letter-spacing: -0.019em;
+    text-wrap: balance;
+  }
 
 /* Big headlines need tighter tracking than small ones; a single value set for
    a 52px splash leaves an 17px list headline looking cramped. */
@@ -113,21 +123,23 @@ h1, h2, h3, h4 {
   text-transform: uppercase;
 }
 
-/* Deks and long paragraphs read better with a slightly looser measure. */
-p {
-  text-wrap: pretty;
-}
+  /* Deks and long paragraphs read better with a slightly looser measure. */
+  p {
+    text-wrap: pretty;
+  }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 
-/* Timestamps and figures sit in columns that align down the page. Proportional
-   digits make a stack of times look ragged; tabular ones do not. */
-time,
-.tabular {
-  font-variant-numeric: tabular-nums;
+  /* Timestamps and figures sit in columns that align down the page.
+     Proportional digits make a stack of times look ragged; tabular ones
+     do not. */
+  time,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 /* ---------------------------------------------------------------------------
