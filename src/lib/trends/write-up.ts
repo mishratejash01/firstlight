@@ -59,6 +59,7 @@ export async function writeUpTrends(limit = 3): Promise<WriteUpReport> {
   const delayMinutes = await readSetting<number>("autonomous_publish_delay_minutes", 0);
   const fetchSources = await readSetting<boolean>("source_fetch_enabled", true);
   const maxPerTrend = await readSetting<number>("source_fetch_max_per_trend", 3);
+  const minSourcesRequired = await readSetting<number>("source_fetch_min_required", 1);
 
   const report: WriteUpReport = { autoWrite, publishing, outcomes: [] };
   if (!autoWrite) return report;
@@ -155,6 +156,27 @@ export async function writeUpTrends(limit = 3): Promise<WriteUpReport> {
             content: doc.content as string,
           };
         });
+    }
+
+    // Nothing readable means the model would be writing from headlines alone.
+    // That is how "att" became one article about a shooting and a cyberattack:
+    // an ambiguous term, no source text, and enough latitude to join them up.
+    if (documents.length < minSourcesRequired) {
+      await supabase
+        .from("trending_topics")
+        .update({
+          status: "rejected",
+          triage_reason: `Only ${documents.length} of ${newsItems.length} linked articles could be read; not enough to write from.`,
+        })
+        .eq("id", trend.id);
+
+      report.outcomes.push({
+        term: trend.term,
+        status: "skipped",
+        sourcesRead: documents.length,
+        reason: "No readable source articles — refusing to write from headlines alone.",
+      });
+      continue;
     }
 
     const result = await draftFromTrend({
