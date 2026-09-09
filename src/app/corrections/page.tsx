@@ -1,10 +1,11 @@
+import { SITE_NAME } from "@/lib/site";
 import type { Metadata } from "next";
 
 import { EditorialNotice } from "@/components/site/editorial-notice";
 import { StaticPage } from "@/components/site/static-page";
 
 export const metadata: Metadata = {
-  title: "Corrections policy — Newswebsite",
+  title: `Corrections policy — ${SITE_NAME}`,
   description: "How we handle errors, and how to tell us about one.",
   alternates: { canonical: "/corrections" },
 };
