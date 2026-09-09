@@ -154,6 +154,9 @@ export default async function AdminPeoplePage() {
                       role={role.role}
                       label={role.label}
                       granted={roles.has(role.role)}
+                      personLabel={
+                        nameByUser.get(account.id) ?? account.email ?? "this account"
+                      }
                     />
                   ))}
                 </div>
@@ -164,9 +167,10 @@ export default async function AdminPeoplePage() {
 
         <p className="mt-6 max-w-measure text-meta leading-relaxed text-muted">
           A highlighted button means the person has that access. Press it to take
-          it away; press a plain one to grant it. You cannot remove your own
-          administrator access — that would lock the newsroom out of its own
-          settings.
+          it away; press a plain one to grant it. Granting editor or admin asks
+          you to confirm first, because both let someone publish to the live
+          site. You cannot remove your own administrator access — that would
+          lock the newsroom out of its own settings.
         </p>
       </section>
     </DashboardShell>
