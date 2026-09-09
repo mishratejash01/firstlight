@@ -1297,6 +1297,10 @@ export type Database = {
           views_24h: number
         }[]
       }
+      record_topic_generation: {
+        Args: { p_topic_id: string }
+        Returns: undefined
+      }
       related_articles: {
         Args: { p_article_id: string; p_limit?: number }
         Returns: {
