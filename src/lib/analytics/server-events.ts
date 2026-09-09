@@ -68,9 +68,12 @@ export async function logPageView({ articleId, categoryId, path }: PageViewInput
       device_type: await deviceType(),
       is_server_side: true,
     });
-  } catch {
+  } catch (error) {
     // Analytics must never break a page. A reader losing an article because a
-    // counter failed is a far worse outcome than a missing row.
+    // counter failed is a far worse outcome than a missing row — but a
+    // silently broken pipeline is how you end up trusting an empty dashboard,
+    // so the failure is logged rather than swallowed outright.
+    console.error("[analytics] page_view capture failed", error);
   }
 }
 
@@ -98,7 +101,8 @@ export async function logSearch({
       device_type: await deviceType(),
       is_server_side: true,
     });
-  } catch {
+  } catch (error) {
     // Never let instrumentation break search.
+    console.error("[analytics] internal_search capture failed", error);
   }
 }
