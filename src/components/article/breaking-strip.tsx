@@ -10,9 +10,11 @@ import type { ArticleCardData } from "@/lib/queries/articles";
  * point: a strip that is always present stops meaning anything.
  *
  * Reversed out of the signal red rather than set in it, which is what makes it
- * read as an alert from across the room instead of as one more headline. The
- * label carries its own colour rather than reusing BreakingTag, because that
- * component's job is to be red against white — the exact opposite of here.
+ * read as an alert from across the room instead of as one more headline. Label
+ * and headline are both white: white on this red clears the contrast bar for
+ * small text, where near-black on it does not. The label does not reuse
+ * BreakingTag because that component's job is to be red against white — the
+ * exact opposite of here.
  *
  * On a phone the headline scrolls as a ticker rather than wrapping to a second
  * row; see .ticker in globals.css for how the loop is made seamless.
@@ -23,7 +25,7 @@ export function BreakingStrip({ article }: { article: ArticleCardData }) {
   return (
     <div className="bg-signal">
       <div className="mx-auto flex max-w-page items-center gap-4 px-4 py-2.5 sm:px-6">
-        <span className="eyebrow shrink-0 text-ink">Breaking</span>
+        <span className="eyebrow shrink-0 text-paper">Breaking</span>
 
         <div className="ticker min-w-0 flex-1">
           <div className="ticker-track">
