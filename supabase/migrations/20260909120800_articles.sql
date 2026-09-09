@@ -110,6 +110,10 @@ create index articles_author_feed_idx
 -- The editor review queue reads by status and recency.
 create index articles_review_queue_idx on public.articles (status, updated_at desc);
 create index articles_created_by_idx on public.articles (created_by);
+-- Foreign key covering indexes: without these, deleting a source or a
+-- reviewer's account scans the whole articles table.
+create index articles_source_id_idx on public.articles (source_id);
+create index articles_reviewed_by_idx on public.articles (reviewed_by);
 create index articles_search_idx on public.articles using gin (search_vector);
 
 create trigger articles_set_updated_at
@@ -178,85 +182,88 @@ alter table public.articles enable row level security;
 
 -- ---------------------------------------------------------------------------
 -- Policies
+--
+-- One permissive policy per role per action. Postgres ORs permissive policies
+-- and evaluates each per row, so the role branches are folded into single
+-- expressions rather than split into separate policies for readability.
+--
+-- The rule that matters most: an author can never move a row into 'published'.
+-- USING says which rows they may touch, WITH CHECK says what those rows are
+-- allowed to become, and neither admits a published state.
 -- ---------------------------------------------------------------------------
 
--- The public site. Note that 'scheduled' is admitted once its timestamp has
--- passed; see the note at the top of this file.
-create policy "articles: public read published"
+-- The public site. 'scheduled' is admitted once its timestamp has passed; see
+-- the note at the top of this file.
+create policy "articles: anon read published"
   on public.articles
   for select
-  to anon, authenticated
+  to anon
   using (
     status in ('published', 'scheduled')
     and published_at is not null
     and published_at <= now()
   );
 
-create policy "articles: editorial read all"
+-- Signed-in readers see the same public set; the desk sees everything; a
+-- contributor additionally sees their own work at every stage, including
+-- rejected drafts.
+create policy "articles: read"
   on public.articles
   for select
   to authenticated
-  using (app.is_editorial());
+  using (
+    (
+      status in ('published', 'scheduled')
+      and published_at is not null
+      and published_at <= now()
+    )
+    or app.is_editorial()
+    or (select auth.uid()) = created_by
+  );
 
--- A contributor sees their own work at every stage, including rejected drafts.
-create policy "articles: authors read own"
-  on public.articles
-  for select
-  to authenticated
-  using ((select auth.uid()) = created_by);
-
--- Contributors file drafts. The status check is what stops an author
--- publishing themselves: they may create work only in a pre-publication state.
-create policy "articles: authors create drafts"
+-- Editors file anything. Contributors file only their own work, and only in a
+-- pre-publication state.
+create policy "articles: insert"
   on public.articles
   for insert
   to authenticated
   with check (
-    app.has_role('author')
-    and (select auth.uid()) = created_by
-    and status in ('draft', 'in_review')
+    app.is_editorial()
+    or (
+      app.has_role('author')
+      and (select auth.uid()) = created_by
+      and status in ('draft', 'in_review')
+    )
   );
 
--- Authors may keep editing until an editor takes it, and may resubmit after a
--- rejection. USING controls which rows they may touch; WITH CHECK controls
--- what those rows may become — so a piece already published cannot be pulled
--- back and rewritten, and no edit can move a row into 'published'.
-create policy "articles: authors update own drafts"
+-- Authors may keep editing until an editor takes the piece, and may resubmit
+-- after a rejection. They cannot reach back into something already published.
+create policy "articles: update"
   on public.articles
   for update
   to authenticated
   using (
-    (select auth.uid()) = created_by
-    and status in ('draft', 'in_review', 'rejected')
+    app.is_editorial()
+    or (
+      (select auth.uid()) = created_by
+      and status in ('draft', 'in_review', 'rejected')
+    )
   )
   with check (
-    (select auth.uid()) = created_by
-    and status in ('draft', 'in_review')
+    app.is_editorial()
+    or (
+      (select auth.uid()) = created_by
+      and status in ('draft', 'in_review')
+    )
   );
 
-create policy "articles: authors delete own drafts"
+-- Published work is archived, not deleted. An author may discard an untouched
+-- draft of their own; anything further is an admin act.
+create policy "articles: delete"
   on public.articles
   for delete
   to authenticated
-  using ((select auth.uid()) = created_by and status = 'draft');
-
--- The desk. Editors are the only role that can move a story to 'published'.
-create policy "articles: editorial insert"
-  on public.articles
-  for insert
-  to authenticated
-  with check (app.is_editorial());
-
-create policy "articles: editorial update"
-  on public.articles
-  for update
-  to authenticated
-  using (app.is_editorial())
-  with check (app.is_editorial());
-
--- Published work is archived, not deleted. Hard deletion is admin-only.
-create policy "articles: admins delete"
-  on public.articles
-  for delete
-  to authenticated
-  using (app.is_admin());
+  using (
+    app.is_admin()
+    or ((select auth.uid()) = created_by and status = 'draft')
+  );
