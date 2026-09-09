@@ -1,10 +1,11 @@
+import { SITE_NAME } from "@/lib/site";
 import type { Metadata } from "next";
 
 import { EditorialNotice } from "@/components/site/editorial-notice";
 import { StaticPage } from "@/components/site/static-page";
 
 export const metadata: Metadata = {
-  title: "Privacy and tracking — Newswebsite",
+  title: `Privacy and tracking — ${SITE_NAME}`,
   description: "What we record about how this site is read, and why.",
   alternates: { canonical: "/privacy" },
 };
