@@ -22,14 +22,14 @@ export default function CorrectionsPage() {
       </EditorialNotice>
 
       <div className="space-y-4 text-body leading-relaxed text-ink">
-        <h2 className="font-serif text-section text-ink">What we correct</h2>
+        <h2 className="text-section text-ink">What we correct</h2>
         <p>
           Any factual error, however small. A misspelled name is a correction. So
           is a wrong figure, a misattributed quote, or a caption that describes
           the wrong thing.
         </p>
 
-        <h2 className="mt-8 font-serif text-section text-ink">How changes are recorded</h2>
+        <h2 className="mt-8 text-section text-ink">How changes are recorded</h2>
         <p>
           Every edit to an article creates a permanent version record capturing
           what changed, who changed it and when. That record is written by the
@@ -38,7 +38,7 @@ export default function CorrectionsPage() {
           journalist, not by an editor, not by an administrator.
         </p>
 
-        <h2 className="mt-8 font-serif text-section text-ink">
+        <h2 className="mt-8 text-section text-ink">
           Substantive versus minor changes
         </h2>
         <p>
@@ -47,7 +47,7 @@ export default function CorrectionsPage() {
           silently but are still recorded in the version history.
         </p>
 
-        <h2 className="mt-8 font-serif text-section text-ink">Telling us about an error</h2>
+        <h2 className="mt-8 text-section text-ink">Telling us about an error</h2>
         <p>
           [Placeholder: corrections contact address, what to include, and the
           time within which you commit to responding.]
