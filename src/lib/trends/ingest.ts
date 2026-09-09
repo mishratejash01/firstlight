@@ -2,6 +2,7 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchTrends, type TrendingTerm } from "./google-trends";
+import { gatherSignals } from "./signals";
 
 /**
  * Polls Google Trends and stages what it finds.
@@ -26,6 +27,7 @@ export type TrendIngestReport = {
   refreshed: number;
   excluded: number;
   belowThreshold: number;
+  enriched: number;
   error?: string;
 };
 
@@ -67,6 +69,7 @@ async function ingestRegion(
     refreshed: 0,
     excluded: 0,
     belowThreshold: 0,
+    enriched: 0,
   };
 
   let terms: TrendingTerm[];
@@ -109,19 +112,30 @@ async function ingestRegion(
 
     const { data: existing } = await supabase
       .from("trending_topics")
-      .select("id, status")
+      .select("id, status, traffic_rank")
       .eq("term", trend.term)
       .eq("region", region)
       .maybeSingle();
 
     if (existing) {
+      // Velocity is the whole reason previous_traffic_rank is kept: a term
+      // climbing is a story breaking, and one falling has already been covered
+      // everywhere. It can only be measured against the last time we looked.
+      const previous = existing.traffic_rank ?? null;
+      const velocity =
+        previous && previous > 0 && trend.trafficRank
+          ? Number((trend.trafficRank / previous).toFixed(3))
+          : null;
+
       // Refresh the volume and coverage, but never reopen a decision an editor
       // or triage has already made.
       await supabase
         .from("trending_topics")
         .update({
           approx_traffic: trend.approxTraffic,
+          previous_traffic_rank: previous,
           traffic_rank: trend.trafficRank,
+          velocity,
           news_items: trend.newsItems as never,
           last_seen_at: new Date().toISOString(),
         })
@@ -130,12 +144,24 @@ async function ingestRegion(
       continue;
     }
 
+    // Only new candidates are enriched. Signals cost a Google News request
+    // each, and re-measuring corroboration for a term we have already judged
+    // buys nothing.
+    const signals = await gatherSignals(trend.term, region, trend.newsItems);
+    report.enriched += 1;
+
     await supabase.from("trending_topics").insert({
       term: trend.term,
       region,
       approx_traffic: trend.approxTraffic,
       traffic_rank: trend.trafficRank,
-      news_items: trend.newsItems as never,
+      // Trends supplies three links; Google News usually finds more, and the
+      // writer reads whichever it can.
+      news_items: [...trend.newsItems, ...signals.extraNewsItems] as never,
+      corroboration: signals.corroboration,
+      authority_score: signals.authorityScore,
+      demand_score: signals.demandScore,
+      cluster_key: signals.clusterKey,
       status: "pending",
     });
     report.inserted += 1;
@@ -159,5 +185,11 @@ export async function ingestTrends(): Promise<TrendIngestReport[]> {
   for (const region of regions) {
     reports.push(await ingestRegion(region, patterns, minTraffic));
   }
+
+  // Scores are recomputed for everything still in play, not just what arrived
+  // in this run: saturation and freshness change with time, so a candidate that
+  // scored well an hour ago may no longer.
+  await supabase.rpc("rescore_trends");
+
   return reports;
 }
