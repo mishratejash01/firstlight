@@ -30,50 +30,52 @@ async function requireAdminUser() {
   return user;
 }
 
-export async function grantRole(formData: FormData): Promise<ActionResult> {
+/**
+ * Grants or revokes one role in a single call.
+ *
+ * The dashboard previously offered a dropdown plus a Grant button plus a
+ * separate Revoke button per role — three controls to express one binary fact.
+ * A single toggle carrying its own current state is both less code and far
+ * less to read: the button says what is true now and what one click will make
+ * true instead.
+ */
+export async function toggleRole(formData: FormData): Promise<ActionResult> {
   const admin = await requireAdminUser();
   if (!admin) return { error: "Administrator role required." };
 
   const userId = String(formData.get("user_id") ?? "");
   const role = String(formData.get("role") ?? "") as AppRole;
+  const grant = String(formData.get("grant") ?? "") === "true";
 
   if (!userId) return { error: "Missing account." };
   if (!ROLES.includes(role)) return { error: "Unknown role." };
 
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("user_roles")
-    .insert({ user_id: userId, role, granted_by: admin.id });
-
-  // A duplicate grant is not a failure worth showing anyone.
-  if (error && error.code !== "23505") return { error: error.message };
-
-  revalidatePath("/admin");
-  return { ok: true };
-}
-
-export async function revokeRole(formData: FormData): Promise<ActionResult> {
-  const admin = await requireAdminUser();
-  if (!admin) return { error: "Administrator role required." };
-
-  const roleId = String(formData.get("role_id") ?? "");
-  const targetUserId = String(formData.get("user_id") ?? "");
-  const role = String(formData.get("role") ?? "");
-
   // An admin removing their own admin role locks the newsroom out of its own
-  // administration, and the fix requires the service key. Refuse it here.
-  if (targetUserId === admin.id && role === "admin") {
+  // administration, and recovering needs the service key. Refuse it here.
+  if (!grant && userId === admin.id && role === "admin") {
     return {
-      error:
-        "You cannot remove your own administrator role. Ask another administrator to do it.",
+      error: "You cannot remove your own administrator role. Ask another administrator.",
     };
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("user_roles").delete().eq("id", roleId);
 
-  if (error) return { error: error.message };
+  if (grant) {
+    const { error } = await supabase
+      .from("user_roles")
+      .insert({ user_id: userId, role, granted_by: admin.id });
+    // A duplicate grant means the desired state already holds; not a failure.
+    if (error && error.code !== "23505") return { error: error.message };
+  } else {
+    const { error } = await supabase
+      .from("user_roles")
+      .delete()
+      .eq("user_id", userId)
+      .eq("role", role);
+    if (error) return { error: error.message };
+  }
 
+  revalidatePath("/admin/people");
   revalidatePath("/admin");
   return { ok: true };
 }
