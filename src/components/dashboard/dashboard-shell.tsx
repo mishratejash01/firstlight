@@ -1,3 +1,4 @@
+import { SITE_NAME } from "@/lib/site";
 import Link from "next/link";
 
 import type { SessionUser } from "@/lib/auth/roles";
@@ -44,7 +45,7 @@ export function DashboardShell({
       <header className="border-b border-hairline">
         <div className="mx-auto flex max-w-6xl flex-wrap items-baseline justify-between gap-3 px-4 py-4 sm:px-6">
           <Link href="/" className="text-[1.2rem] font-semibold text-ink">
-            Newswebsite
+            {SITE_NAME}
           </Link>
           <div className="flex items-baseline gap-4">
             <span className="hidden text-meta text-muted sm:inline">{user.email}</span>
