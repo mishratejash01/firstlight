@@ -14,6 +14,271 @@ export type Database = {
   }
   public: {
     Tables: {
+      analytics_events: {
+        Row: {
+          anonymous_id: string | null
+          article_id: string | null
+          author_id: string | null
+          category_id: string | null
+          device_type: string | null
+          event_type: string
+          id: number
+          is_server_side: boolean
+          occurred_at: string
+          path: string | null
+          properties: Json
+          referrer: string | null
+          search_query: string | null
+          session_id: string | null
+          tag_id: string | null
+          user_id: string | null
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }
+        Insert: {
+          anonymous_id?: string | null
+          article_id?: string | null
+          author_id?: string | null
+          category_id?: string | null
+          device_type?: string | null
+          event_type: string
+          id?: never
+          is_server_side?: boolean
+          occurred_at?: string
+          path?: string | null
+          properties?: Json
+          referrer?: string | null
+          search_query?: string | null
+          session_id?: string | null
+          tag_id?: string | null
+          user_id?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Update: {
+          anonymous_id?: string | null
+          article_id?: string | null
+          author_id?: string | null
+          category_id?: string | null
+          device_type?: string | null
+          event_type?: string
+          id?: never
+          is_server_side?: boolean
+          occurred_at?: string
+          path?: string | null
+          properties?: Json
+          referrer?: string | null
+          search_query?: string | null
+          session_id?: string | null
+          tag_id?: string | null
+          user_id?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reading_events_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_events_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_events_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_events_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      article_entities: {
+        Row: {
+          ai_suggested: boolean
+          article_id: string
+          created_at: string
+          entity_id: string
+          relation: string
+          role_note: string | null
+        }
+        Insert: {
+          ai_suggested?: boolean
+          article_id: string
+          created_at?: string
+          entity_id: string
+          relation?: string
+          role_note?: string | null
+        }
+        Update: {
+          ai_suggested?: boolean
+          article_id?: string
+          created_at?: string
+          entity_id?: string
+          relation?: string
+          role_note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_entities_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "article_entities_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "entities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      article_events: {
+        Row: {
+          article_id: string
+          created_at: string
+          event_id: string
+          position: number
+          relation: string
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          event_id: string
+          position?: number
+          relation?: string
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          event_id?: string
+          position?: number
+          relation?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_events_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "article_events_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "news_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      article_faqs: {
+        Row: {
+          answer: string
+          article_id: string
+          created_at: string
+          id: string
+          position: number
+          question: string
+          updated_at: string
+        }
+        Insert: {
+          answer: string
+          article_id: string
+          created_at?: string
+          id?: string
+          position?: number
+          question: string
+          updated_at?: string
+        }
+        Update: {
+          answer?: string
+          article_id?: string
+          created_at?: string
+          id?: string
+          position?: number
+          question?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_faqs_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      article_key_facts: {
+        Row: {
+          article_id: string
+          attribution: string
+          created_at: string
+          entity_id: string | null
+          id: string
+          label: string
+          position: number
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          article_id: string
+          attribution: string
+          created_at?: string
+          entity_id?: string | null
+          id?: string
+          label: string
+          position?: number
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          article_id?: string
+          attribution?: string
+          created_at?: string
+          entity_id?: string | null
+          id?: string
+          label?: string
+          position?: number
+          updated_at?: string
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_key_facts_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "article_key_facts_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "entities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       article_tags: {
         Row: {
           ai_suggested: boolean
@@ -305,6 +570,123 @@ export type Database = {
         }
         Relationships: []
       }
+      entities: {
+        Row: {
+          created_at: string
+          description: string | null
+          entity_type: string
+          id: string
+          is_active: boolean
+          name: string
+          same_as: Json
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          entity_type: string
+          id?: string
+          is_active?: boolean
+          name: string
+          same_as?: Json
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          entity_type?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          same_as?: Json
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      event_updates: {
+        Row: {
+          anchor: string | null
+          author_id: string | null
+          body: string
+          created_at: string
+          created_by: string | null
+          event_id: string
+          headline: string
+          id: string
+          is_key_update: boolean
+          published_at: string
+          updated_at: string
+        }
+        Insert: {
+          anchor?: string | null
+          author_id?: string | null
+          body: string
+          created_at?: string
+          created_by?: string | null
+          event_id: string
+          headline: string
+          id?: string
+          is_key_update?: boolean
+          published_at?: string
+          updated_at?: string
+        }
+        Update: {
+          anchor?: string | null
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          event_id?: string
+          headline?: string
+          id?: string
+          is_key_update?: boolean
+          published_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_updates_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_updates_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "news_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      follows: {
+        Row: {
+          created_at: string
+          id: string
+          target_id: string
+          target_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          target_id: string
+          target_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          target_id?: string
+          target_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       homepage_placements: {
         Row: {
           article_id: string
@@ -359,6 +741,74 @@ export type Database = {
           },
         ]
       }
+      news_events: {
+        Row: {
+          category_id: string | null
+          coverage_ends_at: string | null
+          coverage_starts_at: string
+          created_at: string
+          created_by: string | null
+          hero_image_alt: string | null
+          hero_image_url: string | null
+          id: string
+          is_live: boolean
+          meta_description: string | null
+          meta_title: string | null
+          published_at: string | null
+          slug: string
+          status: string
+          summary: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category_id?: string | null
+          coverage_ends_at?: string | null
+          coverage_starts_at?: string
+          created_at?: string
+          created_by?: string | null
+          hero_image_alt?: string | null
+          hero_image_url?: string | null
+          id?: string
+          is_live?: boolean
+          meta_description?: string | null
+          meta_title?: string | null
+          published_at?: string | null
+          slug: string
+          status?: string
+          summary?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string | null
+          coverage_ends_at?: string | null
+          coverage_starts_at?: string
+          created_at?: string
+          created_by?: string | null
+          hero_image_alt?: string | null
+          hero_image_url?: string | null
+          id?: string
+          is_live?: boolean
+          meta_description?: string | null
+          meta_title?: string | null
+          published_at?: string | null
+          slug?: string
+          status?: string
+          summary?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "news_events_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       newsletter_subscribers: {
         Row: {
           confirmation_token: string
@@ -394,83 +844,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
-      }
-      reading_events: {
-        Row: {
-          anonymous_id: string | null
-          article_id: string | null
-          author_id: string | null
-          category_id: string | null
-          event_type: string
-          id: number
-          occurred_at: string
-          path: string | null
-          properties: Json
-          referrer: string | null
-          session_id: string | null
-          tag_id: string | null
-          user_id: string | null
-        }
-        Insert: {
-          anonymous_id?: string | null
-          article_id?: string | null
-          author_id?: string | null
-          category_id?: string | null
-          event_type: string
-          id?: never
-          occurred_at?: string
-          path?: string | null
-          properties?: Json
-          referrer?: string | null
-          session_id?: string | null
-          tag_id?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          anonymous_id?: string | null
-          article_id?: string | null
-          author_id?: string | null
-          category_id?: string | null
-          event_type?: string
-          id?: never
-          occurred_at?: string
-          path?: string | null
-          properties?: Json
-          referrer?: string | null
-          session_id?: string | null
-          tag_id?: string | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "reading_events_article_id_fkey"
-            columns: ["article_id"]
-            isOneToOne: false
-            referencedRelation: "articles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reading_events_author_id_fkey"
-            columns: ["author_id"]
-            isOneToOne: false
-            referencedRelation: "authors"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reading_events_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reading_events_tag_id_fkey"
-            columns: ["tag_id"]
-            isOneToOne: false
-            referencedRelation: "tags"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       source_licences: {
         Row: {
@@ -626,6 +999,76 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      dashboard_content_performance: {
+        Args: {
+          p_category_id?: string
+          p_days?: number
+          p_limit?: number
+          p_order?: string
+        }
+        Returns: {
+          article_id: string
+          category_name: string
+          completion_rate_pct: number
+          completions: number
+          headline: string
+          median_drop_off_pct: number
+          published_at: string
+          sessions: number
+        }[]
+      }
+      dashboard_follow_counts: {
+        Args: { p_limit?: number; p_target_type?: string }
+        Returns: {
+          followers: number
+          target_id: string
+          target_name: string
+          target_type: string
+        }[]
+      }
+      dashboard_referral_sources: {
+        Args: { p_days?: number; p_limit?: number }
+        Returns: {
+          actors: number
+          events: number
+          source: string
+          utm_campaign: string
+          utm_medium: string
+        }[]
+      }
+      dashboard_retention: {
+        Args: { p_days?: number }
+        Returns: {
+          cohort_day: string
+          cohort_size: number
+          returned_d1: number
+          returned_d30: number
+          returned_d7: number
+        }[]
+      }
+      dashboard_search_gaps: {
+        Args: { p_limit?: number }
+        Returns: {
+          last_searched_at: string
+          query: string
+          searchers: number
+          searches: number
+          zero_result_searches: number
+        }[]
+      }
+      dashboard_trending: {
+        Args: { p_limit?: number }
+        Returns: {
+          article_id: string
+          category_name: string
+          decayed_score: number
+          headline: string
+          published_at: string
+          status: Database["public"]["Enums"]["article_status"]
+          views_1h: number
+          views_24h: number
+        }[]
+      }
       subscribe_to_newsletter: {
         Args: { p_context?: string; p_email: string }
         Returns: undefined
