@@ -54,6 +54,12 @@ export async function triageTrend(input: {
   term: string;
   newsItems: TrendNewsItem[];
   sections: string[];
+  signals?: {
+    corroboration: number;
+    authority: number;
+    demand: number;
+    velocity: number | null;
+  };
 }): Promise<TriageResult> {
   if (!aiIsConfigured()) {
     return { ok: false, error: "AI assist is not configured." };
@@ -69,9 +75,27 @@ export async function triageTrend(input: {
       system: TRIAGE_SYSTEM,
       prompt: [
         `Trending search term: ${input.term}`,
-        headlines ? `\nHeadlines matched to it:\n${headlines}` : "\nNo coverage was matched to this term.",
+        headlines
+          ? `\nHeadlines matched to it:\n${headlines}`
+          : "\nNo coverage was matched to this term.",
+        input.signals
+          ? [
+              "\nWhat the signals say:",
+              `- ${input.signals.corroboration} distinct outlets are covering it`,
+              `- average outlet authority ${input.signals.authority.toFixed(2)} (1.0 is an ordinary outlet, 2.0 a wire service)`,
+              input.signals.velocity === null
+                ? "- first time we have seen this term"
+                : `- search volume is at ${(input.signals.velocity * 100).toFixed(0)}% of the last reading`,
+              input.signals.demand > 0
+                ? `- our own readers searched for this ${input.signals.demand} times recently and we had nothing`
+                : "- no reader searches for this",
+              "\nThese inform the decision; they do not make it. Wide coverage of something that is not news is still not news.",
+            ].join("\n")
+          : "",
         `\nAvailable sections: ${input.sections.join(", ")}`,
-      ].join("\n"),
+      ]
+        .filter(Boolean)
+        .join("\n"),
       output: Output.object({ schema: trendTriageSchema }),
     });
 
@@ -112,9 +136,9 @@ export async function triagePendingTrends(limit = 20): Promise<TriageRunReport> 
   const [{ data: pending }, { data: categories }] = await Promise.all([
     supabase
       .from("trending_topics")
-      .select("id, term, news_items")
+      .select("id, term, news_items, corroboration, authority_score, demand_score, velocity, signal_score")
       .eq("status", "pending")
-      .order("traffic_rank", { ascending: false, nullsFirst: false })
+      .order("signal_score", { ascending: false })
       .limit(limit),
     supabase.from("categories").select("name").eq("is_active", true),
   ]);
@@ -128,6 +152,12 @@ export async function triagePendingTrends(limit = 20): Promise<TriageRunReport> 
       term: row.term,
       newsItems: (row.news_items as unknown as TrendNewsItem[]) ?? [],
       sections,
+      signals: {
+        corroboration: row.corroboration ?? 0,
+        authority: Number(row.authority_score ?? 0),
+        demand: Number(row.demand_score ?? 0),
+        velocity: row.velocity === null ? null : Number(row.velocity),
+      },
     });
 
     if (!result.ok) {
