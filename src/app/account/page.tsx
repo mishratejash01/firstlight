@@ -1,36 +1,57 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 
-import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { SiteFooter } from "@/components/site/site-footer";
+import { SiteHeader } from "@/components/site/site-header";
+import { NewsletterSignup } from "@/components/site/newsletter-signup";
+import { TrackingPreference } from "@/components/account/tracking-preference";
 import { UnfollowButton } from "@/components/account/unfollow-button";
 import { requireUser } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
+import { formatDate } from "@/lib/format/datetime";
 
 export const metadata: Metadata = {
-  title: "Your account",
+  title: "Your profile",
   robots: { index: false, follow: false },
 };
 
 export const dynamic = "force-dynamic";
 
 /**
- * Reader account.
+ * A reader's own profile.
  *
- * What a reader gets for signing in: their follows, and a plain statement of
- * what role they hold. An account with no role is a reader — signing in is not
- * an application for newsroom access, and the page says so rather than leaving
- * someone wondering why there is no publish button.
+ * Deliberately rendered in the ordinary site chrome, not the newsroom shell.
+ * It previously used the same header as the editor desk and administration,
+ * which meant a reader signing in appeared to land inside the newsroom — the
+ * page was correct, but everything around it said otherwise.
+ *
+ * Newsroom links appear here only for people who hold a role, and are presented
+ * as a way out of the reader area rather than as the point of the page.
  */
 export default async function AccountPage() {
   const user = await requireUser("/account");
   const supabase = await createClient();
+
+  // getUser() rather than the cached claims: the display name and avatar come
+  // from the identity provider and are worth a network call on a page someone
+  // visits deliberately.
+  const { data: authData } = await supabase.auth.getUser();
+  const metadata = (authData.user?.user_metadata ?? {}) as {
+    full_name?: string;
+    name?: string;
+    avatar_url?: string;
+    picture?: string;
+  };
+  const displayName = metadata.full_name ?? metadata.name ?? null;
+  const avatarUrl = metadata.avatar_url ?? metadata.picture ?? null;
+  const joined = authData.user?.created_at ?? null;
 
   const { data: follows } = await supabase
     .from("follows")
     .select("id, target_type, target_id, created_at")
     .order("created_at", { ascending: false });
 
-  // Resolve names in one round trip per type rather than one per follow.
   const idsByType = (type: string) =>
     (follows ?? []).filter((f) => f.target_type === type).map((f) => f.target_id);
 
@@ -41,73 +62,162 @@ export default async function AccountPage() {
     supabase.from("news_events").select("id, slug, title").in("id", idsByType("event")),
   ]);
 
-  const nameFor = (type: string, id: string) => {
+  const resolve = (type: string, id: string) => {
     if (type === "tag") {
       const t = tags.data?.find((x) => x.id === id);
-      return t ? { label: t.name, href: `/topic/${t.slug}` } : null;
+      return t ? { label: t.name, href: `/topic/${t.slug}`, kind: "Topic" } : null;
     }
     if (type === "author") {
       const a = authors.data?.find((x) => x.id === id);
-      return a ? { label: a.display_name, href: `/author/${a.slug}` } : null;
+      return a ? { label: a.display_name, href: `/author/${a.slug}`, kind: "Writer" } : null;
     }
     if (type === "category") {
       const c = categories.data?.find((x) => x.id === id);
-      return c ? { label: c.name, href: `/${c.slug}` } : null;
+      return c ? { label: c.name, href: `/${c.slug}`, kind: "Section" } : null;
     }
     const e = events.data?.find((x) => x.id === id);
-    return e ? { label: e.title, href: `/live/${e.slug}` } : null;
+    return e ? { label: e.title, href: `/live/${e.slug}`, kind: "Story" } : null;
   };
 
+  const hasNewsroomAccess = user.roles.length > 0;
+
   return (
-    <DashboardShell
-      user={user}
-      title="Your account"
-      standfirst={
-        user.roles.length
-          ? `Signed in as ${user.roles.join(", ")}.`
-          : "Signed in as a reader. Newsroom access is granted separately by an administrator."
-      }
-    >
-      <section>
-        <h2 className="font-serif text-section text-ink">Following</h2>
+    <>
+      <SiteHeader />
 
-        {follows?.length ? (
-          <ul className="mt-4 divide-y divide-hairline border-t border-hairline">
-            {follows.map((follow) => {
-              const target = nameFor(follow.target_type, follow.target_id);
-              if (!target) return null;
-              return (
-                <li key={follow.id} className="flex items-center justify-between gap-4 py-3">
-                  <div>
-                    <Link href={target.href} className="text-body text-ink hover:text-accent">
-                      {target.label}
+      <main className="route-enter mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="mx-auto max-w-measure py-10">
+          {/* ---------------------------------------------------------- */}
+          <div className="flex items-center gap-4">
+            {avatarUrl ? (
+              <Image
+                src={avatarUrl}
+                alt=""
+                width={56}
+                height={56}
+                className="h-14 w-14 rounded-full object-cover"
+              />
+            ) : null}
+            <div className="min-w-0">
+              <h1 className="font-serif text-[1.75rem] leading-tight text-ink">
+                {displayName ?? "Your profile"}
+              </h1>
+              <p className="mt-0.5 text-meta text-muted">
+                {user.email}
+                {joined ? ` · reading since ${formatDate(joined)}` : null}
+              </p>
+            </div>
+          </div>
+
+          <form action="/auth/signout" method="post" className="mt-5">
+            <button
+              type="submit"
+              className="rounded-control border border-hairline px-4 py-2 text-meta text-ink hover:border-muted"
+            >
+              Sign out
+            </button>
+          </form>
+
+          {/* ---------------------------------------------------------- */}
+          <section className="mt-12 border-t border-hairline pt-6">
+            <h2 className="font-serif text-section text-ink">Following</h2>
+
+            {follows?.length ? (
+              <ul className="mt-4 divide-y divide-hairline border-t border-hairline">
+                {follows.map((follow) => {
+                  const target = resolve(follow.target_type, follow.target_id);
+                  if (!target) return null;
+                  return (
+                    <li
+                      key={follow.id}
+                      className="flex items-center justify-between gap-4 py-3"
+                    >
+                      <div className="min-w-0">
+                        <Link href={target.href} className="text-body text-ink hover:text-accent">
+                          {target.label}
+                        </Link>
+                        <p className="text-meta text-muted">{target.kind}</p>
+                      </div>
+                      <UnfollowButton followId={follow.id} />
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <div className="mt-3 border-l-2 border-hairline py-1 pl-4">
+                <p className="text-body text-ink">You aren&rsquo;t following anything yet.</p>
+                <p className="mt-1 text-meta leading-relaxed text-muted">
+                  Open any{" "}
+                  <Link href="/topic/climate" className="text-accent underline underline-offset-4">
+                    topic
+                  </Link>{" "}
+                  or{" "}
+                  <Link href="/masthead" className="text-accent underline underline-offset-4">
+                    writer
+                  </Link>{" "}
+                  and press Follow. What you follow appears here.
+                </p>
+              </div>
+            )}
+          </section>
+
+          {/* ---------------------------------------------------------- */}
+          <section className="mt-12 border-t border-hairline pt-6">
+            <h2 className="font-serif text-section text-ink">Newsletter</h2>
+            <div className="mt-4">
+              <NewsletterSignup context="account" />
+            </div>
+          </section>
+
+          {/* ---------------------------------------------------------- */}
+          <section className="mt-12 border-t border-hairline pt-6">
+            <h2 className="font-serif text-section text-ink">
+              How your reading is measured
+            </h2>
+            <TrackingPreference />
+            <p className="mt-3 text-meta text-muted">
+              The full detail is on the{" "}
+              <Link href="/privacy" className="text-accent underline underline-offset-4">
+                privacy page
+              </Link>
+              .
+            </p>
+          </section>
+
+          {/* Only shown to people who actually have newsroom access. */}
+          {hasNewsroomAccess ? (
+            <section className="mt-12 border-t border-hairline pt-6">
+              <h2 className="font-serif text-section text-ink">Newsroom</h2>
+              <p className="mt-1 text-meta text-muted">
+                You have {user.roles.join(" and ")} access.
+              </p>
+              <ul className="mt-3 space-y-2">
+                {user.roles.includes("admin") ? (
+                  <li>
+                    <Link href="/admin" className="text-body text-accent underline underline-offset-4">
+                      Administration
                     </Link>
-                    <p className="text-meta text-muted capitalize">{follow.target_type}</p>
-                  </div>
-                  <UnfollowButton followId={follow.id} />
+                  </li>
+                ) : null}
+                {user.roles.includes("admin") || user.roles.includes("editor") ? (
+                  <li>
+                    <Link href="/desk" className="text-body text-accent underline underline-offset-4">
+                      Editor desk
+                    </Link>
+                  </li>
+                ) : null}
+                <li>
+                  <Link href="/contribute" className="text-body text-accent underline underline-offset-4">
+                    My work
+                  </Link>
                 </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <p className="mt-3 text-body text-muted">
-            You are not following anything yet. Follow a topic or a writer from
-            any article page and it will appear here.
-          </p>
-        )}
-      </section>
+              </ul>
+            </section>
+          ) : null}
+        </div>
+      </main>
 
-      <section className="mt-10 border-t border-hairline pt-6">
-        <h2 className="font-serif text-section text-ink">Privacy</h2>
-        <p className="mt-2 max-w-measure text-body leading-relaxed text-muted">
-          What this site records about how you read it, and how to change your
-          tracking choice, is set out on the{" "}
-          <Link href="/privacy" className="text-accent underline underline-offset-4">
-            privacy page
-          </Link>
-          .
-        </p>
-      </section>
-    </DashboardShell>
+      <SiteFooter />
+    </>
   );
 }
