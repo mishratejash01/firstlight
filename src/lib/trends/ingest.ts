@@ -110,6 +110,15 @@ async function ingestRegion(
       continue;
     }
 
+    // A single short token is not a subject. "att" produced an article joining
+    // a shooting and a cyberattack because nothing in the term said which
+    // story it meant.
+    const words = trend.term.trim().split(/\s+/);
+    if (words.length === 1 && trend.term.trim().length < 5) {
+      report.belowThreshold += 1;
+      continue;
+    }
+
     const { data: existing } = await supabase
       .from("trending_topics")
       .select("id, status, traffic_rank")
