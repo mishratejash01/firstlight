@@ -1,3 +1,4 @@
+import { SITE_NAME } from "@/lib/site";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -29,7 +30,7 @@ export async function generateMetadata(
   if (!category) return { title: "Not found" };
 
   return {
-    title: `${category.name} — Newswebsite`,
+    title: `${category.name} — ${SITE_NAME}`,
     description: category.description ?? undefined,
     alternates: { canonical: `/${category.slug}` },
   };
