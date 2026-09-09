@@ -1,4 +1,7 @@
+import Image from "next/image";
 import { Fragment, type ReactNode } from "react";
+
+import { cloudinaryImage, cloudinaryVideoPoster } from "@/lib/media/transform";
 
 /**
  * A deliberately small Markdown subset, rendered straight to React elements.
@@ -11,11 +14,13 @@ import { Fragment, type ReactNode } from "react";
  * markup, no matter what anyone writes.
  *
  * Supported: '## '/'### ' headings, paragraphs, '- ' lists, '> ' quotes,
- * **bold**, *italic*, [text](url). Anything else renders as literal text.
+ * **bold**, *italic*, [text](url), and ![alt](url "optional caption") for
+ * images and video. Anything else renders as literal text.
  */
 
 type Block =
   | { kind: "heading"; level: 2 | 3; text: string }
+  | { kind: "media"; alt: string; url: string; caption: string | null }
   | { kind: "paragraph"; text: string }
   | { kind: "list"; items: string[] }
   | { kind: "quote"; text: string };
@@ -46,6 +51,22 @@ function parseBlocks(markdown: string): Block[] {
     if (!line.trim()) {
       flushParagraph();
       flushList();
+      continue;
+    }
+
+    // A line that is nothing but an image is a figure, not a paragraph
+    // containing an image — that distinction is what lets it break out of the
+    // text measure and carry a caption.
+    const media = /^!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)$/.exec(line.trim());
+    if (media) {
+      flushParagraph();
+      flushList();
+      blocks.push({
+        kind: "media",
+        alt: media[1],
+        url: media[2],
+        caption: media[3] ?? null,
+      });
       continue;
     }
 
@@ -97,13 +118,18 @@ function isSafeHref(href: string): boolean {
   }
 }
 
-const INLINE = /(\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)\s]+\))/g;
+const INLINE = /(\*\*[^*]+\*\*|\*[^*]+\*|!?\[[^\]]*\]\([^)\s]+\))/g;
 
 function renderInline(text: string, keyPrefix: string): ReactNode {
   const parts = text.split(INLINE).filter((part) => part !== "");
 
   return parts.map((part, index) => {
     const key = `${keyPrefix}-${index}`;
+
+    // An image written mid-paragraph renders as its alt text rather than
+    // breaking the flow of a sentence; a figure has to be on its own line.
+    const inlineImage = /^!\[([^\]]*)\]\(([^)\s]+)\)$/.exec(part);
+    if (inlineImage) return <Fragment key={key}>{inlineImage[1]}</Fragment>;
 
     const link = /^\[([^\]]+)\]\(([^)\s]+)\)$/.exec(part);
     if (link) {
@@ -153,6 +179,41 @@ export function renderMarkdown(markdown: string | null | undefined): ReactNode {
             {renderInline(block.text, key)}
           </h3>
         );
+
+      case "media": {
+        if (!isSafeHref(block.url)) return null;
+        const isVideo = /\.(mp4|webm|mov)(\?|$)/i.test(block.url);
+
+        return (
+          <figure key={key} className="my-7">
+            {isVideo ? (
+              <video
+                controls
+                preload="metadata"
+                poster={cloudinaryVideoPoster(block.url) ?? undefined}
+                className="w-full bg-hairline"
+              >
+                <source src={block.url} />
+                Your browser cannot play this video.
+              </video>
+            ) : (
+              <Image
+                src={cloudinaryImage(block.url, "hero") ?? block.url}
+                alt={block.alt}
+                width={1200}
+                height={675}
+                sizes="(max-width: 768px) 100vw, 700px"
+                className="h-auto w-full bg-hairline object-cover"
+              />
+            )}
+            {block.caption ? (
+              <figcaption className="mt-2 text-meta leading-relaxed text-muted">
+                {block.caption}
+              </figcaption>
+            ) : null}
+          </figure>
+        );
+      }
 
       case "list":
         return (
