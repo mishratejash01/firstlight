@@ -49,11 +49,13 @@ export default async function AdminPeoplePage() {
   const user = await requireAdmin("/admin/people");
   const supabase = await createClient();
 
-  const [accounts, roleRows, authorRows] = await Promise.all([
+  const [accountResult, roleRows, authorRows] = await Promise.all([
     listAccounts(),
     supabase.from("user_roles").select("user_id, role"),
     supabase.from("authors").select("user_id, display_name"),
   ]);
+
+  const accounts = accountResult.ok ? accountResult.accounts : [];
 
   const rolesByUser = new Map<string, Set<string>>();
   for (const row of roleRows.data ?? []) {
@@ -103,8 +105,18 @@ export default async function AdminPeoplePage() {
 
       <section className="mt-12 border-t border-hairline pt-6">
         <h2 className="font-serif text-section text-ink">
-          Accounts ({accounts.length})
+          Accounts{accountResult.ok ? ` (${accounts.length})` : ""}
         </h2>
+
+        {!accountResult.ok ? (
+          <div className="mt-3 border-l-2 border-signal pl-4">
+            <p className="text-body text-ink">Could not load the account list.</p>
+            <p className="mt-1 max-w-measure text-meta leading-relaxed text-muted">
+              {accountResult.reason} No access has been changed. Reload to try
+              again — an empty list here would be misleading, so none is shown.
+            </p>
+          </div>
+        ) : null}
 
         <ul className="mt-4 divide-y divide-hairline border-t border-hairline">
           {sorted.map((account) => {
