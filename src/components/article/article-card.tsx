@@ -4,6 +4,7 @@ import Link from "next/link";
 import { BreakingTag } from "./breaking-tag";
 import { Byline } from "./byline";
 import type { ArticleCardData } from "@/lib/queries/articles";
+import { cloudinaryImage } from "@/lib/media/transform";
 
 /**
  * The standard story card used across shelves, section fronts and search.
@@ -28,7 +29,7 @@ export function ArticleCard({
         <Link href={href} tabIndex={-1} aria-hidden="true">
           <div className="relative mb-3 aspect-[16/9] w-full overflow-hidden bg-hairline">
             <Image
-              src={article.hero_image_url}
+              src={cloudinaryImage(article.hero_image_url, "card") ?? article.hero_image_url}
               alt={article.hero_image_alt ?? ""}
               fill
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
