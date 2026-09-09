@@ -1,7 +1,8 @@
+import { SITE_NAME } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-const PUBLICATION_NAME = "Newswebsite";
+const PUBLICATION_NAME = SITE_NAME;
 const PUBLICATION_LANGUAGE = "en";
 
 /**
