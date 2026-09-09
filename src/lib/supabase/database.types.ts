@@ -1006,6 +1006,30 @@ export type Database = {
         }
         Relationships: []
       }
+      source_authority: {
+        Row: {
+          created_at: string
+          host: string
+          name: string
+          note: string | null
+          weight: number
+        }
+        Insert: {
+          created_at?: string
+          host: string
+          name: string
+          note?: string | null
+          weight?: number
+        }
+        Update: {
+          created_at?: string
+          host?: string
+          name?: string
+          note?: string | null
+          weight?: number
+        }
+        Relationships: []
+      }
       source_documents: {
         Row: {
           byline: string | null
@@ -1201,44 +1225,65 @@ export type Database = {
         Row: {
           approx_traffic: string | null
           article_id: string | null
+          authority_score: number
+          cluster_key: string | null
+          corroboration: number
+          demand_score: number
           first_seen_at: string
           id: string
           last_seen_at: string
           news_items: Json
+          previous_traffic_rank: number | null
           region: string
+          signal_score: number
           status: string
           term: string
           traffic_rank: number | null
           triage_category: string | null
           triage_reason: string | null
+          velocity: number | null
         }
         Insert: {
           approx_traffic?: string | null
           article_id?: string | null
+          authority_score?: number
+          cluster_key?: string | null
+          corroboration?: number
+          demand_score?: number
           first_seen_at?: string
           id?: string
           last_seen_at?: string
           news_items?: Json
+          previous_traffic_rank?: number | null
           region?: string
+          signal_score?: number
           status?: string
           term: string
           traffic_rank?: number | null
           triage_category?: string | null
           triage_reason?: string | null
+          velocity?: number | null
         }
         Update: {
           approx_traffic?: string | null
           article_id?: string | null
+          authority_score?: number
+          cluster_key?: string | null
+          corroboration?: number
+          demand_score?: number
           first_seen_at?: string
           id?: string
           last_seen_at?: string
           news_items?: Json
+          previous_traffic_rank?: number | null
           region?: string
+          signal_score?: number
           status?: string
           term?: string
           traffic_rank?: number | null
           triage_category?: string | null
           triage_reason?: string | null
+          velocity?: number | null
         }
         Relationships: [
           {
@@ -1461,6 +1506,7 @@ export type Database = {
           standfirst: string
         }[]
       }
+      rescore_trends: { Args: never; Returns: number }
       subscribe_to_newsletter: {
         Args: { p_context?: string; p_email: string }
         Returns: undefined
