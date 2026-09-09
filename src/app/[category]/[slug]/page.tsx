@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { after } from "next/server";
 import type { Metadata } from "next";
 
+import { AiDisclosure } from "@/components/article/ai-disclosure";
 import { ArticleCard } from "@/components/article/article-card";
 import { Eyebrow } from "@/components/article/eyebrow";
 import { JsonLd } from "@/components/seo/json-ld";
@@ -221,6 +222,13 @@ export default async function ArticlePage(
             ) : (
               <div className="mt-7">{renderMarkdown(article.body)}</div>
             )}
+
+            {article.ai_assisted ? (
+              <AiDisclosure
+                reviewed={Boolean(article.reviewed_by)}
+                unverifiedCount={article.ai_unverified_claims?.length ?? 0}
+              />
+            ) : null}
 
             {keyFacts.length ? (
               <section className="mt-12 border-t border-hairline pt-6">
