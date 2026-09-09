@@ -1,23 +1,18 @@
 import type { Metadata } from "next";
-import { Source_Sans_3, Source_Serif_4 } from "next/font/google";
+import { Libre_Franklin } from "next/font/google";
 
 import { AnalyticsProvider } from "@/components/analytics/analytics-provider";
 import "./globals.css";
 
-// Source Serif 4 carries the editorial weight of headlines; Source Sans 3 was
-// drawn as its companion and stays legible down to caption sizes.
-const sourceSerif = Source_Serif_4({
-  variable: "--font-source-serif",
+// One family for the whole paper, the way the modern wire services set
+// themselves. Libre Franklin descends from Franklin Gothic — the face
+// newspapers have set decks and labels in for a century — so it carries a
+// 52px headline and an 11px timestamp without needing a second family to help.
+// Loaded as a variable font: one file, every weight.
+const libreFranklin = Libre_Franklin({
+  variable: "--font-sans-src",
   subsets: ["latin"],
   display: "swap",
-  weight: ["400", "600", "700"],
-});
-
-const sourceSans = Source_Sans_3({
-  variable: "--font-source-sans",
-  subsets: ["latin"],
-  display: "swap",
-  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
@@ -29,7 +24,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${sourceSerif.variable} ${sourceSans.variable}`}>
+    <html lang="en" className={libreFranklin.variable}>
       <body>
         {children}
         <AnalyticsProvider
