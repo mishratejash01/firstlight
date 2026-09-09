@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Source_Sans_3, Source_Serif_4 } from "next/font/google";
+
+import { AnalyticsProvider } from "@/components/analytics/analytics-provider";
 import "./globals.css";
 
 // Source Serif 4 carries the editorial weight of headlines; Source Sans 3 was
@@ -28,7 +30,12 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${sourceSerif.variable} ${sourceSans.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <AnalyticsProvider
+          measurementId={process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID}
+        />
+      </body>
     </html>
   );
 }
