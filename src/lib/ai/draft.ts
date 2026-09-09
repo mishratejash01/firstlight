@@ -141,7 +141,7 @@ async function generateStructured<S extends z.ZodTypeAny>(
 
   for (const model of models) {
     try {
-      const { output } = await generateText({
+      const { output, finishReason } = await generateText({
         model,
         system: options.system,
         prompt: options.prompt,
@@ -150,7 +150,19 @@ async function generateStructured<S extends z.ZodTypeAny>(
         // is out of capacity is retried for close to a minute before the chain
         // moves on, which is the slow way to reach the same answer.
         maxRetries: 1,
+        // Generous, because reasoning tokens are drawn from the same budget as
+        // the text. A long source article plus a model that thinks before it
+        // writes will otherwise hit the ceiling mid-article.
+        maxOutputTokens: 12_000,
       });
+
+      // A response cut off at the token limit still parses, because the schema
+      // fills in what it can — so it arrives looking like a valid article that
+      // simply stops mid-sentence. Publishing that is worse than failing.
+      if (finishReason === "length") {
+        throw new Error("Model hit the output limit and returned a truncated article.");
+      }
+
       return output as z.infer<S>;
     } catch (error) {
       lastError = error;
