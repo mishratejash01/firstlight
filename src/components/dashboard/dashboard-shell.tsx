@@ -43,7 +43,7 @@ export function DashboardShell({
     <div className="min-h-dvh">
       <header className="border-b border-hairline">
         <div className="mx-auto flex max-w-6xl flex-wrap items-baseline justify-between gap-3 px-4 py-4 sm:px-6">
-          <Link href="/" className="font-serif text-[1.2rem] font-semibold text-ink">
+          <Link href="/" className="text-[1.2rem] font-semibold text-ink">
             Newswebsite
           </Link>
           <div className="flex items-baseline gap-4">
@@ -74,7 +74,7 @@ export function DashboardShell({
       <main className="route-enter mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-hairline pb-5">
           <div>
-            <h1 className="font-serif text-[1.75rem] leading-tight text-ink">{title}</h1>
+            <h1 className="text-[1.75rem] leading-tight text-ink">{title}</h1>
             {standfirst ? <p className="mt-1 text-meta text-muted">{standfirst}</p> : null}
           </div>
           {actions ? <div className="flex gap-3">{actions}</div> : null}
