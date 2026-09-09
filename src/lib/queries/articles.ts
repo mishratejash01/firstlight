@@ -15,7 +15,12 @@ const CARD_FIELDS = `
   published_at, is_breaking, origin, attribution_url, attribution_label,
   categories!inner ( slug, name ),
   authors ( slug, display_name )
-` as const;
+`;
+
+const AUTHOR_JOINED_FIELDS = CARD_FIELDS.replace("authors (", "authors!inner (");
+
+/** A 'scheduled' row becomes public once its timestamp passes; see the articles migration. */
+const VISIBLE_STATUSES = ["published", "scheduled"] as const;
 
 export type ArticleCardData = {
   id: string;
@@ -34,13 +39,8 @@ export type ArticleCardData = {
   authors: { slug: string; display_name: string } | null;
 };
 
-/** The public visibility rule, in one place. */
-function onlyPublished<T extends { gte: (c: string, v: string) => T; in: (c: string, v: string[]) => T; lte: (c: string, v: string) => T }>(
-  query: T,
-): T {
-  return query
-    .in("status", ["published", "scheduled"])
-    .lte("published_at", new Date().toISOString());
+function nowIso() {
+  return new Date().toISOString();
 }
 
 /**
@@ -52,9 +52,11 @@ function onlyPublished<T extends { gte: (c: string, v: string) => T; in: (c: str
  */
 export async function getRecentArticles(limit = 90): Promise<ArticleCardData[]> {
   const supabase = await createClient();
-  const { data, error } = await onlyPublished(
-    supabase.from("articles").select(CARD_FIELDS) as never,
-  )
+  const { data, error } = await supabase
+    .from("articles")
+    .select(CARD_FIELDS)
+    .in("status", VISIBLE_STATUSES)
+    .lte("published_at", nowIso())
     .order("published_at", { ascending: false })
     .limit(limit);
 
@@ -62,10 +64,10 @@ export async function getRecentArticles(limit = 90): Promise<ArticleCardData[]> 
   return (data ?? []) as unknown as ArticleCardData[];
 }
 
-/** Live editor pins, newest window first. */
+/** Live editor pins, in slot order. */
 export async function getLivePlacements() {
   const supabase = await createClient();
-  const now = new Date().toISOString();
+  const now = nowIso();
 
   const { data, error } = await supabase
     .from("homepage_placements")
@@ -78,11 +80,17 @@ export async function getLivePlacements() {
   return data ?? [];
 }
 
-export async function getArticlesByCategory(slug: string, limit = 30) {
+export async function getArticlesByCategory(
+  slug: string,
+  limit = 30,
+): Promise<ArticleCardData[]> {
   const supabase = await createClient();
-  const { data, error } = await onlyPublished(
-    supabase.from("articles").select(CARD_FIELDS).eq("categories.slug", slug) as never,
-  )
+  const { data, error } = await supabase
+    .from("articles")
+    .select(CARD_FIELDS)
+    .eq("categories.slug", slug)
+    .in("status", VISIBLE_STATUSES)
+    .lte("published_at", nowIso())
     .order("published_at", { ascending: false })
     .limit(limit);
 
@@ -90,14 +98,17 @@ export async function getArticlesByCategory(slug: string, limit = 30) {
   return (data ?? []) as unknown as ArticleCardData[];
 }
 
-export async function getArticlesByAuthor(slug: string, limit = 30) {
+export async function getArticlesByAuthor(
+  slug: string,
+  limit = 30,
+): Promise<ArticleCardData[]> {
   const supabase = await createClient();
-  const { data, error } = await onlyPublished(
-    supabase
-      .from("articles")
-      .select(`${CARD_FIELDS.replace("authors (", "authors!inner (")}`)
-      .eq("authors.slug", slug) as never,
-  )
+  const { data, error } = await supabase
+    .from("articles")
+    .select(AUTHOR_JOINED_FIELDS)
+    .eq("authors.slug", slug)
+    .in("status", VISIBLE_STATUSES)
+    .lte("published_at", nowIso())
     .order("published_at", { ascending: false })
     .limit(limit);
 
@@ -128,9 +139,13 @@ export async function getArticlesByTag(slug: string, limit = 30) {
   const ids = (links ?? []).map((l) => l.article_id);
   if (!ids.length) return { tag, articles: [] as ArticleCardData[] };
 
-  const { data, error } = await onlyPublished(
-    supabase.from("articles").select(CARD_FIELDS).in("id", ids) as never,
-  ).order("published_at", { ascending: false });
+  const { data, error } = await supabase
+    .from("articles")
+    .select(CARD_FIELDS)
+    .in("id", ids)
+    .in("status", VISIBLE_STATUSES)
+    .lte("published_at", nowIso())
+    .order("published_at", { ascending: false });
 
   return {
     tag,
@@ -139,22 +154,22 @@ export async function getArticlesByTag(slug: string, limit = 30) {
 }
 
 /** Full-text search over the weighted search_vector column. */
-export async function searchArticles(query: string, limit = 30) {
+export async function searchArticles(
+  query: string,
+  limit = 30,
+): Promise<ArticleCardData[]> {
   const trimmed = query.trim();
   if (!trimmed) return [];
 
   const supabase = await createClient();
-  const { data, error } = await onlyPublished(
-    supabase
-      .from("articles")
-      .select(CARD_FIELDS)
-      // websearch syntax lets a reader use quotes and OR the way they would in
-      // any search box, instead of learning tsquery operators.
-      .textSearch("search_vector", trimmed, {
-        type: "websearch",
-        config: "english",
-      }) as never,
-  )
+  const { data, error } = await supabase
+    .from("articles")
+    .select(CARD_FIELDS)
+    // websearch syntax lets a reader use quotes and OR the way they would in
+    // any search box, instead of learning tsquery operators.
+    .textSearch("search_vector", trimmed, { type: "websearch", config: "english" })
+    .in("status", VISIBLE_STATUSES)
+    .lte("published_at", nowIso())
     .limit(limit);
 
   if (error) return [];
