@@ -15,6 +15,8 @@ const nextConfig: NextConfig = {
       // Development seed placeholders.
       { protocol: "https", hostname: "picsum.photos" },
       { protocol: "https", hostname: "fastly.picsum.photos" },
+      // Google account avatars, shown on a reader's own profile.
+      { protocol: "https", hostname: "lh3.googleusercontent.com" },
       // Supabase Storage, where real editorial images will live.
       { protocol: "https", hostname: "jjucyhrrlntziuwesvfw.supabase.co", pathname: "/storage/v1/object/public/**" },
     ],
