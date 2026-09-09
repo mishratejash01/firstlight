@@ -68,6 +68,11 @@ export default async function DeskPage() {
       user={user}
       title="Desk"
       standfirst="Everything awaiting a decision, and how published work is performing."
+      actions={
+        <Link href="/desk/wire" className="text-meta text-accent underline underline-offset-4">
+          Wire queue
+        </Link>
+      }
     >
       {/* ---------------------------------------------------------------- */}
       <section>
