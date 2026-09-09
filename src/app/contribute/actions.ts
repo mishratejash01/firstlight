@@ -73,6 +73,9 @@ export async function saveDraft(formData: FormData): Promise<ActionResult> {
       body: String(formData.get("body") ?? "").trim() || null,
       summary: String(formData.get("summary") ?? "").trim() || null,
       category_id: String(formData.get("category_id") ?? "") || undefined,
+      hero_image_url: String(formData.get("hero_image_url") ?? "").trim() || null,
+      hero_image_alt: String(formData.get("hero_image_alt") ?? "").trim() || null,
+      hero_image_credit: String(formData.get("hero_image_credit") ?? "").trim() || null,
     })
     .eq("id", id);
 
