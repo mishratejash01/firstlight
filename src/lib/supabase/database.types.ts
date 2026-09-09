@@ -1069,6 +1069,22 @@ export type Database = {
           views_24h: number
         }[]
       }
+      related_articles: {
+        Args: { p_article_id: string; p_limit?: number }
+        Returns: {
+          author_name: string
+          category_name: string
+          category_slug: string
+          headline: string
+          hero_image_alt: string
+          hero_image_url: string
+          id: string
+          published_at: string
+          score: number
+          slug: string
+          standfirst: string
+        }[]
+      }
       subscribe_to_newsletter: {
         Args: { p_context?: string; p_email: string }
         Returns: undefined
