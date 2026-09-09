@@ -24,6 +24,9 @@ export type ArticleDetail = {
   published_at: string | null;
   updated_at: string;
   is_breaking: boolean;
+  ai_assisted: boolean;
+  ai_unverified_claims: string[] | null;
+  reviewed_by: string | null;
   meta_title: string | null;
   meta_description: string | null;
   canonical_url: string | null;
@@ -47,6 +50,7 @@ export async function getArticle(categorySlug: string, slug: string) {
       attribution_url, attribution_label,
       hero_image_url, hero_image_alt, hero_image_credit,
       published_at, updated_at, is_breaking,
+      ai_assisted, ai_unverified_claims, reviewed_by,
       meta_title, meta_description, canonical_url,
       categories!inner ( slug, name ),
       authors ( slug, display_name, title, bio )
