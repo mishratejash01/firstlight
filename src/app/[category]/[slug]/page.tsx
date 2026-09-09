@@ -12,7 +12,7 @@ import { SiteHeader } from "@/components/site/site-header";
 import { NewsletterSignup } from "@/components/site/newsletter-signup";
 import { ReadingInstrumentation } from "@/components/analytics/reading-instrumentation";
 import { getArticle, getRelatedArticles } from "@/lib/queries/article-detail";
-import { logPageView } from "@/lib/analytics/server-events";
+import { captureRequestContext, logPageView } from "@/lib/analytics/server-events";
 import { renderMarkdown } from "@/lib/format/markdown";
 import { formatDateTime } from "@/lib/format/datetime";
 import {
@@ -70,9 +70,16 @@ export default async function ArticlePage(props: PageProps<"/[category]/[slug]">
   const related = await getRelatedArticles(article.id, 4);
   const url = `${SITE_URL}/${article.categories.slug}/${article.slug}`;
 
-  // Runs once the response has been sent, so the counter never delays the read.
+  // Request context must be read here, during render: cookies() and headers()
+  // are unavailable inside an after() callback. The write itself is deferred so
+  // the counter never delays the read.
+  const requestContext = await captureRequestContext();
   after(() =>
-    logPageView({ articleId: article.id, path: `/${category}/${slug}` }),
+    logPageView({
+      articleId: article.id,
+      path: `/${category}/${slug}`,
+      context: requestContext,
+    }),
   );
 
   const primaryEntities = entities.filter((e) => e.relation === "about");
