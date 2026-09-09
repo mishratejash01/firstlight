@@ -74,7 +74,7 @@ export default async function EditDraftPage(props: PageProps<"/contribute/[id]">
 
       {versions?.length ? (
         <section className="mt-10 border-t border-hairline pt-6">
-          <h2 className="font-serif text-section text-ink">History</h2>
+          <h2 className="text-section text-ink">History</h2>
           <p className="mt-1 text-meta text-muted">
             Written automatically on every change. It cannot be edited or deleted
             from this interface by anyone, including administrators.
