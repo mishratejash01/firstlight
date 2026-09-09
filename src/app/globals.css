@@ -14,19 +14,24 @@
   --color-muted: #5b5f6b;    /* bylines, timestamps, captions                */
   --color-hairline: #e4e5e8; /* dividers only, never a full card border      */
   --color-accent: #1b3b6f;   /* links, active nav, buttons — never a big fill */
-  --color-signal: #8c1d24;   /* breaking news tag only, used sparingly       */
+  --color-signal: #cc0000;   /* breaking news tag only, used sparingly       */
 
-  /* Typography. Source Serif 4 carries editorial gravity; Source Sans 3 is
-     its purpose-built companion and stays legible at caption sizes. */
-  --font-serif: var(--font-source-serif), "Source Serif 4", Georgia, "Times New Roman", serif;
-  --font-sans: var(--font-source-sans), "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* Typography. One family throughout, as the wire services set themselves:
+     Libre Franklin, a Franklin Gothic descendant. Hierarchy comes from size and
+     weight, not from switching face — which is what keeps a page holding forty
+     headlines from looking like forty different decisions. */
+  --font-sans: var(--font-sans-src), "Libre Franklin", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
   /* Type scale. Emphasis comes from size, weight and whitespace — never from
      color or italics on isolated words. */
-  --text-meta: 0.8125rem;     /* 13px — bylines, timestamps, kickers         */
+  --text-kicker: 0.6875rem;   /* 11px — dateline strip, category eyebrows    */
+  --text-kicker--line-height: 1.3;
+  --text-meta: 0.8125rem;     /* 13px — bylines, timestamps, section links   */
   --text-meta--line-height: 1.4;
-  --text-body: 0.9375rem;     /* 15px — body copy                            */
+  --text-body: 0.9375rem;     /* 15px — UI copy, deks, furniture             */
   --text-body--line-height: 1.65;
+  --text-prose: 1.125rem;     /* 18px — article body, set in the serif       */
+  --text-prose--line-height: 1.72;
   --text-lead: 1.0625rem;     /* 17px — deks and standfirsts                 */
   --text-lead--line-height: 1.55;
   --text-section: 1.375rem;   /* 22px — section shelf labels                 */
@@ -35,14 +40,34 @@
   --text-headline--line-height: 1.22;
   --text-hero: 2.125rem;      /* 34px — hero headline, mobile                */
   --text-hero--line-height: 1.1;
-  --text-hero-lg: 3rem;       /* 48px — hero headline, desktop               */
+  --text-hero-lg: 3rem;       /* 48px — hero headline, tablet                */
   --text-hero-lg--line-height: 1.06;
+  --text-display: 3.375rem;   /* 54px — front-page lead, wide screens        */
+  --text-display--line-height: 1.02;
 
-  /* Measure: body copy stays under ~75 characters. */
+  /* The flag. A nameplate is not a heading; it is the paper's signature and
+     gets its own two sizes so it never inherits the headline scale. */
+  --text-nameplate: 1.875rem;    /* 30px — phone   */
+  --text-nameplate--line-height: 1;
+  --text-nameplate-lg: 3.25rem;  /* 52px — desktop */
+  --text-nameplate-lg--line-height: 1;
+
+  /* Measure: body copy stays under ~75 characters. The article column runs a
+     little wider than the front-page deks, which are shorter by nature. */
   --container-measure: 38rem;
+  --container-prose: 40rem;
 
-  /* Radius: 2–4px on inputs and buttons only. Content blocks stay square. */
+  /* Page width. Wide enough that a 1440px screen is filled rather than framed
+     by empty margin, and that the front page's twelve columns each stay a
+     usable width. Reading measure is controlled separately, per column — this
+     governs the grid, never a line of text. */
+  --container-page: 96rem;
+
+  /* Radius: 3px on inputs, buttons and media. Text blocks stay square — the
+     softening is there to stop a photograph reading as a hole cut in the page,
+     and text needs no such help. */
   --radius-control: 3px;
+  --radius-media: 3px;
 }
 
 /* ---------------------------------------------------------------------------
@@ -62,12 +87,30 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Serif is reserved for headlines and display, not applied globally. */
+/* Headlines are the same face as everything else, separated by weight and by
+   the tighter tracking a grotesque needs once it is set large. */
 h1, h2, h3, h4 {
-  font-family: var(--font-serif);
-  font-weight: 600;
-  letter-spacing: -0.011em;
+  font-weight: 700;
+  letter-spacing: -0.019em;
   text-wrap: balance;
+}
+
+/* Big headlines need tighter tracking than small ones; a single value set for
+   a 52px splash leaves an 17px list headline looking cramped. */
+.headline-lg {
+  letter-spacing: -0.028em;
+}
+
+/* The category eyebrow above a headline. Uppercase and letterspaced, which is
+   the one place tracked-out capitals earn their keep: it is a label, not a
+   phrase, and it has to be legible at 11px without competing with the headline
+   underneath it. */
+.eyebrow {
+  font-size: var(--text-kicker);
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
 }
 
 /* Deks and long paragraphs read better with a slightly looser measure. */
@@ -78,6 +121,54 @@ p {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+/* Timestamps and figures sit in columns that align down the page. Proportional
+   digits make a stack of times look ragged; tabular ones do not. */
+time,
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------------
+   Story grid — section fronts, topic and author pages, search results.
+
+   Space separates these, not lines. An earlier version ruled every column and
+   every row; the page ended up looking like a spreadsheet, and the rules stole
+   the attention that the headlines are supposed to have. The only lines left on
+   the site are the ones that mark real structure: one under the masthead, and
+   one above each section label.
+--------------------------------------------------------------------------- */
+.story-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2.75rem 2.5rem;
+}
+
+@media (min-width: 640px) {
+  .story-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .story-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Media inside an article.
+
+   Figures fill the reading column edge to edge. They used to break out past it,
+   which made sense while the column sat alone in the middle of the page; now
+   that a rail occupies that space there is nothing to break out into, and a
+   figure wider than its column would simply collide with the headlines beside
+   it. The height cap on tall frames lives with the image itself.
+--------------------------------------------------------------------------- */
+.media-wide {
+  margin-block: 2.25rem;
+  width: 100%;
 }
 
 /* ---------------------------------------------------------------------------
