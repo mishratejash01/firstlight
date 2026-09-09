@@ -286,9 +286,10 @@ export default async function ArticlePage(props: PageProps<"/[category]/[slug]">
                     attribution_url: null,
                     attribution_label: null,
                     categories: { slug: item.category_slug, name: item.category_name },
-                    authors: item.author_name
-                      ? { slug: "", display_name: item.author_name }
-                      : null,
+                    authors:
+                      item.author_name && item.author_slug
+                        ? { slug: item.author_slug, display_name: item.author_name }
+                        : null,
                   }}
                 />
               ))}
