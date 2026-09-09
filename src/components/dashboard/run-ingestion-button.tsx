@@ -7,7 +7,7 @@ import { runIngestionNow } from "@/app/admin/source-actions";
 /** Polls every feed immediately, so a newly added source can be proved to work. */
 export function RunIngestionButton() {
   const [state, action, pending] = useActionState(
-    async (_prev: { error?: string; note?: string } | null) => {
+    async () => {
       const result = await runIngestionNow();
       return "error" in result ? { error: result.error } : { note: result.note };
     },
