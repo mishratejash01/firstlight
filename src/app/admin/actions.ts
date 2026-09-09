@@ -1,0 +1,125 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+
+import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/auth/roles";
+import type { AppRole } from "@/lib/auth/roles";
+
+/**
+ * Administration actions.
+ *
+ * Role grants go through the request-scoped client so RLS applies: the
+ * user_roles insert policy requires the caller to be an admin, which means a
+ * bug in the check below cannot become a privilege-escalation hole.
+ *
+ * Listing accounts is the exception. auth.users is not exposed through the Data
+ * API at all, so it needs the privileged client — which bypasses RLS entirely.
+ * That is why the admin check there is written out explicitly and performed
+ * before the client is created.
+ */
+
+type ActionResult = { error: string } | { ok: true };
+
+const ROLES: AppRole[] = ["admin", "editor", "author"];
+
+async function requireAdminUser() {
+  const user = await getSessionUser();
+  if (!user || !user.roles.includes("admin")) return null;
+  return user;
+}
+
+export async function grantRole(formData: FormData): Promise<ActionResult> {
+  const admin = await requireAdminUser();
+  if (!admin) return { error: "Administrator role required." };
+
+  const userId = String(formData.get("user_id") ?? "");
+  const role = String(formData.get("role") ?? "") as AppRole;
+
+  if (!userId) return { error: "Missing account." };
+  if (!ROLES.includes(role)) return { error: "Unknown role." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("user_roles")
+    .insert({ user_id: userId, role, granted_by: admin.id });
+
+  // A duplicate grant is not a failure worth showing anyone.
+  if (error && error.code !== "23505") return { error: error.message };
+
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+export async function revokeRole(formData: FormData): Promise<ActionResult> {
+  const admin = await requireAdminUser();
+  if (!admin) return { error: "Administrator role required." };
+
+  const roleId = String(formData.get("role_id") ?? "");
+  const targetUserId = String(formData.get("user_id") ?? "");
+  const role = String(formData.get("role") ?? "");
+
+  // An admin removing their own admin role locks the newsroom out of its own
+  // administration, and the fix requires the service key. Refuse it here.
+  if (targetUserId === admin.id && role === "admin") {
+    return {
+      error:
+        "You cannot remove your own administrator role. Ask another administrator to do it.",
+    };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("user_roles").delete().eq("id", roleId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+export type AccountRow = {
+  id: string;
+  email: string | null;
+  createdAt: string;
+  lastSignInAt: string | null;
+};
+
+/** Lists accounts. Privileged, and gated before the privileged client exists. */
+export async function listAccounts(): Promise<AccountRow[]> {
+  const admin = await requireAdminUser();
+  if (!admin) return [];
+
+  const client = createAdminClient();
+  const { data, error } = await client.auth.admin.listUsers({ page: 1, perPage: 200 });
+  if (error) return [];
+
+  return data.users.map((user) => ({
+    id: user.id,
+    email: user.email ?? null,
+    createdAt: user.created_at,
+    lastSignInAt: user.last_sign_in_at ?? null,
+  }));
+}
+
+/** Shows or hides a section in the site navigation. */
+export async function setCategoryVisibility(formData: FormData): Promise<ActionResult> {
+  const admin = await requireAdminUser();
+  if (!admin) return { error: "Administrator role required." };
+
+  const id = String(formData.get("category_id") ?? "");
+  const showInNav = String(formData.get("show_in_nav") ?? "") === "true";
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("categories")
+    .update({ show_in_nav: showInNav })
+    .eq("id", id);
+
+  if (error) return { error: error.message };
+
+  // The navigation is rendered on every page, so every page is now stale.
+  revalidatePath("/", "layout");
+  revalidatePath("/admin");
+  return { ok: true };
+}
