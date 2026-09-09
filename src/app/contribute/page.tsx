@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { NewDraftForm } from "@/components/dashboard/new-draft-form";
+import { AiDraftForm } from "@/components/dashboard/ai-draft-form";
 import { requireAuthor } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/format/datetime";
@@ -47,6 +48,8 @@ export default async function ContributePage() {
       standfirst="Drafts, submissions and published pieces."
     >
       <NewDraftForm categories={categories ?? []} />
+
+      <AiDraftForm categories={categories ?? []} />
 
       <section className="mt-10">
         <h2 className="font-serif text-section text-ink">Your articles</h2>
