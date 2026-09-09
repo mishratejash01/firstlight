@@ -35,10 +35,10 @@ export default async function TopicPage(props: PageProps<"/topic/[slug]">) {
     <>
       <SiteHeader />
 
-      <main className="route-enter mx-auto max-w-6xl px-4 sm:px-6">
+      <main className="route-enter mx-auto max-w-page px-4 sm:px-6">
         <div className="border-b border-hairline py-8">
           <p className="text-meta text-muted">Topic</p>
-          <h1 className="mt-1 font-serif text-hero text-ink">{tag.name}</h1>
+          <h1 className="mt-1 text-hero text-ink">{tag.name}</h1>
           {tag.description ? (
             <p className="mt-2 max-w-measure text-lead text-muted">{tag.description}</p>
           ) : null}
@@ -56,7 +56,7 @@ export default async function TopicPage(props: PageProps<"/topic/[slug]">) {
         </div>
 
         {articles.length ? (
-          <div className="grid gap-x-6 gap-y-10 py-10 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="story-grid py-10">
             {articles.map((article) => (
               <ArticleCard key={article.id} article={article} />
             ))}
