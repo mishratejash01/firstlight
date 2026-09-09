@@ -1073,6 +1073,7 @@ export type Database = {
         Args: { p_article_id: string; p_limit?: number }
         Returns: {
           author_name: string
+          author_slug: string
           category_name: string
           category_slug: string
           headline: string
