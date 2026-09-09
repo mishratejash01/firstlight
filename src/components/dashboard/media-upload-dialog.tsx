@@ -131,7 +131,7 @@ export function MediaUploadDialog({
         tabIndex={-1}
         className="max-h-[90dvh] w-full max-w-lg overflow-y-auto border border-hairline bg-paper p-6"
       >
-        <h2 id="upload-heading" className="font-serif text-section text-ink">
+        <h2 id="upload-heading" className="text-section text-ink">
           Add an image or video
         </h2>
 
