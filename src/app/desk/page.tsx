@@ -245,11 +245,16 @@ export default async function DeskPage() {
 
       <section className="mt-10 border-t border-hairline pt-6">
         <h2 className="font-serif text-section text-ink">Top entry points</h2>
+        <p className="mt-1 text-meta text-muted">
+          Views count every arrival. Identified readers counts only those who
+          agreed to tracking, so it is always the smaller number — the rest are
+          recorded without any identifier at all.
+        </p>
         <StatTable
           columns={[
             { key: "source", label: "Source" },
-            { key: "actors", label: "Readers", numeric: true },
             { key: "events", label: "Views", numeric: true },
+            { key: "actors", label: "Identified readers", numeric: true },
           ]}
           rows={(referrers.data ?? []).map((row) => ({
             source: row.source,
