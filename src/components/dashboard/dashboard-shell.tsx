@@ -22,13 +22,22 @@ export function DashboardShell({
   actions?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  // Only surfaces the person can actually use. "My work" was previously shown
+  // to everyone, so a reader with no newsroom access saw a link that bounced
+  // them straight back here — a dead end that made the whole area feel broken.
   const links: { href: string; label: string }[] = [];
   if (user.roles.includes("admin")) links.push({ href: "/admin", label: "Administration" });
   if (user.roles.includes("admin") || user.roles.includes("editor")) {
     links.push({ href: "/desk", label: "Desk" });
   }
-  links.push({ href: "/contribute", label: "My work" });
-  links.push({ href: "/account", label: "Account" });
+  if (
+    user.roles.includes("author") ||
+    user.roles.includes("editor") ||
+    user.roles.includes("admin")
+  ) {
+    links.push({ href: "/contribute", label: "My work" });
+  }
+  links.push({ href: "/account", label: "Your profile" });
 
   return (
     <div className="min-h-dvh">
