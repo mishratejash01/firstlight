@@ -33,25 +33,33 @@ type Provider = "google" | "groq" | "anthropic" | "gateway";
  * Defaults per provider: a stronger model for writing, a cheap fast one for
  * triage, tags and summaries.
  */
-const MODELS: Record<Provider, { drafting: string; assist: string }> = {
+const MODELS: Record<Provider, { drafting: string; assist: string; fallbacks: string[] }> = {
   google: {
     // Pinned rather than using the -latest aliases: an alias silently moving to
     // a new model changes how the paper writes, which is not something that
     // should happen without anyone choosing it.
     drafting: process.env.AI_DRAFTING_MODEL ?? "gemini-3.8-flash",
     assist: process.env.AI_ASSIST_MODEL ?? "gemini-3.5-flash-lite",
+    // Free-tier capacity is shared and does go down: "This model is currently
+    // experiencing high demand" is a real, observed response. An unattended
+    // scheduler that treats that as a failure just stops working for a while,
+    // so it steps down a generation instead.
+    fallbacks: ["gemini-3.5-flash", "gemini-2.5-flash"],
   },
   groq: {
     drafting: process.env.AI_DRAFTING_MODEL ?? "llama-3.3-70b-versatile",
     assist: process.env.AI_ASSIST_MODEL ?? "llama-3.1-8b-instant",
+    fallbacks: ["llama-3.1-8b-instant"],
   },
   anthropic: {
     drafting: process.env.AI_DRAFTING_MODEL ?? "claude-sonnet-5",
     assist: process.env.AI_ASSIST_MODEL ?? "claude-haiku-4.5",
+    fallbacks: ["claude-haiku-4.5"],
   },
   gateway: {
     drafting: process.env.AI_DRAFTING_MODEL ?? "anthropic/claude-sonnet-5",
     assist: process.env.AI_ASSIST_MODEL ?? "anthropic/claude-haiku-4.5",
+    fallbacks: ["anthropic/claude-haiku-4.5"],
   },
 };
 
@@ -63,12 +71,7 @@ function activeProvider(): Provider | null {
   return null;
 }
 
-function resolve(kind: "drafting" | "assist"): LanguageModel {
-  const provider = activeProvider();
-  if (!provider) throw new Error(AI_UNAVAILABLE_MESSAGE);
-
-  const modelId = MODELS[provider][kind];
-
+function build(provider: Provider, modelId: string): LanguageModel {
   switch (provider) {
     case "google":
       return createGoogleGenerativeAI({
@@ -84,12 +87,35 @@ function resolve(kind: "drafting" | "assist"): LanguageModel {
   }
 }
 
+function resolve(kind: "drafting" | "assist"): LanguageModel {
+  const provider = activeProvider();
+  if (!provider) throw new Error(AI_UNAVAILABLE_MESSAGE);
+  return build(provider, MODELS[provider][kind]);
+}
+
 export function draftingModel(): LanguageModel {
   return resolve("drafting");
 }
 
 export function assistModel(): LanguageModel {
   return resolve("assist");
+}
+
+/**
+ * The models to try, in order, for one job.
+ *
+ * The caller walks this list on overload or rate limiting. Returning models
+ * rather than retrying the same one matters: a model that is out of capacity
+ * stays out of capacity for minutes, and retrying it is just waiting slowly.
+ */
+export function modelChain(kind: "drafting" | "assist"): LanguageModel[] {
+  const provider = activeProvider();
+  if (!provider) throw new Error(AI_UNAVAILABLE_MESSAGE);
+
+  const config = MODELS[provider];
+  const ids = [config[kind], ...config.fallbacks];
+  // Deduplicate: assist and its first fallback are often the same model.
+  return [...new Set(ids)].map((id) => build(provider, id));
 }
 
 /** Recorded against generated articles so provenance survives a provider change. */
