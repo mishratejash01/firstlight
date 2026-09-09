@@ -5,6 +5,7 @@ import { slugify, withUniqueSuffix } from "@/lib/format/slug";
 import { submitToIndexNow } from "@/lib/seo/indexnow";
 import { draftingModelId } from "@/lib/ai/config";
 import { draftFromTrend } from "@/lib/ai/draft";
+import { getSourceDocuments } from "@/lib/fetch/extract";
 import type { TrendNewsItem } from "./google-trends";
 
 /**
@@ -26,6 +27,8 @@ export type WriteUpOutcome = {
   status: "published" | "drafted" | "failed" | "skipped";
   slug?: string;
   unverifiedClaimCount?: number;
+  /** How many linked articles were actually readable. Zero means headlines only. */
+  sourcesRead?: number;
   reason?: string;
 };
 
@@ -52,6 +55,8 @@ export async function writeUpTrends(limit = 3): Promise<WriteUpReport> {
   const publishing = await readSetting<boolean>("autonomous_publishing_enabled", false);
   const dailyLimit = await readSetting<number>("autonomous_daily_limit", 6);
   const delayMinutes = await readSetting<number>("autonomous_publish_delay_minutes", 0);
+  const fetchSources = await readSetting<boolean>("source_fetch_enabled", true);
+  const maxPerTrend = await readSetting<number>("source_fetch_max_per_trend", 3);
 
   const report: WriteUpReport = { autoWrite, publishing, outcomes: [] };
   if (!autoWrite) return report;
@@ -107,9 +112,40 @@ export async function writeUpTrends(limit = 3): Promise<WriteUpReport> {
       continue;
     }
 
+    // Read the linked articles before writing. Without this the model has two
+    // sentences of headline to work from, which produces a piece noting that
+    // other outlets are covering something — technically true and not worth
+    // publishing.
+    let documents: {
+      url: string;
+      source: string;
+      title: string | null;
+      byline: string | null;
+      content: string;
+    }[] = [];
+
+    if (fetchSources) {
+      const targets = newsItems.slice(0, maxPerTrend);
+      const fetched = await getSourceDocuments(targets.map((item) => item.url));
+
+      documents = fetched
+        .filter((doc) => doc.status === "ok" && doc.content)
+        .map((doc) => {
+          const matching = targets.find((item) => item.url === doc.url);
+          return {
+            url: doc.url,
+            source: matching?.source ?? doc.host,
+            title: doc.title,
+            byline: doc.byline,
+            content: doc.content as string,
+          };
+        });
+    }
+
     const result = await draftFromTrend({
       term: trend.term,
       newsItems,
+      documents,
       sectionName: undefined,
       angle: trend.triage_reason ?? undefined,
     });
@@ -179,6 +215,7 @@ export async function writeUpTrends(limit = 3): Promise<WriteUpReport> {
       status: publishing ? "published" : "drafted",
       slug: article.slug,
       unverifiedClaimCount: draft.unverifiedClaims.length,
+      sourcesRead: documents.length,
     });
   }
 
