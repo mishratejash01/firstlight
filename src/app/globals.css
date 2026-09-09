@@ -172,6 +172,49 @@ time,
 }
 
 /* ---------------------------------------------------------------------------
+   Breaking ticker.
+
+   A phone cannot fit a headline on one line, and wrapping the alert to two
+   rows makes the bar look like a paragraph rather than a bulletin. So on a
+   phone it scrolls instead. Two copies of the headline sit in the track and it
+   travels exactly half its width, which puts copy two where copy one started
+   and makes the loop seamless. The spacing is padding on each copy rather than
+   a gap, because a gap would not be counted in that half and the loop would
+   jump.
+
+   It only runs where it is needed: from 640px up the headline fits, and a line
+   of text moving for no reason is an irritation, not an alert.
+--------------------------------------------------------------------------- */
+.ticker {
+  overflow: hidden;
+}
+
+.ticker-track {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: ticker 22s linear infinite;
+}
+
+.ticker-copy {
+  padding-inline-end: 3rem;
+}
+
+@keyframes ticker {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (min-width: 640px) {
+  .ticker-track {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
    Focus — visible everywhere, keyboard users are not second-class.
 --------------------------------------------------------------------------- */
 :focus-visible {
