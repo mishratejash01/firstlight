@@ -39,7 +39,7 @@ export default async function MastheadPage() {
         <ul className="divide-y divide-hairline border-t border-hairline">
           {authors.map((author) => (
             <li key={author.slug} className="py-5">
-              <h2 className="font-serif text-[1.15rem] text-ink">
+              <h2 className="text-[1.15rem] text-ink">
                 <Link href={`/author/${author.slug}`} className="hover:text-accent">
                   {author.display_name}
                 </Link>
