@@ -53,7 +53,7 @@ export default async function AdminSourcesPage() {
 
       <section className="pt-8">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h2 className="font-serif text-section text-ink">
+          <h2 className="text-section text-ink">
             Configured sources ({sources?.length ?? 0})
           </h2>
           <RunIngestionButton />
@@ -83,7 +83,7 @@ export default async function AdminSourcesPage() {
               return (
                 <li key={source.id} className="py-5">
                   <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                    <h3 className="font-serif text-[1.1rem] text-ink">{source.name}</h3>
+                    <h3 className="text-[1.1rem] text-ink">{source.name}</h3>
                     <span className="text-meta text-muted">
                       {source.is_active ? "Active" : "Paused"}
                     </span>
@@ -155,7 +155,7 @@ export default async function AdminSourcesPage() {
       </section>
 
       <section className="mt-12 border-t border-hairline pt-6">
-        <h2 className="font-serif text-section text-ink">Add a wire source</h2>
+        <h2 className="text-section text-ink">Add a wire source</h2>
         <WireSourceForm />
       </section>
     </DashboardShell>
