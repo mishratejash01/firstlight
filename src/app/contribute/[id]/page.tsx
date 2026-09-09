@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { ArticleEditor } from "@/components/dashboard/article-editor";
 import { StatusBadge } from "@/components/dashboard/status-badge";
+import { UnverifiedClaims } from "@/components/dashboard/unverified-claims";
 import { requireAuthor } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/format/datetime";
@@ -24,7 +25,7 @@ export default async function EditDraftPage(props: PageProps<"/contribute/[id]">
   const [{ data: article }, { data: categories }] = await Promise.all([
     supabase
       .from("articles")
-      .select("id, slug, headline, standfirst, body, summary, status, category_id, updated_at, hero_image_url, hero_image_alt, hero_image_credit, categories ( slug, name )")
+      .select("id, slug, headline, standfirst, body, summary, status, category_id, updated_at, hero_image_url, hero_image_alt, hero_image_credit, ai_assisted, ai_model, ai_unverified_claims, categories ( slug, name )")
       .eq("id", id)
       .maybeSingle(),
     supabase
@@ -55,6 +56,8 @@ export default async function EditDraftPage(props: PageProps<"/contribute/[id]">
       standfirst={`${article.categories?.name ?? ""} · last saved ${formatDateTime(article.updated_at)}`}
       actions={<StatusBadge status={article.status} />}
     >
+      <UnverifiedClaims claims={article.ai_unverified_claims ?? []} />
+
       {editable ? (
         <ArticleEditor article={article} categories={categories ?? []} />
       ) : (
