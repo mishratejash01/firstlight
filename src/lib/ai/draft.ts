@@ -192,3 +192,77 @@ export async function summariseForQueue(input: {
     return output;
   });
 }
+
+/**
+ * Drafts an article about a trending story, from the coverage matched to it.
+ *
+ * This is the grounded path, and it is materially safer than drafting from a
+ * topic alone: the model is given real headlines from named outlets published
+ * today, and told to write about what is being reported rather than to report
+ * itself. It cannot know more than those headlines contain, so it is instructed
+ * to say so where they run out — and to attribute every claim to the outlet it
+ * came from, inline, as a link.
+ *
+ * The result is an aggregation piece: our own synthesis of what several outlets
+ * are reporting, credited to them. That is a legitimate form and a very
+ * different thing from reproducing their copy.
+ */
+export async function draftFromTrend({
+  term,
+  newsItems,
+  sectionName,
+  angle,
+}: {
+  term: string;
+  newsItems: { title: string; source: string; url: string }[];
+  sectionName?: string;
+  angle?: string;
+}): Promise<AiResult<DraftedArticle>> {
+  return guarded(async () => {
+    const system = [
+      HOUSE_STYLE,
+      `
+You are writing about a story currently being reported by other outlets. You
+have their headlines and nothing more — not the articles themselves.
+
+Rules, without exception:
+- Attribute every factual claim to the outlet reporting it, in the prose, as a
+  Markdown link: "according to [the BBC](url)".
+- Write only what the supplied headlines support. Where an obvious question is
+  unanswered by them, say that it is unanswered — do not fill it in.
+- Invent no quotations. You have none.
+- Invent no figures. If a headline carries a number, attribute it; if it does
+  not, do not produce one.
+- Open by stating what is being reported and by whom. Do not open with scene
+  setting you cannot have witnessed.
+- List in unverifiedClaims anything you inferred rather than read in a headline.
+
+An honest short piece that credits its sources is the goal. A long one padded
+with invention is a failure however well it reads.
+      `.trim(),
+    ].join("\n\n");
+
+    const coverage = newsItems
+      .map((item) => `- ${item.source}: "${item.title}"  ${item.url}`)
+      .join("\n");
+
+    const prompt = [
+      `People are searching for: ${term}`,
+      sectionName ? `Section: ${sectionName}` : "",
+      angle ? `Angle: ${angle}` : "",
+      `\nCoverage currently reported by other outlets:\n${coverage}`,
+      `\nWrite the piece. 250–450 words is usually right for this — you have headlines, not documents.`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const { output } = await generateText({
+      model: DRAFTING_MODEL,
+      system,
+      prompt,
+      output: Output.object({ schema: draftedArticleSchema }),
+    });
+
+    return output;
+  });
+}
