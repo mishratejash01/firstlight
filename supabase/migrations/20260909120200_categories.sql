@@ -45,18 +45,25 @@ alter table public.categories enable row level security;
 
 -- Sections are public information: the navbar has to render for logged-out
 -- readers. Inactive sections stay hidden from the public.
-create policy "categories: public read active"
+
+-- ---------------------------------------------------------------------------
+-- Policies. One per role per action; see user_roles for the rationale.
+-- ---------------------------------------------------------------------------
+
+-- Sections are public information: the navbar has to render for logged-out
+-- readers. Inactive sections stay hidden from the public but visible to the
+-- desk, which needs them to bring a section back.
+create policy "categories: anon read active"
   on public.categories
   for select
-  to anon, authenticated
+  to anon
   using (is_active);
 
--- The desk needs to see inactive sections to bring them back.
-create policy "categories: editorial read all"
+create policy "categories: read"
   on public.categories
   for select
   to authenticated
-  using (app.is_editorial());
+  using (is_active or app.is_editorial());
 
 -- Changing the shape of the site is an admin action, not an editor one.
 create policy "categories: admins insert"
