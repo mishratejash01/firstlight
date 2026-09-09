@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { slugify, withUniqueSuffix } from "@/lib/format/slug";
 import { submitToIndexNow } from "@/lib/seo/indexnow";
 import { draftingModelId } from "./config";
+import { attachStructuredData } from "./attach-structure";
 import { draftArticle } from "./draft";
 import type { DraftedArticle } from "./schemas";
 
@@ -100,56 +101,7 @@ async function publishDraft(
 
   if (error) throw new Error(error.message);
 
-  // Tags and entities, best effort. A failed tag is not a reason to unpublish.
-  try {
-    for (const name of draft.suggestedTags.slice(0, 8)) {
-      const slug = slugify(name);
-      if (!slug) continue;
-      const { data: tag } = await supabase
-        .from("tags")
-        .upsert({ slug, name }, { onConflict: "slug" })
-        .select("id")
-        .single();
-      if (tag) {
-        await supabase
-          .from("article_tags")
-          .insert({ article_id: article.id, tag_id: tag.id, ai_suggested: true });
-      }
-    }
-
-    for (const entity of draft.entities.slice(0, 10)) {
-      const slug = slugify(entity.name);
-      if (!slug) continue;
-      const { data: row } = await supabase
-        .from("entities")
-        .upsert({ slug, name: entity.name, entity_type: entity.type }, { onConflict: "slug" })
-        .select("id")
-        .single();
-      if (row) {
-        await supabase.from("article_entities").insert({
-          article_id: article.id,
-          entity_id: row.id,
-          relation: entity.relation,
-          role_note: entity.roleNote,
-          ai_suggested: true,
-        });
-      }
-    }
-
-    if (draft.keyFacts.length) {
-      await supabase.from("article_key_facts").insert(
-        draft.keyFacts.slice(0, 8).map((fact, index) => ({
-          article_id: article.id,
-          label: fact.label,
-          value: fact.value,
-          attribution: fact.attribution,
-          position: index,
-        })),
-      );
-    }
-  } catch (cause) {
-    console.error("[autonomous] published but structure partially failed", cause);
-  }
+  await attachStructuredData(supabase, article.id, draft);
 
   return article.slug;
 }
