@@ -35,9 +35,6 @@ export function MediaUploadDialog({
   const [error, setError] = useState<string | null>(null);
 
   const dialogRef = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
 
   // Escape closes, unless an upload is in flight — abandoning midway would
   // leave a file in the media account with nothing pointing at it.
@@ -110,7 +107,10 @@ export function MediaUploadDialog({
   const fieldClass =
     "mt-1 w-full rounded-control border border-hairline bg-paper px-3 py-2 text-body text-ink placeholder:text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
-  if (!mounted) return null;
+  // The dialog only renders after a click, so document always exists by then.
+  // The guard is for safety rather than a real SSR path, and avoids the mount
+  // flag that would otherwise mean a setState inside an effect.
+  if (typeof document === "undefined") return null;
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-4 sm:items-center">
