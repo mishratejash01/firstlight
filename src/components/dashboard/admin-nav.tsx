@@ -5,6 +5,7 @@ const PAGES = [
   { href: "/admin/people", label: "People", hint: "Accounts and access" },
   { href: "/admin/sections", label: "Sections", hint: "What appears in the menu" },
   { href: "/admin/sources", label: "Wire feeds", hint: "Sources and licences" },
+  { href: "/admin/topics", label: "AI topics", hint: "Automatic publishing" },
   { href: "/admin/audience", label: "Audience", hint: "Readers and subscribers" },
 ] as const;
 
