@@ -30,6 +30,7 @@ returns table (
   category_slug text,
   category_name text,
   author_name text,
+  author_slug text,
   score numeric
 )
 language sql
@@ -78,7 +79,7 @@ as $$
   )
   select
     c.id, c.slug, c.headline, c.standfirst, c.hero_image_url, c.hero_image_alt,
-    c.published_at, cat.slug, cat.name, au.display_name,
+    c.published_at, cat.slug, cat.name, au.display_name, au.slug,
     round(
       -- Weights: subject overlap dominates, then editorial pin, then freshness.
       -- Trending is scaled down because it is client-reported and therefore the
