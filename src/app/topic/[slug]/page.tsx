@@ -1,0 +1,57 @@
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+
+import { ArticleCard } from "@/components/article/article-card";
+import { SiteFooter } from "@/components/site/site-footer";
+import { SiteHeader } from "@/components/site/site-header";
+import { getArticlesByTag } from "@/lib/queries/articles";
+
+export const revalidate = 300;
+
+export async function generateMetadata(
+  props: PageProps<"/topic/[slug]">,
+): Promise<Metadata> {
+  const { slug } = await props.params;
+  const { tag } = await getArticlesByTag(slug, 1);
+  if (!tag) return { title: "Not found" };
+
+  return {
+    title: `${tag.name} — Newswebsite`,
+    description: tag.description ?? `Coverage tagged ${tag.name}.`,
+    alternates: { canonical: `/topic/${tag.slug}` },
+  };
+}
+
+export default async function TopicPage(props: PageProps<"/topic/[slug]">) {
+  const { slug } = await props.params;
+  const { tag, articles } = await getArticlesByTag(slug, 40);
+  if (!tag) notFound();
+
+  return (
+    <>
+      <SiteHeader />
+
+      <main className="route-enter mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="border-b border-hairline py-8">
+          <p className="text-meta text-muted">Topic</p>
+          <h1 className="mt-1 font-serif text-hero text-ink">{tag.name}</h1>
+          {tag.description ? (
+            <p className="mt-2 max-w-measure text-lead text-muted">{tag.description}</p>
+          ) : null}
+        </div>
+
+        {articles.length ? (
+          <div className="grid gap-x-6 gap-y-10 py-10 sm:grid-cols-2 lg:grid-cols-3">
+            {articles.map((article) => (
+              <ArticleCard key={article.id} article={article} />
+            ))}
+          </div>
+        ) : (
+          <p className="py-16 text-lead text-muted">Nothing tagged {tag.name} yet.</p>
+        )}
+      </main>
+
+      <SiteFooter />
+    </>
+  );
+}
