@@ -5,6 +5,7 @@ import { ActionButton } from "@/components/dashboard/action-button";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { StatTable } from "@/components/dashboard/stat-table";
 import { StatusBadge } from "@/components/dashboard/status-badge";
+import { UnverifiedClaims } from "@/components/dashboard/unverified-claims";
 import { ScheduleForm } from "@/components/dashboard/schedule-form";
 import { requireEditorial } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
@@ -42,7 +43,7 @@ export default async function DeskPage() {
     await Promise.all([
       supabase
         .from("articles")
-        .select("id, headline, status, origin, updated_at, summary, categories ( slug, name ), authors ( display_name )")
+        .select("id, headline, status, origin, updated_at, summary, ai_assisted, ai_unverified_claims, categories ( slug, name ), authors ( display_name )")
         .in("status", ["in_review", "draft", "rejected"])
         .order("updated_at", { ascending: false })
         .limit(50),
@@ -97,6 +98,12 @@ export default async function DeskPage() {
                   <p className="mt-2 max-w-measure text-meta leading-relaxed text-muted">
                     {article.summary}
                   </p>
+                ) : null}
+
+                {article.ai_assisted ? (
+                  <div className="mt-3">
+                    <UnverifiedClaims claims={article.ai_unverified_claims ?? []} />
+                  </div>
                 ) : null}
 
                 <div className="mt-3 flex flex-wrap items-start gap-3">
