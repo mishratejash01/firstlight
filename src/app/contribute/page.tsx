@@ -52,14 +52,14 @@ export default async function ContributePage() {
       <AiDraftForm categories={categories ?? []} />
 
       <section className="mt-10">
-        <h2 className="font-serif text-section text-ink">Your articles</h2>
+        <h2 className="text-section text-ink">Your articles</h2>
 
         {articles?.length ? (
           <ul className="mt-4 divide-y divide-hairline border-t border-hairline">
             {articles.map((article) => (
               <li key={article.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-4">
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-serif text-[1.05rem] leading-snug text-ink">
+                  <h3 className="text-[1.05rem] leading-snug text-ink">
                     <Link href={`/contribute/${article.id}`} className="hover:text-accent">
                       {article.headline}
                     </Link>
