@@ -5,6 +5,8 @@ import { ArticleCard } from "@/components/article/article-card";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { getArticlesByTag } from "@/lib/queries/articles";
+import { getFollowState } from "@/lib/queries/follows";
+import { FollowButton } from "@/components/follow/follow-button";
 
 export const revalidate = 300;
 
@@ -27,6 +29,8 @@ export default async function TopicPage(props: PageProps<"/topic/[slug]">) {
   const { tag, articles } = await getArticlesByTag(slug, 40);
   if (!tag) notFound();
 
+  const follow = await getFollowState("tag", tag.id);
+
   return (
     <>
       <SiteHeader />
@@ -38,6 +42,17 @@ export default async function TopicPage(props: PageProps<"/topic/[slug]">) {
           {tag.description ? (
             <p className="mt-2 max-w-measure text-lead text-muted">{tag.description}</p>
           ) : null}
+          <div className="mt-4">
+            <FollowButton
+              targetType="tag"
+              targetId={tag.id}
+              label={tag.name}
+              isSignedIn={follow.isSignedIn}
+              initiallyFollowing={follow.following}
+              followId={follow.followId}
+              returnTo={`/topic/${tag.slug}`}
+            />
+          </div>
         </div>
 
         {articles.length ? (
