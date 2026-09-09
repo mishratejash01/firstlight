@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { aiProviderName } from "@/lib/ai/config";
+
 /**
  * Which external services are actually wired up.
  *
@@ -24,11 +26,10 @@ export function IntegrationStatus() {
   const integrations: Integration[] = [
     {
       name: "AI assist",
-      // On Vercel the gateway authenticates with the deployment's OIDC token,
-      // so no key is needed there; locally one is.
-      configured: Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN),
-      purpose: "Drafting, tag and headline suggestions, wire summaries.",
-      missing: "Set AI_GATEWAY_API_KEY from the Vercel dashboard under AI Gateway → API keys.",
+      configured: Boolean(aiProviderName()),
+      purpose: `Drafting, triage, tag and headline suggestions, wire summaries. Routed via ${aiProviderName()}.`,
+      missing:
+        "Set ANTHROPIC_API_KEY, or set AI_GATEWAY_API_KEY and add a card to the Vercel AI Gateway — it refuses requests until one is on file, even for free credits.",
     },
     {
       name: "Cloudinary",
