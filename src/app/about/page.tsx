@@ -37,13 +37,13 @@ export default function AboutPage() {
           deciding it should.
         </p>
 
-        <h2 className="mt-8 font-serif text-section text-ink">How we are funded</h2>
+        <h2 className="mt-8 text-section text-ink">How we are funded</h2>
         <p>
           [Placeholder: describe revenue sources, ownership structure, and any
           commercial relationships that could bear on coverage.]
         </p>
 
-        <h2 className="mt-8 font-serif text-section text-ink">Contact</h2>
+        <h2 className="mt-8 text-section text-ink">Contact</h2>
         <p>
           [Placeholder: newsroom contact address, postal address, and the route
           for legal correspondence.]
