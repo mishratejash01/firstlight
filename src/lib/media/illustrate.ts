@@ -101,40 +101,56 @@ async function readSetting<T>(key: string, fallback: T): Promise<T> {
 }
 
 /**
- * The search terms to try, best first.
+ * Which subjects may be illustrated with a stock photograph, and which may not.
  *
- * Two things matter here, both learned the hard way. Entities the model marked
- * `about` are far better search terms than the headline, which is written to be
- * read rather than matched — "Iran claims capture of US underwater drone" finds
- * nothing, "Strait of Hormuz" finds hundreds.
+ * Places only — and this restriction was earned. Keyword search across a stock
+ * library collides constantly, and on news the failure is not a missing picture
+ * but a confidently wrong one:
  *
- * And they must be tried ONE AT A TIME. Joining two entity names into a single
- * query — "Islamic Revolutionary Guard Corps Anduril Industries" — narrows it
- * to nothing, which is why every article was falling back to a card.
+ *   "Jackson"              -> a Michael Jackson photo, on a story about the
+ *                             death of a Black woman in Jackson, Mississippi
+ *   "Metropolitan Police"  -> Las Vegas Metropolitan Police, on a UK story
+ *   "Napoli"               -> a religious procession, on a footballer's surgery
  *
- * Places first, then organisations, then people: a photograph of a strait
- * illustrates a story about a strait, while a stock portrait of a named
- * individual is usually either unavailable or the wrong person entirely.
+ * A picture that appears to show the story but does not is worse than no
+ * picture, and the first of those is indefensible under any masthead.
+ *
+ * Geography is the exception that holds up: a photograph captioned "Strait of
+ * Hormuz" is the Strait of Hormuz, and it does not misidentify anybody. People,
+ * organisations and events all fail — a stock portrait is usually the wrong
+ * person, and an organisation's name is rarely unique.
  */
-function buildQueries(
+function photoCandidates(
   subjects: { name: string; type: string }[],
-  fallback: string,
 ): string[] {
-  const priority: Record<string, number> = {
-    Place: 0,
-    Organization: 1,
-    GovernmentOrganization: 1,
-    Event: 2,
-    Product: 3,
-    Person: 4,
-  };
+  return subjects
+    .filter((subject) => subject.type === "Place")
+    .map((subject) => subject.name.trim())
+    .filter((name) => name.length > 3)
+    .slice(0, 3);
+}
 
-  const ordered = [...subjects]
-    .filter((s) => s.name.trim().length > 2)
-    .sort((a, b) => (priority[a.type] ?? 5) - (priority[b.type] ?? 5))
-    .map((s) => s.name.trim());
+/**
+ * Does the image actually appear to be of the thing we searched for?
+ *
+ * Openverse ranks by relevance, not by whether the title matches, so the top
+ * result for "Jackson" is whatever is most popular rather than whatever is
+ * correct. Requiring the place name in the image's own title is a blunt check
+ * that catches every collision above.
+ */
+function titleConfirmsSubject(title: string | null, subject: string): boolean {
+  if (!title) return false;
 
-  return [...new Set([...ordered, fallback])].slice(0, 5);
+  const haystack = title.toLowerCase();
+  const words = subject
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((word) => word.length > 3);
+
+  if (!words.length) return false;
+  // Every distinctive word of the place must appear: "Strait of Hormuz" needs
+  // both "strait" and "hormuz", so "Hormuz Island" alone would not pass.
+  return words.every((word) => haystack.includes(word));
 }
 
 export async function illustrateArticle({
@@ -157,13 +173,16 @@ export async function illustrateArticle({
   const supabase = createAdminClient();
 
   if (allowPhotos) {
-    const queries = buildQueries(subjects, section);
+    const queries = photoCandidates(subjects);
 
     let found = null;
     let usedQuery = section;
     for (const query of queries) {
-      found = await searchLicensedImage(query);
-      if (found) {
+      const candidate = await searchLicensedImage(query);
+      // Reject anything whose own title does not confirm the subject. Better a
+      // card than a picture of the wrong Jackson.
+      if (candidate && titleConfirmsSubject(candidate.title, query)) {
+        found = candidate;
         usedQuery = query;
         break;
       }
