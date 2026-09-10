@@ -124,7 +124,9 @@ export async function triageEvent(input: {
   independentSources: number;
   mentions: CandidateMention[];
   sections: string[];
-}): Promise<{ ok: true; triage: EventTriage } | { ok: false; error: string }> {
+}): Promise<
+  { ok: true; triage: EventTriage; modelId: string; ms: number } | { ok: false; error: string }
+> {
   if (!aiIsConfigured()) return { ok: false, error: "AI assist is not configured." };
 
   const byKind = new Map<string, CandidateMention[]>();
@@ -164,6 +166,7 @@ export async function triageEvent(input: {
 
   let lastError = "Triage model unavailable.";
   for (const model of modelChain("assist")) {
+    const startedAt = Date.now();
     try {
       const { output } = await generateText({
         model,
@@ -172,10 +175,14 @@ export async function triageEvent(input: {
         prompt,
         output: Output.object({ schema: eventTriageSchema }),
       });
-      return { ok: true, triage: output };
+      console.info(`[engine] triage ${model.modelId} answered in ${Date.now() - startedAt} ms`);
+      return { ok: true, triage: output, modelId: model.modelId, ms: Date.now() - startedAt };
     } catch (error) {
       lastError = error instanceof Error ? error.message : "Triage request failed";
-      console.warn("[engine] triage model failed, stepping down", lastError);
+      console.warn(
+        `[engine] triage ${model.modelId} failed after ${Date.now() - startedAt} ms, stepping down:`,
+        lastError.slice(0, 200),
+      );
     }
   }
 
@@ -188,6 +195,8 @@ export type TriageReport = {
   rejected: number;
   failed: number;
   skippedNoAi: boolean;
+  /** Which model answered each event, and how long it took. */
+  timings: { title: string; modelId: string; ms: number; verdict: string }[];
 };
 
 async function readSetting<T>(key: string, fallback: T): Promise<T> {
@@ -217,6 +226,7 @@ export async function triageCandidates(
     rejected: 0,
     failed: 0,
     skippedNoAi: false,
+    timings: [],
   };
 
   if (!aiIsConfigured()) {
@@ -302,6 +312,12 @@ export async function triageCandidates(
     const { triage } = result;
     if (triage.newsworthy) report.newsworthy += 1;
     else report.rejected += 1;
+    report.timings.push({
+      title: event.title.slice(0, 60),
+      modelId: result.modelId,
+      ms: result.ms,
+      verdict: triage.newsworthy ? "newsworthy" : triage.category,
+    });
 
     await supabase
       .from("story_events")
