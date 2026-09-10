@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { triageCandidates } from "@/lib/engine/triage";
-import { writeEvents } from "@/lib/engine/write";
+import { redraftEvent, writeEvents } from "@/lib/engine/write";
 
 /**
  * The engine's desk: triage what the scoring surfaced, then write the best of
@@ -27,6 +27,13 @@ export async function GET(request: Request) {
 
   const params = new URL(request.url).searchParams;
   const limit = Math.min(Math.max(Number(params.get("limit") ?? 1), 1), 3);
+
+  // Rewrite one written story under the current house rules and return.
+  const redraft = params.get("redraft");
+  if (redraft) {
+    const outcome = await redraftEvent(redraft);
+    return Response.json({ ok: outcome.ok, redraft: outcome }, { status: outcome.ok ? 200 : 422 });
+  }
 
   const supabase = createAdminClient();
   const { data: leased } = await supabase.rpc("engine_try_lock", {
