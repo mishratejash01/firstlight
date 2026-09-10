@@ -691,6 +691,7 @@ export type Database = {
       }
       event_outcomes: {
         Row: {
+          applied: boolean
           created_at: string
           event_id: string
           features: Json
@@ -699,6 +700,7 @@ export type Database = {
           label_source: string
         }
         Insert: {
+          applied?: boolean
           created_at?: string
           event_id: string
           features: Json
@@ -707,6 +709,7 @@ export type Database = {
           label_source: string
         }
         Update: {
+          applied?: boolean
           created_at?: string
           event_id?: string
           features?: Json
@@ -1795,6 +1798,15 @@ export type Database = {
           status: Database["public"]["Enums"]["article_status"]
           views_1h: number
           views_24h: number
+        }[]
+      }
+      engine_article_performance: {
+        Args: { p_article_ids: string[] }
+        Returns: {
+          article_id: string
+          completion_rate_pct: number
+          completions: number
+          sessions: number
         }[]
       }
       engine_entity_baselines: {
