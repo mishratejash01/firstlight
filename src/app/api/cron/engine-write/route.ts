@@ -36,7 +36,8 @@ export async function GET(request: Request) {
   if (!leased) return Response.json({ ok: true, skipped: true });
 
   try {
-    const triage = await triageCandidates();
+    // Two minutes for triage, the rest for writing one story.
+    const triage = await triageCandidates(6, Date.now() + 120_000);
     const write = await writeEvents(limit);
     return Response.json({ ok: true, triage, write });
   } catch (error) {
