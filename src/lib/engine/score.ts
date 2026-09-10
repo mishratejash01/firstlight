@@ -196,6 +196,10 @@ function surpriseFeature(agg: Aggregate, baselines: Baseline[]): number {
     const mean = Math.max(rows.reduce((s, b) => s + Number(b.hourly_mean), 0), 0.05);
     const variance = Math.max(rows.reduce((s, b) => s + Number(b.hourly_var), 0), mean);
 
+    // One-sided. KL divergence is also large when an entity gets far *less*
+    // coverage than usual, and a quiet day is not a story.
+    if (k <= mean * T) continue;
+
     // Method-of-moments Gamma prior on the hourly rate.
     const a0 = (mean * mean) / variance;
     const b0 = mean / variance;
