@@ -9,7 +9,7 @@ import { RunEngineButton } from "@/components/dashboard/run-engine-button";
 import { requireEditorial } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { formatTimeAgo } from "@/lib/format/datetime";
-import { setEventStatus } from "@/app/admin/event-actions";
+import { redraftArticle, setEventStatus } from "@/app/admin/event-actions";
 
 export const metadata: Metadata = {
   title: "Events — Administration",
@@ -292,6 +292,14 @@ export default async function AdminEventsPage() {
                       {formatTimeAgo(event.last_seen_at)}
                     </p>
                   </div>
+                  {article ? (
+                    <ActionButton
+                      action={redraftArticle}
+                      hidden={{ event_id: event.id }}
+                      label="Rewrite from sources"
+                      pendingLabel="Rewriting…"
+                    />
+                  ) : null}
                 </li>
               );
             })}
