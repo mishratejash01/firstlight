@@ -48,8 +48,8 @@ export type ClusterReport = {
   unembedded: number;
 };
 
-const STRICT_SIMILARITY = 0.92;
-const DEFAULT_LOOSE_SIMILARITY = 0.8;
+const STRICT_SIMILARITY = 0.9;
+const DEFAULT_LOOSE_SIMILARITY = 0.84;
 const CANDIDATES = 8;
 
 async function readSetting<T>(key: string, fallback: T): Promise<T> {
