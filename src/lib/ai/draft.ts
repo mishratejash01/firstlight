@@ -77,8 +77,8 @@ Do not write like this
 - Both-sides padding where there is no genuine second side.
 - Sentences built to be technically correct rather than to be read.
 
-Attribute every claim to whoever made it. British spelling and punctuation,
-sentence case headlines.
+Attribute every claim to whoever made it — the person or body, not the outlet
+that carried it. British spelling and punctuation, sentence case headlines.
 
 Before you finish: read it back as an editor about to publish it. Any sentence
 that sounds robotic, over-formal, repetitive, or like something a model would
@@ -340,14 +340,14 @@ export async function summariseForQueue(input: {
  *
  * This is the grounded path, and it is materially safer than drafting from a
  * topic alone: the model is given real headlines from named outlets published
- * today, and told to write about what is being reported rather than to report
- * itself. It cannot know more than those headlines contain, so it is instructed
- * to say so where they run out — and to attribute every claim to the outlet it
- * came from, inline, as a link.
+ * today, and where they could be fetched the articles behind them, and told to
+ * write our own report from that material — stated plainly where the sources
+ * agree, attributed to the primary source (the office, the company, the court)
+ * where one is named, and never to the outlet that carried it. The one thing
+ * that keeps an outlet's name is that outlet's own exclusive work, because
+ * passing that off as ours would be dishonest.
  *
- * The result is an aggregation piece: our own synthesis of what several outlets
- * are reporting, credited to them. That is a legitimate form and a very
- * different thing from reproducing their copy.
+ * The result is our own piece, not a digest of what several outlets said.
  */
 export async function draftFromTrend({
   term,
@@ -380,19 +380,31 @@ export async function draftFromTrend({
     const groundingRule = hasFullText
       ? `
 You have been given the full text of articles other outlets have published on
-this story. Write our own piece from them.
+this story. Write our own report from them, in our own voice. The reader came
+to us for the story, not for a list of who else has it.
 
 Rules, without exception:
 - Write original prose. Do not reproduce sentences or phrasing from the sources;
   say it in our own words. Reproducing their copy is not reporting, it is
   copying, and it is the one thing that will get this publication sued.
-- Attribute every fact to the outlet that reported it, in the prose, as a
-  Markdown link: "according to [the BBC](url)".
-- You may quote a source directly where the wording matters, but keep it short,
-  put it in quotation marks, and attribute it in the same sentence.
+- State as fact anything two or more of the sources agree on, or that comes
+  from an official statement, document or named spokesperson. Do not hedge it
+  and do not say who carried it.
+- Attribute to the primary source, never to the outlet that carried it: "the
+  Prime Minister's Office said", "the company said in a statement", "police
+  said", "the order says". Never "according to the Times of India", never
+  "ThePrint reported", never "as reported by".
+- The one exception: a fact that exists only as one outlet's own work — an
+  interview it conducted, a document it obtained, its unnamed sources, an
+  exclusive — keeps that outlet's name, once, in plain text, because it is
+  theirs. Everything else is ours.
+- No links in the body. Not to the outlets, not to their articles.
+- You may quote a person directly where the wording matters, but keep it short,
+  in quotation marks, and say who said it. Never quote an outlet's own prose.
 - Use the specifics the sources give you: names, numbers, dates, places. That is
   the whole point of having read them.
-- Where the sources disagree, say so and attribute both.
+- Where the sources disagree on a fact, give both versions and say which
+  primary source says which.
 - Where an obvious question is unanswered by all of them, say it is unanswered.
 - List in unverifiedClaims anything you inferred rather than read.
         `.trim()
@@ -400,9 +412,11 @@ Rules, without exception:
 You have headlines only, not the articles behind them.
 
 Rules, without exception:
-- Attribute every claim to the outlet reporting it, as a Markdown link.
-- Write only what the headlines support. Where an obvious question is
-  unanswered, say so — do not fill it in.
+- Write only what the headlines support, stated plainly. Where an obvious
+  question is unanswered, say so — do not fill it in.
+- Attribute to a primary source where a headline names one ("police said");
+  otherwise say what has happened without naming the outlets. No links in the
+  body.
 - Invent no quotations and no figures. You have none.
 - Keep it short. You do not have the material for a long piece, and padding one
   out is worse than filing three honest paragraphs.
