@@ -1797,6 +1797,41 @@ export type Database = {
           views_24h: number
         }[]
       }
+      engine_entity_baselines: {
+        Args: { p_entities: string[] }
+        Returns: {
+          entity: string
+          hourly_mean: number
+          hourly_var: number
+          hours_observed: number
+          source_kind: string
+        }[]
+      }
+      engine_event_aggregates: {
+        Args: { p_window_hours?: number }
+        Returns: {
+          bucket_0_30: number
+          bucket_30_60: number
+          bucket_60_90: number
+          entities: string[]
+          event_id: string
+          first_seen_at: string
+          last_seen_at: string
+          magnitudes: Json
+          mentions_1h: number
+          mentions_24h: number
+          mentions_total: number
+          region_mix: Json
+          sources: Json
+          status: string
+          title: string
+        }[]
+      }
+      engine_rollup_entity_hour: { Args: { p_hour?: string }; Returns: number }
+      engine_update_source_stats: {
+        Args: { p_since?: string }
+        Returns: number
+      }
       match_story_events: {
         Args: {
           match_count?: number
