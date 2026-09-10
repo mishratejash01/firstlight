@@ -30,13 +30,13 @@ export type StreamResult = {
   stream: string;
   fetched: number;
   error?: string;
-  cluster?: ClusterReport;
 };
 
 export type PulseReport = {
   cadence: "fast" | "slow";
   durationMs: number;
   streams: StreamResult[];
+  cluster: ClusterReport | null;
   rollup: number;
   scoring: ScoreReport;
   corroborated?: number;
@@ -61,12 +61,15 @@ const SLOW_STREAMS: Stream[] = [
   { name: "polymarket", fetch: fetchPredictionMarkets },
 ];
 
-async function runStreams(streams: Stream[]): Promise<StreamResult[]> {
-  const results: StreamResult[] = [];
-
-  // Fetched in parallel — they are different hosts — but clustered
-  // sequentially, so that mentions of one new story from several streams find
-  // each other rather than each founding its own event.
+/**
+ * Fetches every stream in parallel — they are different hosts — then clusters
+ * the lot in one pass, so that a story arriving from three streams at once
+ * founds one event rather than three, and the embedding call is made once
+ * rather than once per stream.
+ */
+async function runStreams(
+  streams: Stream[],
+): Promise<{ results: StreamResult[]; cluster: ClusterReport | null }> {
   const fetched = await Promise.all(
     streams.map(async (stream) => {
       try {
@@ -81,19 +84,25 @@ async function runStreams(streams: Stream[]): Promise<StreamResult[]> {
     }),
   );
 
-  for (const { stream, mentions, error } of fetched) {
-    const result: StreamResult = { stream: stream.name, fetched: mentions.length, error };
-    if (mentions.length) {
-      try {
-        result.cluster = await ingestMentions(mentions);
-      } catch (clusterError) {
-        result.error = clusterError instanceof Error ? clusterError.message : "cluster failed";
-      }
-    }
-    results.push(result);
-  }
+  const results: StreamResult[] = fetched.map(({ stream, mentions, error }) => ({
+    stream: stream.name,
+    fetched: mentions.length,
+    error,
+  }));
 
-  return results;
+  const mentions = fetched.flatMap((entry) => entry.mentions);
+  if (!mentions.length) return { results, cluster: null };
+
+  try {
+    return { results, cluster: await ingestMentions(mentions) };
+  } catch (error) {
+    results.push({
+      stream: "cluster",
+      fetched: 0,
+      error: error instanceof Error ? error.message : "cluster failed",
+    });
+    return { results, cluster: null };
+  }
 }
 
 /**
@@ -126,7 +135,9 @@ export async function runPulse(cadence: "fast" | "slow"): Promise<PulseReport> {
   const startedAt = Date.now();
   const supabase = createAdminClient();
 
-  const streams = await runStreams(cadence === "fast" ? FAST_STREAMS : SLOW_STREAMS);
+  const { results: streams, cluster } = await runStreams(
+    cadence === "fast" ? FAST_STREAMS : SLOW_STREAMS,
+  );
 
   let corroborated: number | undefined;
   let sourceStatsUpdated: number | undefined;
@@ -160,6 +171,7 @@ export async function runPulse(cadence: "fast" | "slow"): Promise<PulseReport> {
     cadence,
     durationMs: Date.now() - startedAt,
     streams,
+    cluster,
     rollup: rolled ?? 0,
     scoring,
     corroborated,
