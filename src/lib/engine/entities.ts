@@ -36,9 +36,12 @@ export function normaliseText(text: string): string {
     .trim();
 }
 
-/** A canonical key for an entity name: 'Strait of Hormuz' -> 'strait-of-hormuz'. */
+/** A canonical key for an entity name: 'Strait of Hormuz' -> 'strait-hormuz'. */
 export function entityKey(name: string): string {
-  return normaliseText(name)
+  return normaliseText(
+    // Possessives are grammar, not identity: "McTominay's" is McTominay.
+    name.replace(/['’]s\b/g, "").replace(/['’]/g, ""),
+  )
     .split(" ")
     .filter((word) => word && !STOP.has(word))
     .join("-");
@@ -54,40 +57,68 @@ export function entityKey(name: string): string {
  */
 const CONNECTIVES = new Set(["of", "de", "da", "del", "the", "and", "&"]);
 
+function isAllCaps(token: string): boolean {
+  return /^[A-Z]{2,}$/.test(token.replace(/[^A-Za-z]/g, ""));
+}
+
 export function extractEntityKeys(text: string, extra: string[] = []): string[] {
   const keys = new Set<string>();
 
   for (const name of extra) {
     const key = entityKey(name);
-    if (key.length > 2) keys.add(key);
+    if (key.length >= 2) keys.add(key);
   }
 
+  // Clause punctuation ends a name. "Reuters: Modi to visit" is two entities,
+  // not one, and the colon is the only thing saying so.
   const tokens = text
-    .replace(/[^\p{L}\p{N}\s'&-]/gu, " ")
+    .replace(/[:;|\u2014\u2013,()\[\]"\u201c\u201d]/g, " | ")
+    .replace(/[^\p{L}\p{N}\s'\u2019&|-]/gu, " ")
     .split(/\s+/)
     .filter(Boolean);
 
-  let run: string[] = [];
+  // A capitalised word at the start of a headline is usually just the start of
+  // a sentence — "Police", "Gold", "Officials". It only counts as an entity if
+  // it is all-caps ("US") or turns up capitalised again later in the text,
+  // which a genuine name tends to and a sentence-starter does not.
+  const recurs = (word: string) =>
+    tokens.filter((token, i) => i > 0 && token === word).length > 0;
+
+  let run: { token: string; index: number }[] = [];
   const flush = () => {
-    // A run of one all-caps token ("US", "EU", "NHS") is an entity; a run of one
-    // capitalised ordinary word at sentence start usually is not.
-    const meaningful = run.filter((word) => !CONNECTIVES.has(word.toLowerCase()));
-    if (meaningful.length >= 2 || (meaningful.length === 1 && /^[A-Z]{2,}$/.test(meaningful[0]))) {
-      const key = entityKey(run.join(" "));
-      if (key.length > 2) keys.add(key);
+    const meaningful = run.filter((entry) => !CONNECTIVES.has(entry.token.toLowerCase()));
+
+    if (meaningful.length >= 2) {
+      const key = entityKey(run.map((entry) => entry.token).join(" "));
+      if (key.length >= 2) keys.add(key);
+    } else if (meaningful.length === 1) {
+      const { token, index } = meaningful[0];
+      const bare = token.replace(/['\u2019]s$/, "");
+      const acceptable =
+        isAllCaps(bare) ||
+        (index > 0 && bare.length >= 4) ||
+        (index === 0 && bare.length >= 4 && recurs(token));
+      if (acceptable) {
+        const key = entityKey(bare);
+        if (key.length >= 2) keys.add(key);
+      }
     }
     run = [];
   };
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
-    const capitalised = /^[A-Z]/.test(token) || /^[\p{Lu}]/u.test(token);
+    if (token === "|") {
+      flush();
+      continue;
+    }
+    const capitalised = /^[\p{Lu}]/u.test(token);
     const connective = CONNECTIVES.has(token.toLowerCase());
 
-    if (capitalised && !(i === 0 && STOP.has(token.toLowerCase()))) {
-      run.push(token);
+    if (capitalised && !STOP.has(token.toLowerCase())) {
+      run.push({ token, index: i });
     } else if (connective && run.length) {
-      run.push(token);
+      run.push({ token, index: i });
     } else {
       flush();
     }
