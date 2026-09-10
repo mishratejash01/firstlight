@@ -104,7 +104,9 @@ export async function verifyEvent(input: {
     try {
       const { output } = await generateText({
         model,
-        maxRetries: 1,
+        // No retries on one model: a rate-limited model stays rate-limited for
+        // longer than a retry waits, and the next model in the chain is right there.
+        maxRetries: 0,
         system: `You are a fact desk. Extract the specific factual claims these sources make
 about the story, grade the severity of each, and note which sources support or
 contradict it. Be literal: a claim is supported by a source only if that source
