@@ -144,11 +144,22 @@ export async function runPulse(cadence: "fast" | "slow"): Promise<PulseReport> {
 
   // The schedule fires on the minute regardless; only one pulse clusters at
   // a time. The lease outlives any pulse that finishes normally and expires
-  // on one that does not.
-  const { data: leased } = await supabase.rpc("engine_try_lock", {
-    p_name: "pulse",
-    p_ttl_seconds: 150,
-  });
+  // on one that does not. The slow pulse shares its minute with a fast one
+  // four times an hour, so it waits for the lease rather than standing down:
+  // the fast pulse is a few seconds in steady state, and a slow pulse that
+  // never runs would mean no Google News, no trends and no learning.
+  const patience = cadence === "slow" ? 45_000 : 0;
+  const giveUpAt = Date.now() + patience;
+  let leased = false;
+  for (;;) {
+    const { data } = await supabase.rpc("engine_try_lock", {
+      p_name: "pulse",
+      p_ttl_seconds: 150,
+    });
+    leased = Boolean(data);
+    if (leased || Date.now() >= giveUpAt) break;
+    await new Promise((resolve) => setTimeout(resolve, 3_000));
+  }
   if (!leased) {
     return {
       cadence,
