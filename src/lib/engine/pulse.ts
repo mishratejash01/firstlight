@@ -7,6 +7,8 @@ import { applyOutcomes, harvestLabels } from "./learn";
 import { fetchBlueskyTrending, fetchHackerNews, fetchMastodonTrending } from "./streams/social";
 import { fetchWikipediaEditBursts, fetchWikipediaTopViews } from "./streams/wikipedia";
 import { fetchEarthquakes, fetchPredictionMarkets } from "./streams/ground-truth";
+import { fetchRedditNews, redditConfigured } from "./streams/reddit";
+import { fetchYouTubeNews, youtubeConfigured } from "./streams/youtube";
 import {
   fetchCorroborationFor,
   fetchTrendMentions,
@@ -59,6 +61,9 @@ const SLOW_STREAMS: Stream[] = [
   { name: "wikipedia_views", fetch: fetchWikipediaTopViews },
   { name: "mastodon", fetch: fetchMastodonTrending },
   { name: "polymarket", fetch: fetchPredictionMarkets },
+  // Keyed streams join the moment their credentials are present.
+  ...(youtubeConfigured() ? [{ name: "youtube", fetch: fetchYouTubeNews }] : []),
+  ...(redditConfigured() ? [{ name: "reddit", fetch: fetchRedditNews }] : []),
 ];
 
 /**
