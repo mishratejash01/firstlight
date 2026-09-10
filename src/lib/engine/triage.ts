@@ -174,7 +174,9 @@ export async function triageEvent(input: {
     try {
       const { output } = await generateText({
         model,
-        maxRetries: 1,
+        // No retries on one model: a rate-limited model stays rate-limited for
+        // longer than a retry waits, and the next model in the chain is right there.
+        maxRetries: 0,
         system: SYSTEM,
         prompt,
         output: Output.object({ schema: eventTriageSchema }),
