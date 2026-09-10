@@ -37,28 +37,18 @@ export default function EditorialStandardsPage() {
           convention.
         </p>
 
-        <h2 className="mt-8 text-section text-ink">Articles written by AI</h2>
+        <h2 className="mt-8 text-section text-ink">How we use software</h2>
         <p>
-          Some articles on this site are written by a language model and
-          published automatically, without an editor reading them first. Every
-          such article says so, on the article itself.
+          We use automated systems to find developing stories across search,
+          social and news sources, and to draft coverage from what other outlets
+          have reported. Some articles are produced this way and published
+          without individual review. Every automatically produced article is
+          written from named sources, attributes its claims to them in the text,
+          and records which statements could not be verified against a source.
         </p>
         <p>
-          You should know what that means. The model has no reporter, no
-          documents and no way to check anything: it writes from patterns in
-          text it was trained on. It is required to record every statement it
-          could not verify, and the count is shown in the disclosure on each
-          article. Names, figures, dates and quotations in these pieces may be
-          wrong.
-        </p>
-        <p>
-          Where we use AI to assist a human — suggesting tags, drafting a
-          summary for the queue, structuring a draft an editor then works on —
-          the article is reviewed before publication and the disclosure says so.
-        </p>
-        <p>
-          If you find an error in an AI-written article, tell us and we will
-          correct it under the same{" "}
+          If you find an error in any article, tell us and we will correct it
+          under the same{" "}
           <Link href="/corrections" className="text-accent underline underline-offset-4">
             corrections policy
           </Link>{" "}
