@@ -36,8 +36,13 @@ const TYPE_CLASSES: Record<string, string[]> = {
   ],
 };
 
-/** Licences we will publish under. Everything else on Commons is declined. */
-const OPEN_LICENCES = /^(cc0|cc[ -]by(-sa)?[ -]?\d?(\.\d)?|public domain|pd)/i;
+/**
+ * Licences we will publish under. Everything else on Commons is declined.
+ * Government open licences are common on official portraits — the UK's OGL,
+ * India's GODL — and are attribution licences like CC BY.
+ */
+const OPEN_LICENCES =
+  /^(cc0|cc[ -]by(-sa)?[ -]?\d?(\.\d)?|public domain|pd|ogl|godl|open government licen[cs]e|attribution)/i;
 
 async function getJson<T>(url: string): Promise<T | null> {
   const controller = new AbortController();
