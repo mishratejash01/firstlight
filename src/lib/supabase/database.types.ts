@@ -632,6 +632,24 @@ export type Database = {
         }
         Relationships: []
       }
+      engine_locks: {
+        Row: {
+          claimed_at: string | null
+          name: string
+          released_at: string | null
+        }
+        Insert: {
+          claimed_at?: string | null
+          name: string
+          released_at?: string | null
+        }
+        Update: {
+          claimed_at?: string | null
+          name?: string
+          released_at?: string | null
+        }
+        Relationships: []
+      }
       entities: {
         Row: {
           created_at: string
@@ -1863,7 +1881,12 @@ export type Database = {
           title: string
         }[]
       }
+      engine_release_lock: { Args: { p_name: string }; Returns: undefined }
       engine_rollup_entity_hour: { Args: { p_hour?: string }; Returns: number }
+      engine_try_lock: {
+        Args: { p_name: string; p_ttl_seconds: number }
+        Returns: boolean
+      }
       engine_update_source_stats: {
         Args: { p_since?: string }
         Returns: number
