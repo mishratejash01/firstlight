@@ -668,6 +668,62 @@ export type Database = {
         }
         Relationships: []
       }
+      entity_hourly: {
+        Row: {
+          entity: string
+          hour: string
+          mentions: number
+          source_kind: string
+        }
+        Insert: {
+          entity: string
+          hour: string
+          mentions?: number
+          source_kind: string
+        }
+        Update: {
+          entity?: string
+          hour?: string
+          mentions?: number
+          source_kind?: string
+        }
+        Relationships: []
+      }
+      event_outcomes: {
+        Row: {
+          created_at: string
+          event_id: string
+          features: Json
+          id: string
+          label: number
+          label_source: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          features: Json
+          id?: string
+          label: number
+          label_source: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          features?: Json
+          id?: string
+          label?: number
+          label_source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_outcomes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "story_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_updates: {
         Row: {
           anchor: string | null
@@ -997,6 +1053,89 @@ export type Database = {
         }
         Relationships: []
       }
+      signal_mentions: {
+        Row: {
+          body: string | null
+          embedding: string | null
+          entities: string[]
+          event_id: string | null
+          external_id: string
+          id: number
+          magnitude: number | null
+          observed_at: string
+          raw: Json
+          region: string | null
+          source_key: string
+          source_kind: string
+          title: string
+          url: string | null
+        }
+        Insert: {
+          body?: string | null
+          embedding?: string | null
+          entities?: string[]
+          event_id?: string | null
+          external_id: string
+          id?: never
+          magnitude?: number | null
+          observed_at?: string
+          raw?: Json
+          region?: string | null
+          source_key: string
+          source_kind: string
+          title: string
+          url?: string | null
+        }
+        Update: {
+          body?: string | null
+          embedding?: string | null
+          entities?: string[]
+          event_id?: string | null
+          external_id?: string
+          id?: never
+          magnitude?: number | null
+          observed_at?: string
+          raw?: Json
+          region?: string | null
+          source_key?: string
+          source_kind?: string
+          title?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signal_mentions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "story_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signal_weights: {
+        Row: {
+          feature: string
+          mean: number
+          observations: number
+          updated_at: string
+          variance: number
+        }
+        Insert: {
+          feature: string
+          mean: number
+          observations?: number
+          updated_at?: string
+          variance: number
+        }
+        Update: {
+          feature?: string
+          mean?: number
+          observations?: number
+          updated_at?: string
+          variance?: number
+        }
+        Relationships: []
+      }
       site_settings: {
         Row: {
           description: string | null
@@ -1149,6 +1288,57 @@ export type Database = {
           },
         ]
       }
+      source_pairs: {
+        Row: {
+          events_a: number
+          events_both: number
+          source_a: string
+          source_b: string
+          updated_at: string
+        }
+        Insert: {
+          events_a?: number
+          events_both?: number
+          source_a: string
+          source_b: string
+          updated_at?: string
+        }
+        Update: {
+          events_a?: number
+          events_both?: number
+          source_a?: string
+          source_b?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      source_stats: {
+        Row: {
+          events_led: number
+          events_seen: number
+          lead_score: number
+          source_key: string
+          source_kind: string
+          updated_at: string
+        }
+        Insert: {
+          events_led?: number
+          events_seen?: number
+          lead_score?: number
+          source_key: string
+          source_kind: string
+          updated_at?: string
+        }
+        Update: {
+          events_led?: number
+          events_seen?: number
+          lead_score?: number
+          source_key?: string
+          source_kind?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sources: {
         Row: {
           created_at: string
@@ -1181,6 +1371,113 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      story_events: {
+        Row: {
+          acceleration: number
+          article_id: string | null
+          burst: number
+          centroid: string | null
+          corroboration: number
+          created_at: string
+          entities: string[]
+          first_seen_at: string
+          freshness: number
+          id: string
+          independent_sources: number
+          last_seen_at: string
+          lead_authority: number
+          magnitude: number
+          mention_count: number
+          novelty: number
+          region_mix: Json
+          relevance: number
+          score: number
+          score_breakdown: Json
+          severity: string | null
+          source_count: number
+          status: string
+          summary: string | null
+          surprise: number
+          title: string
+          triage_category: string | null
+          triage_reason: string | null
+          updated_at: string
+          verification: Json | null
+        }
+        Insert: {
+          acceleration?: number
+          article_id?: string | null
+          burst?: number
+          centroid?: string | null
+          corroboration?: number
+          created_at?: string
+          entities?: string[]
+          first_seen_at?: string
+          freshness?: number
+          id?: string
+          independent_sources?: number
+          last_seen_at?: string
+          lead_authority?: number
+          magnitude?: number
+          mention_count?: number
+          novelty?: number
+          region_mix?: Json
+          relevance?: number
+          score?: number
+          score_breakdown?: Json
+          severity?: string | null
+          source_count?: number
+          status?: string
+          summary?: string | null
+          surprise?: number
+          title: string
+          triage_category?: string | null
+          triage_reason?: string | null
+          updated_at?: string
+          verification?: Json | null
+        }
+        Update: {
+          acceleration?: number
+          article_id?: string | null
+          burst?: number
+          centroid?: string | null
+          corroboration?: number
+          created_at?: string
+          entities?: string[]
+          first_seen_at?: string
+          freshness?: number
+          id?: string
+          independent_sources?: number
+          last_seen_at?: string
+          lead_authority?: number
+          magnitude?: number
+          mention_count?: number
+          novelty?: number
+          region_mix?: Json
+          relevance?: number
+          score?: number
+          score_breakdown?: Json
+          severity?: string | null
+          source_count?: number
+          status?: string
+          summary?: string | null
+          surprise?: number
+          title?: string
+          triage_category?: string | null
+          triage_reason?: string | null
+          updated_at?: string
+          verification?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_events_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tags: {
         Row: {
