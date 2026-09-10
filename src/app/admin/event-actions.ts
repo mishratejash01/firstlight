@@ -7,7 +7,7 @@ import { getSessionUser, isEditorial } from "@/lib/auth/roles";
 import { recordOutcome } from "@/lib/engine/learn";
 import { runPulse } from "@/lib/engine/pulse";
 import { triageCandidates } from "@/lib/engine/triage";
-import { writeEvents } from "@/lib/engine/write";
+import { redraftEvent, writeEvents } from "@/lib/engine/write";
 
 /**
  * Desk controls for the event engine.
@@ -90,4 +90,17 @@ export async function runEngineNow(): Promise<ActionResult> {
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Engine run failed." };
   }
+}
+
+/** Rewrites a written story from its sources under the current house rules. */
+export async function redraftArticle(formData: FormData): Promise<ActionResult> {
+  const user = await requireEditor();
+  if (!user) return { error: "Editorial role required." };
+
+  const eventId = String(formData.get("event_id") ?? "");
+  const outcome = await redraftEvent(eventId);
+  if (!outcome.ok) return { error: outcome.reason ?? "Redraft failed." };
+
+  revalidatePath("/admin/events");
+  return { ok: true, note: `Rewritten from ${outcome.sourcesRead} sources.` };
 }
