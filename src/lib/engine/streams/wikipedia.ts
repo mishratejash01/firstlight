@@ -102,7 +102,7 @@ export async function fetchWikipediaTopViews(): Promise<IncomingMention[]> {
 }
 
 /**
- * Pages with an edit burst in the last hour.
+ * Pages with an edit burst in the last few minutes.
  *
  * Recent changes is a firehose; what matters is concentration. A page edited
  * eight times by five people in an hour is a page where something is
@@ -136,8 +136,10 @@ export async function fetchWikipediaEditBursts(): Promise<IncomingMention[]> {
 
   return [...byPage.entries()]
     // Several distinct editors is the signal. One person making twenty edits is
-    // a copy-edit session.
-    .filter(([, stats]) => stats.edits >= 6 && stats.editors.size >= 3)
+    // a copy-edit session. The thresholds are lower than they look: 500 recent
+    // changes on English Wikipedia is only about five minutes of activity, so
+    // four edits by two people here is a genuine burst.
+    .filter(([, stats]) => stats.edits >= 4 && stats.editors.size >= 2)
     .sort((a, b) => b[1].edits - a[1].edits)
     .slice(0, 20)
     .map(([title, stats]) => ({
