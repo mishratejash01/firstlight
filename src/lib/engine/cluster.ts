@@ -46,7 +46,29 @@ export type ClusterReport = {
   joined: number;
   founded: number;
   unembedded: number;
+  /** Mentions set aside because their text is not in a script we can cluster. */
+  skipped: number;
 };
+
+/**
+ * Share of a text's letters that are Latin script.
+ *
+ * The embedding model and the entity extractor both work on English. A
+ * Hindi or Telugu headline embeds into a corner of the space where every
+ * other Hindi or Telugu headline also lands, and they cluster with each other
+ * regardless of subject. Until the engine has a multilingual model those
+ * mentions are set aside rather than mis-clustered.
+ */
+function latinShare(text: string): number {
+  let letters = 0;
+  let latin = 0;
+  for (const char of text) {
+    if (!/\p{L}/u.test(char)) continue;
+    letters += 1;
+    if (/\p{Script=Latin}/u.test(char)) latin += 1;
+  }
+  return letters ? latin / letters : 1;
+}
 
 const STRICT_SIMILARITY = 0.9;
 const DEFAULT_LOOSE_SIMILARITY = 0.84;
@@ -251,6 +273,7 @@ export async function ingestMentions(mentions: IncomingMention[]): Promise<Clust
     joined: 0,
     founded: 0,
     unembedded: 0,
+    skipped: 0,
   };
   if (!mentions.length) return report;
 
@@ -266,8 +289,11 @@ export async function ingestMentions(mentions: IncomingMention[]): Promise<Clust
     .in("external_id", ids);
   const seen = new Set((existing ?? []).map((row) => `${row.source_kind}:${row.external_id}`));
 
-  const fresh = mentions.filter((m) => !seen.has(`${m.sourceKind}:${m.externalId}`));
-  report.duplicates = mentions.length - fresh.length;
+  const unseen = mentions.filter((m) => !seen.has(`${m.sourceKind}:${m.externalId}`));
+  report.duplicates = mentions.length - unseen.length;
+
+  const fresh = unseen.filter((m) => latinShare(m.title) >= 0.5);
+  report.skipped = unseen.length - fresh.length;
   if (!fresh.length) return report;
 
   const embeddings = await embedTexts(fresh.map(embeddingText));
