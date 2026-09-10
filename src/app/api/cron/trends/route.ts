@@ -1,3 +1,4 @@
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ingestTrends } from "@/lib/trends/ingest";
 import { triagePendingTrends } from "@/lib/trends/triage";
 import { writeUpTrends } from "@/lib/trends/write-up";
@@ -30,8 +31,21 @@ export async function GET(request: Request) {
 
   try {
     const ingest = await ingestTrends();
-    const triage = await triagePendingTrends(20);
-    const writeUp = await writeUpTrends(3);
+
+    // Triage and writing only while this pipeline is the one that writes.
+    // With the event engine doing both, running them here as well would
+    // spend the model quota twice on the same stories. Ingestion stays on so
+    // the trends page keeps showing what people are searching for.
+    const supabase = createAdminClient();
+    const { data: setting } = await supabase
+      .from("site_settings")
+      .select("value")
+      .eq("key", "trending_auto_write")
+      .maybeSingle();
+    const autoWrite = Boolean(setting?.value);
+
+    const triage = autoWrite ? await triagePendingTrends(20) : null;
+    const writeUp = autoWrite ? await writeUpTrends(3) : null;
 
     return Response.json({
       ok: true,
