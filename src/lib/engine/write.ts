@@ -9,6 +9,7 @@ import { draftFromTrend } from "@/lib/ai/draft";
 import { getSourceDocuments } from "@/lib/fetch/extract";
 import { illustrateArticle } from "@/lib/media/illustrate";
 import { verifyEvent } from "./verify";
+import { recordSameAs } from "./wikidata";
 
 /**
  * From a newsworthy event to a published article.
@@ -382,6 +383,7 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
       .eq("id", event.id);
 
     await attachStructuredData(supabase, article.id, draft);
+    if (illustration?.sameAs.length) await recordSameAs(supabase, illustration.sameAs);
 
     if (publishing) publishedSlugs.push(article.slug);
 
