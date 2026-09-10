@@ -292,7 +292,15 @@ export async function ingestMentions(mentions: IncomingMention[]): Promise<Clust
   const unseen = mentions.filter((m) => !seen.has(`${m.sourceKind}:${m.externalId}`));
   report.duplicates = mentions.length - unseen.length;
 
-  const fresh = unseen.filter((m) => latinShare(m.title) >= 0.5);
+  // Set aside what cannot be clustered (script) and what is not news any
+  // more (a wire item republished days after the fact). The engine is about
+  // what is happening now; old items only found stale events.
+  const staleBefore = Date.now() - 36 * 3600_000;
+  const fresh = unseen.filter(
+    (m) =>
+      latinShare(m.title) >= 0.5 &&
+      (!m.observedAt || new Date(m.observedAt).getTime() >= staleBefore),
+  );
   report.skipped = unseen.length - fresh.length;
   if (!fresh.length) return report;
 
