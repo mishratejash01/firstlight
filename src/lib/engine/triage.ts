@@ -1,6 +1,6 @@
 import "server-only";
 
-import { Output, generateText } from "ai";
+import { Output, generateText, type LanguageModel } from "ai";
 import { z } from "zod";
 
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -98,6 +98,10 @@ type CandidateMention = {
   observed_at: string;
 };
 
+function modelName(model: LanguageModel): string {
+  return typeof model === "string" ? model : model.modelId;
+}
+
 function minutesAgo(iso: string): number {
   return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
 }
@@ -175,12 +179,12 @@ export async function triageEvent(input: {
         prompt,
         output: Output.object({ schema: eventTriageSchema }),
       });
-      console.info(`[engine] triage ${model.modelId} answered in ${Date.now() - startedAt} ms`);
-      return { ok: true, triage: output, modelId: model.modelId, ms: Date.now() - startedAt };
+      console.info(`[engine] triage ${modelName(model)} answered in ${Date.now() - startedAt} ms`);
+      return { ok: true, triage: output, modelId: modelName(model), ms: Date.now() - startedAt };
     } catch (error) {
       lastError = error instanceof Error ? error.message : "Triage request failed";
       console.warn(
-        `[engine] triage ${model.modelId} failed after ${Date.now() - startedAt} ms, stepping down:`,
+        `[engine] triage ${modelName(model)} failed after ${Date.now() - startedAt} ms, stepping down:`,
         lastError.slice(0, 200),
       );
     }
