@@ -3,6 +3,7 @@ import "server-only";
 import { v2 as cloudinary } from "cloudinary";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { findSubjectImage, wikidataUrl } from "@/lib/engine/wikidata";
 import { attributionFor, searchLicensedImage } from "./openverse";
 import { buildTypographicCard } from "./typographic-card";
 
@@ -10,10 +11,12 @@ import { buildTypographicCard } from "./typographic-card";
  * Gives an article a lead image.
  *
  * Order of preference:
- *   1. An openly licensed photograph matching the story's subject, credited.
- *   2. A generated typographic card.
+ *   1. The Wikimedia Commons picture of the person or organisation the story
+ *      is about, resolved through Wikidata so it is that person, credited.
+ *   2. An openly licensed photograph of the place, credited.
+ *   3. A generated typographic card.
  *
- * There is deliberately no third option. The photograph from the article we
+ * There is deliberately no fourth option. The photograph from the article we
  * read is not available to us — it belongs to the outlet or their agency — and
  * a synthesised photorealistic image of a real event is fabrication whatever
  * the caption says.
@@ -28,6 +31,8 @@ export type Illustration = {
   alt: string;
   credit: string;
   kind: "photo" | "card";
+  /** Wikidata identities resolved along the way, to record against our entities. */
+  sameAs: { name: string; url: string }[];
 };
 
 function configureCloudinary(): boolean {
@@ -172,7 +177,46 @@ export async function illustrateArticle({
   const allowPhotos = await readSetting<boolean>("illustration_allow_photos", true);
   const supabase = createAdminClient();
 
+  const sameAs: { name: string; url: string }[] = [];
+
   if (allowPhotos) {
+    // People and organisations first, through Wikidata. This is the one route
+    // where the picture is tied to an identity rather than a keyword: the
+    // item was matched on type, and the image is the one Wikipedia's editors
+    // chose for that exact subject.
+    const named = subjects
+      .filter((subject) => subject.type === "Person" || subject.type === "Organization")
+      .slice(0, 2);
+
+    for (const subject of named) {
+      const found = await findSubjectImage(subject.name.trim(), subject.type);
+      if (!found) continue;
+
+      sameAs.push({ name: subject.name.trim(), url: wikidataUrl(found.match.qid) });
+      if (!found.image) continue;
+
+      const uploaded = await uploadRemote(found.image.url, "newswebsite/illustrations");
+      if (!uploaded) continue;
+
+      const credit = attributionFor(found.image);
+      await supabase.from("media_assets").insert({
+        public_id: uploaded.publicId,
+        secure_url: uploaded.url,
+        resource_type: "image",
+        bytes: uploaded.bytes,
+        alt_text: found.match.label,
+        credit,
+        licence: found.image.licence,
+        licence_url: found.image.licenceUrl,
+        creator: found.image.creator,
+        source_url: found.image.sourceUrl,
+        provider: found.image.provider,
+        uploaded_by: uploadedBy ?? null,
+      });
+
+      return { url: uploaded.url, alt: found.match.label, credit, kind: "photo", sameAs };
+    }
+
     const queries = photoCandidates(subjects);
 
     let found = null;
@@ -215,6 +259,7 @@ export async function illustrateArticle({
           alt: found.title ?? usedQuery,
           credit,
           kind: "photo",
+          sameAs,
         };
       }
     }
@@ -244,5 +289,6 @@ export async function illustrateArticle({
     alt: `${section} — ${headline}`,
     credit: "The Federal Post",
     kind: "card",
+    sameAs,
   };
 }
