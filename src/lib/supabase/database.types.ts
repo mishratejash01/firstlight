@@ -1797,6 +1797,21 @@ export type Database = {
           views_24h: number
         }[]
       }
+      match_story_events: {
+        Args: {
+          match_count?: number
+          query_embedding: string
+          window_hours?: number
+        }
+        Returns: {
+          centroid: string
+          entities: string[]
+          id: string
+          mention_count: number
+          similarity: number
+          title: string
+        }[]
+      }
       record_topic_generation: {
         Args: { p_topic_id: string }
         Returns: undefined
