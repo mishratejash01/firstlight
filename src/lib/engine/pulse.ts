@@ -3,6 +3,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ingestMentions, type ClusterReport, type IncomingMention } from "./cluster";
 import { scoreLiveEvents, type ScoreReport } from "./score";
+import { applyOutcomes, harvestLabels } from "./learn";
 import { fetchBlueskyTrending, fetchHackerNews, fetchMastodonTrending } from "./streams/social";
 import { fetchWikipediaEditBursts, fetchWikipediaTopViews } from "./streams/wikipedia";
 import { fetchEarthquakes, fetchPredictionMarkets } from "./streams/ground-truth";
@@ -40,6 +41,7 @@ export type PulseReport = {
   scoring: ScoreReport;
   corroborated?: number;
   sourceStatsUpdated?: number;
+  learning?: { harvested: { outlet: number; reader: number }; applied: number };
 };
 
 type Stream = { name: string; fetch: () => Promise<IncomingMention[]> };
@@ -128,6 +130,7 @@ export async function runPulse(cadence: "fast" | "slow"): Promise<PulseReport> {
 
   let corroborated: number | undefined;
   let sourceStatsUpdated: number | undefined;
+  let learning: PulseReport["learning"];
 
   if (cadence === "slow") {
     corroborated = await corroborateTopEvents(8);
@@ -135,6 +138,13 @@ export async function runPulse(cadence: "fast" | "slow"): Promise<PulseReport> {
       p_since: "6 hours",
     });
     sourceStatsUpdated = data ?? 0;
+
+    // Collect what the world and the readers have said about what we wrote,
+    // then let the weights learn from it. Slow cadence: labels arrive over
+    // hours, not seconds.
+    const harvested = await harvestLabels();
+    const learned = await applyOutcomes();
+    learning = { harvested, applied: learned.outcomes };
   }
 
   // Roll the current hour into the entity history on every tick. Idempotent,
@@ -154,5 +164,6 @@ export async function runPulse(cadence: "fast" | "slow"): Promise<PulseReport> {
     scoring,
     corroborated,
     sourceStatsUpdated,
+    learning,
   };
 }
