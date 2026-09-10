@@ -1,0 +1,141 @@
+import "server-only";
+
+import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchTrends } from "@/lib/trends/google-trends";
+import { searchGoogleNews } from "@/lib/trends/google-news";
+import type { IncomingMention } from "../cluster";
+
+/**
+ * The sources the previous engine ran on, re-expressed as mention streams.
+ *
+ * A Google Trends term becomes a mention, and so does each headline Google
+ * matched to it — as separate mentions from their own outlets. That matters:
+ * the old engine stored the headlines as an attribute of the term, so a story
+ * three outlets covered under two different search terms was two candidates
+ * with three headlines each. Here it is one event with six mentions from four
+ * sources, which is what it actually is.
+ */
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host.replace(/^www\./, "");
+  } catch {
+    return "unknown";
+  }
+}
+
+async function readSetting<T>(key: string, fallback: T): Promise<T> {
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("site_settings")
+    .select("value")
+    .eq("key", key)
+    .maybeSingle();
+  return (data?.value as T) ?? fallback;
+}
+
+export async function fetchTrendMentions(): Promise<IncomingMention[]> {
+  const regions = await readSetting<string[]>("trending_regions", ["IN"]);
+  const dayKey = new Date().toISOString().slice(0, 10);
+  const mentions: IncomingMention[] = [];
+
+  for (const region of regions) {
+    let terms;
+    try {
+      terms = await fetchTrends(region);
+    } catch {
+      continue;
+    }
+
+    for (const term of terms) {
+      mentions.push({
+        sourceKind: "trends",
+        sourceKey: `trends:${region}`,
+        externalId: `trends:${region}:${dayKey}:${term.term.toLowerCase()}`,
+        title: term.term,
+        region,
+        magnitude: term.trafficRank,
+        raw: { approxTraffic: term.approxTraffic },
+      });
+
+      for (const item of term.newsItems) {
+        mentions.push({
+          sourceKind: "gnews",
+          sourceKey: hostOf(item.url),
+          externalId: `gnews:${item.url}`,
+          title: item.title,
+          url: item.url,
+          region,
+          raw: { source: item.source, viaTrend: term.term },
+        });
+      }
+    }
+  }
+
+  return mentions;
+}
+
+/**
+ * Widens coverage of events that already look significant.
+ *
+ * Not run for everything: a Google News search per candidate every minute
+ * would be thousands of requests. The caller passes the events worth
+ * corroborating — typically the top of the score table — and this returns
+ * what the wider press is saying about each.
+ */
+export async function fetchCorroborationFor(
+  events: { id: string; title: string; entities: string[] }[],
+  region = "IN",
+): Promise<IncomingMention[]> {
+  const mentions: IncomingMention[] = [];
+
+  for (const event of events) {
+    // Entities make a better query than a headline, which is written to be read
+    // rather than searched. Fall back to the title when there are none.
+    const query = event.entities.length
+      ? event.entities.slice(0, 3).map((key) => key.replace(/-/g, " ")).join(" ")
+      : event.title;
+
+    const hits = await searchGoogleNews(query, region);
+    for (const hit of hits.slice(0, 12)) {
+      mentions.push({
+        sourceKind: "gnews",
+        sourceKey: hostOf(hit.url),
+        externalId: `gnews:${hit.url}`,
+        title: hit.title,
+        url: hit.url,
+        region,
+        observedAt: hit.publishedAt ?? undefined,
+        raw: { source: hit.source, corroboratingEvent: event.id },
+      });
+    }
+  }
+
+  return mentions;
+}
+
+/** Wire items already ingested by the RSS worker, as mentions. */
+export async function fetchWireMentions(): Promise<IncomingMention[]> {
+  const supabase = createAdminClient();
+
+  const { data } = await supabase
+    .from("wire_items")
+    .select("id, title, summary, link, published_at, ingested_at, sources ( slug, homepage_url )")
+    .gte("ingested_at", new Date(Date.now() - 6 * 3600_000).toISOString())
+    .order("ingested_at", { ascending: false })
+    .limit(200);
+
+  return (data ?? []).map((item) => {
+    const source = item.sources as unknown as { slug: string; homepage_url: string | null } | null;
+    return {
+      sourceKind: "rss",
+      sourceKey: source?.homepage_url ? hostOf(source.homepage_url) : (source?.slug ?? "wire"),
+      externalId: `wire:${item.id}`,
+      title: item.title,
+      body: item.summary,
+      url: item.link,
+      observedAt: item.published_at ?? item.ingested_at,
+      raw: { wireItemId: item.id },
+    };
+  });
+}
