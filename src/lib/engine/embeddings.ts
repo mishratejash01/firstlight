@@ -17,10 +17,16 @@ import "server-only";
  */
 
 export const EMBEDDING_DIMENSIONS = 384;
-/** Per call; the edge runtime has a CPU budget per request. */
-const BATCH_LIMIT = 32;
+/**
+ * Per call. The edge runtime allows about two seconds of CPU per request and
+ * gte-small takes a fraction of a second per headline, so eight is the safe
+ * batch; anything larger is retried in halves when the worker refuses it.
+ */
+const BATCH_LIMIT = 8;
 /** Calls in flight at once. */
-const CONCURRENCY = 4;
+const CONCURRENCY = 3;
+/** The edge runtime's "worker exceeded its resource limits" status. */
+const WORKER_LIMIT_STATUS = 546;
 const MAX_CHARS = 1000;
 
 function normalise(vector: number[]): number[] {
@@ -55,6 +61,17 @@ async function embedBatch(
       headers: { "Content-Type": "application/json", "x-engine-secret": target.secret },
       body: JSON.stringify({ texts: texts.map((text) => text.slice(0, MAX_CHARS)) }),
     });
+
+    if (response.status === WORKER_LIMIT_STATUS && texts.length > 1) {
+      // Too much for one request: split and try each half. Ends at single
+      // texts, which either embed or genuinely cannot.
+      const middle = Math.ceil(texts.length / 2);
+      const [left, right] = await Promise.all([
+        embedBatch(texts.slice(0, middle), target),
+        embedBatch(texts.slice(middle), target),
+      ]);
+      return [...left, ...right];
+    }
 
     if (!response.ok) {
       console.error("[embeddings] batch failed", response.status, await response.text());
