@@ -49,6 +49,28 @@ export function IntegrationStatus() {
       href: "/admin/sources",
     },
     {
+      name: "Event engine",
+      configured: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.CRON_SECRET),
+      purpose:
+        "Clusters, scores, triages and writes breaking stories from a dozen streams; embeddings run in the project's own edge function.",
+      missing: "Set CRON_SECRET; the same value must be stored in Vault as engine_cron_secret for the schedule.",
+      href: "/admin/events",
+    },
+    {
+      name: "YouTube stream",
+      configured: Boolean(process.env.YOUTUBE_API_KEY),
+      purpose: "Most-popular news videos in India, the US and the UK feed the engine every fifteen minutes.",
+      missing:
+        "Set YOUTUBE_API_KEY: a Google Cloud API key with the YouTube Data API v3 enabled. The AI Studio key used for Gemini does not carry YouTube access.",
+    },
+    {
+      name: "Reddit stream",
+      configured: Boolean(process.env.REDDIT_CLIENT_ID && process.env.REDDIT_CLIENT_SECRET),
+      purpose: "Rising posts in r/news, r/worldnews and r/india feed the engine every fifteen minutes.",
+      missing:
+        "Set REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET from a script-type app at reddit.com/prefs/apps.",
+    },
+    {
       name: "Google Analytics",
       configured: Boolean(process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID),
       purpose: "Search reporting alongside the first-party analytics tables.",
