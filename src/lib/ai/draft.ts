@@ -132,6 +132,45 @@ function isCapacityError(error: unknown): boolean {
  * identically on every model, so retrying it three times only makes the failure
  * slower to find.
  */
+/**
+ * Undoes a layer of JSON escaping the model sometimes leaves inside its
+ * strings.
+ *
+ * Structured output occasionally arrives double-escaped: the body carries a
+ * literal backslash-n where a newline should be, and a literal \u2019 where
+ * an apostrophe should be. Parsed, that is a valid string, so nothing
+ * downstream objects, and the article renders with the escapes showing.
+ * Unicode escapes are never intended in prose and are always decoded; the
+ * newline and quote escapes are decoded only when the text has no real
+ * newlines, which is the signature of the double-escaped case.
+ */
+function unescapeModelText(text: string): string {
+  if (!text.includes("\\")) return text;
+
+  let out = text.replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+  if (!out.includes("\n")) {
+    out = out
+      .replace(/\\n/g, "\n")
+      .replace(/\\t/g, "\t")
+      .replace(/\\r/g, "")
+      .replace(/\\"/g, "\"")
+      .replace(/\\\//g, "/")
+      .replace(/\\\\/g, "\\");
+  }
+  return out;
+}
+
+function unescapeDeep<T>(value: T): T {
+  if (typeof value === "string") return unescapeModelText(value) as T;
+  if (Array.isArray(value)) return value.map(unescapeDeep) as T;
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, unescapeDeep(v)]),
+    ) as T;
+  }
+  return value;
+}
+
 async function generateStructured<S extends z.ZodTypeAny>(
   kind: "drafting" | "assist",
   options: { system: string; prompt: string; schema: S },
@@ -163,7 +202,7 @@ async function generateStructured<S extends z.ZodTypeAny>(
         throw new Error("Model hit the output limit and returned a truncated article.");
       }
 
-      return output as z.infer<S>;
+      return unescapeDeep(output) as z.infer<S>;
     } catch (error) {
       lastError = error;
       if (!isCapacityError(error)) throw error;
