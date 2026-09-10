@@ -3,23 +3,25 @@ import "server-only";
 /**
  * Text embeddings for clustering.
  *
- * Gemini's embedding endpoint, called directly rather than through the AI SDK
- * because the batch endpoint and the task-type hint are what matter here and
- * both are provider-specific. CLUSTERING is a real task type: it tunes the
- * space so that things about the same event sit close together, which is
- * exactly the property the event clusterer depends on.
+ * Served by the project's own edge function, which runs the gte-small model
+ * that ships inside the Supabase edge runtime. It is free, has no daily quota,
+ * and lives next to the database. The metered alternative — Gemini's
+ * embedding endpoint — counts every text in a batch as a request against a
+ * hundred-a-minute, thousand-a-day free allowance, which an engine that
+ * clusters hundreds of mentions an hour would exhaust before breakfast.
  *
- * 768 dimensions rather than the model's native 3072. The index is a quarter
- * the size, matching is four times faster, and the quality loss on short news
- * text is negligible. Truncated Gemini embeddings must be re-normalised, so
- * every vector leaves here at unit length — which also means cosine similarity
- * is a plain dot product downstream.
+ * gte-small produces 384-dimensional unit vectors. Its similarity scale is
+ * compressed compared with larger models — unrelated headlines sit around
+ * 0.75, paraphrases above 0.9 — so the clustering thresholds are calibrated
+ * to this model, not to a general notion of "similar".
  */
 
-export const EMBEDDING_DIMENSIONS = 768;
-const MODEL = process.env.AI_EMBEDDING_MODEL ?? "gemini-embedding-001";
-const BATCH_LIMIT = 100;
-const MAX_CHARS = 2000;
+export const EMBEDDING_DIMENSIONS = 384;
+/** Per call; the edge runtime has a CPU budget per request. */
+const BATCH_LIMIT = 32;
+/** Calls in flight at once. */
+const CONCURRENCY = 4;
+const MAX_CHARS = 1000;
 
 function normalise(vector: number[]): number[] {
   let sum = 0;
@@ -28,63 +30,75 @@ function normalise(vector: number[]): number[] {
   return vector.map((value) => value / length);
 }
 
+function endpoint(): { url: string; secret: string } | null {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const secret = process.env.CRON_SECRET;
+  if (!base || !secret) return null;
+  return { url: `${base.replace(/\/$/, "")}/functions/v1/embed`, secret };
+}
+
 export function embeddingsAvailable(): boolean {
-  return Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
+  return endpoint() !== null;
+}
+
+async function embedBatch(
+  texts: string[],
+  target: { url: string; secret: string },
+): Promise<(number[] | null)[]> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45_000);
+
+  try {
+    const response = await fetch(target.url, {
+      method: "POST",
+      signal: controller.signal,
+      headers: { "Content-Type": "application/json", "x-engine-secret": target.secret },
+      body: JSON.stringify({ texts: texts.map((text) => text.slice(0, MAX_CHARS)) }),
+    });
+
+    if (!response.ok) {
+      console.error("[embeddings] batch failed", response.status, await response.text());
+      return texts.map(() => null);
+    }
+
+    const data = (await response.json()) as { embeddings?: number[][] };
+    return texts.map((_, index) => {
+      const vector = data.embeddings?.[index];
+      return vector?.length === EMBEDDING_DIMENSIONS ? normalise(vector) : null;
+    });
+  } catch (error) {
+    console.error("[embeddings] batch threw", error);
+    return texts.map(() => null);
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 /**
- * Embeds many texts in as few requests as possible.
+ * Embeds many texts, a few batches at a time.
  *
  * Returns null for any text that could not be embedded rather than throwing:
  * a mention with no embedding is still stored and can still be matched by
  * entity overlap, whereas a thrown error would drop the whole batch.
  */
 export async function embedTexts(texts: string[]): Promise<(number[] | null)[]> {
-  const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-  if (!key || !texts.length) return texts.map(() => null);
+  const target = endpoint();
+  if (!target || !texts.length) return texts.map(() => null);
 
   const results: (number[] | null)[] = new Array(texts.length).fill(null);
-
+  const batches: { start: number; texts: string[] }[] = [];
   for (let start = 0; start < texts.length; start += BATCH_LIMIT) {
-    const slice = texts.slice(start, start + BATCH_LIMIT);
+    batches.push({ start, texts: texts.slice(start, start + BATCH_LIMIT) });
+  }
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30_000);
-
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:batchEmbedContents`,
-        {
-          method: "POST",
-          signal: controller.signal,
-          headers: { "x-goog-api-key": key, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            requests: slice.map((text) => ({
-              model: `models/${MODEL}`,
-              content: { parts: [{ text: text.slice(0, MAX_CHARS) }] },
-              taskType: "CLUSTERING",
-              outputDimensionality: EMBEDDING_DIMENSIONS,
-            })),
-          }),
-        },
-      );
-
-      if (!response.ok) {
-        console.error("[embeddings] batch failed", response.status, await response.text());
-        continue;
-      }
-
-      const data = (await response.json()) as { embeddings?: { values: number[] }[] };
-      (data.embeddings ?? []).forEach((item, index) => {
-        if (item?.values?.length === EMBEDDING_DIMENSIONS) {
-          results[start + index] = normalise(item.values);
-        }
+  for (let i = 0; i < batches.length; i += CONCURRENCY) {
+    const wave = batches.slice(i, i + CONCURRENCY);
+    const embedded = await Promise.all(wave.map((batch) => embedBatch(batch.texts, target)));
+    wave.forEach((batch, index) => {
+      embedded[index].forEach((vector, offset) => {
+        results[batch.start + offset] = vector;
       });
-    } catch (error) {
-      console.error("[embeddings] batch threw", error);
-    } finally {
-      clearTimeout(timeout);
-    }
+    });
   }
 
   return results;
