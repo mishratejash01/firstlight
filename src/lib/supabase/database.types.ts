@@ -1381,6 +1381,7 @@ export type Database = {
           article_id: string | null
           burst: number
           centroid: string | null
+          claimed_at: string | null
           corroboration: number
           created_at: string
           entities: string[]
@@ -1388,6 +1389,7 @@ export type Database = {
           freshness: number
           id: string
           independent_sources: number
+          last_error: string | null
           last_seen_at: string
           lead_authority: number
           magnitude: number
@@ -1403,16 +1405,23 @@ export type Database = {
           summary: string | null
           surprise: number
           title: string
+          triage_angle: string | null
           triage_category: string | null
           triage_reason: string | null
+          triage_section: string | null
+          triaged_at: string | null
+          triaged_score: number | null
           updated_at: string
+          urgency: string | null
           verification: Json | null
+          write_attempts: number
         }
         Insert: {
           acceleration?: number
           article_id?: string | null
           burst?: number
           centroid?: string | null
+          claimed_at?: string | null
           corroboration?: number
           created_at?: string
           entities?: string[]
@@ -1420,6 +1429,7 @@ export type Database = {
           freshness?: number
           id?: string
           independent_sources?: number
+          last_error?: string | null
           last_seen_at?: string
           lead_authority?: number
           magnitude?: number
@@ -1435,16 +1445,23 @@ export type Database = {
           summary?: string | null
           surprise?: number
           title: string
+          triage_angle?: string | null
           triage_category?: string | null
           triage_reason?: string | null
+          triage_section?: string | null
+          triaged_at?: string | null
+          triaged_score?: number | null
           updated_at?: string
+          urgency?: string | null
           verification?: Json | null
+          write_attempts?: number
         }
         Update: {
           acceleration?: number
           article_id?: string | null
           burst?: number
           centroid?: string | null
+          claimed_at?: string | null
           corroboration?: number
           created_at?: string
           entities?: string[]
@@ -1452,6 +1469,7 @@ export type Database = {
           freshness?: number
           id?: string
           independent_sources?: number
+          last_error?: string | null
           last_seen_at?: string
           lead_authority?: number
           magnitude?: number
@@ -1467,10 +1485,16 @@ export type Database = {
           summary?: string | null
           surprise?: number
           title?: string
+          triage_angle?: string | null
           triage_category?: string | null
           triage_reason?: string | null
+          triage_section?: string | null
+          triaged_at?: string | null
+          triaged_score?: number | null
           updated_at?: string
+          urgency?: string | null
           verification?: Json | null
+          write_attempts?: number
         }
         Relationships: [
           {
