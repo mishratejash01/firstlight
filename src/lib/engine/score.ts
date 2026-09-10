@@ -248,8 +248,10 @@ function independentSources(agg: Aggregate, info: SourceInfo): number {
 }
 
 function corroborationFeature(effective: number): number {
-  // Log-scaled: the second independent source matters far more than the ninth.
-  return clamp(Math.log1p(effective) * 4, 0, 10);
+  // One source is not corroboration; it is a report. The scale starts at the
+  // second independent source and is log-shaped after that, because the
+  // second matters far more than the ninth.
+  return clamp(Math.log1p(Math.max(effective - 1, 0)) * 5, 0, 10);
 }
 
 /**
@@ -333,6 +335,27 @@ function freshnessFeature(agg: Aggregate): number {
 
 type Weight = { mean: number; variance: number };
 
+/**
+ * Evidence features add up; gate features scale the total.
+ *
+ * Burst, corroboration, authority and the rest are evidence that something is
+ * happening, and more of any of them is more reason to write. Novelty and
+ * freshness are not evidence of anything: a story we covered yesterday is not
+ * more of a story for being an hour old. They are multipliers on the evidence,
+ * so a single-source item that happens to be new and recent scores only what
+ * its one source is worth — not a bonus for having no history.
+ */
+export const EVIDENCE_FEATURES: (keyof Features)[] = [
+  "burst",
+  "surprise",
+  "corroboration",
+  "lead_authority",
+  "acceleration",
+  "magnitude",
+  "relevance",
+];
+export const GATE_FEATURES: (keyof Features)[] = ["novelty", "freshness"];
+
 /** Box–Muller. Fine for this; nobody is cryptographically ranking news. */
 function gaussian(): number {
   const u = 1 - Math.random();
@@ -340,24 +363,40 @@ function gaussian(): number {
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
 
-export function combine(
-  features: Features,
+/**
+ * One draw from the weight posterior for the whole pass.
+ *
+ * Thompson sampling draws a hypothesis and acts on it; the hypothesis has to
+ * be the same for every event in the pass or the ranking is noise rather than
+ * exploration. With exploration 0 this is the posterior mean, which turns
+ * sampling into plain ranking.
+ */
+export function sampleWeights(
   weights: Map<string, Weight>,
   exploration: number,
-): { score: number; sampled: Record<string, number> } {
-  let score = 0;
-  const sampled: Record<string, number> = {};
-
+): Record<keyof Features, number> {
+  const sampled = {} as Record<keyof Features, number>;
   for (const name of FEATURE_NAMES) {
     const w = weights.get(name) ?? { mean: 1, variance: 0.5 };
-    // Sample a weight from the posterior. With exploration 0 this is the mean,
-    // which turns Thompson sampling into plain ranking.
-    const value = w.mean + gaussian() * Math.sqrt(w.variance) * exploration;
-    sampled[name] = Number(value.toFixed(3));
-    score += value * features[name];
+    sampled[name] = Number((w.mean + gaussian() * Math.sqrt(w.variance) * exploration).toFixed(3));
+  }
+  return sampled;
+}
+
+export function combine(features: Features, weights: Record<keyof Features, number>): number {
+  let evidence = 0;
+  for (const name of EVIDENCE_FEATURES) evidence += weights[name] * features[name];
+
+  // Each gate runs from (1 - weight) at feature 0 up to 1 at feature 10, so a
+  // weight of 0.9 on novelty means a story we have fully covered keeps a
+  // tenth of its evidence, and a weight of 0 switches the gate off.
+  let gate = 1;
+  for (const name of GATE_FEATURES) {
+    const strength = clamp(weights[name], 0, 1);
+    gate *= 1 - strength * (1 - features[name] / 10);
   }
 
-  return { score: Math.max(0, Number(score.toFixed(2))), sampled };
+  return Math.max(0, Number((evidence * gate).toFixed(2)));
 }
 
 // ---------------------------------------------------------------------------
@@ -481,6 +520,8 @@ export async function scoreLiveEvents(): Promise<ScoreReport> {
   const results: { title: string; score: number }[] = [];
   const updates: Record<string, unknown>[] = [];
 
+  const sampled = sampleWeights(weights, exploration);
+
   for (const agg of aggregates) {
     const entityBaselines = baselines.filter((b) => agg.entities.includes(b.entity));
     const effective = independentSources(agg, sourceInfo);
@@ -498,7 +539,7 @@ export async function scoreLiveEvents(): Promise<ScoreReport> {
       freshness: freshnessFeature(agg),
     };
 
-    const { score, sampled } = combine(features, weights, exploration);
+    const score = combine(features, sampled);
 
     updates.push({
       id: agg.event_id,
