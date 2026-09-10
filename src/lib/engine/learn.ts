@@ -129,6 +129,15 @@ export async function applyOutcomes(): Promise<LearnReport> {
     .order("created_at", { ascending: true })
     .limit(500);
 
+  // The logistic is centred where triage begins: an event scoring exactly at
+  // the threshold is a coin toss, well above it a likely yes.
+  const { data: thresholdRow } = await supabase
+    .from("site_settings")
+    .select("value")
+    .eq("key", "engine_triage_threshold")
+    .maybeSingle();
+  const centre = Number(thresholdRow?.value ?? 18);
+
   if (!outcomes?.length) {
     return { outcomes: 0, weights: Object.fromEntries([...weights].map(([k, w]) => [k, { mean: w.mean, variance: w.variance }])) };
   }
@@ -145,7 +154,7 @@ export async function applyOutcomes(): Promise<LearnReport> {
     const means = Object.fromEntries(
       FEATURE_NAMES.map((name) => [name, weights.get(name)?.mean ?? 1]),
     ) as Record<keyof Features, number>;
-    const predicted = 1 / (1 + Math.exp(-(combine(features, means) - 25) / 8));
+    const predicted = 1 / (1 + Math.exp(-(combine(features, means) - centre) / 8));
     const residual = Number(outcome.label) - predicted;
 
     // Evidence weights: more of the feature should have meant a higher label.
