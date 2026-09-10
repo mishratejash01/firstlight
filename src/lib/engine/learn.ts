@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { FEATURE_NAMES, type Features } from "./score";
+import { EVIDENCE_FEATURES, FEATURE_NAMES, GATE_FEATURES, combine, type Features } from "./score";
 
 /**
  * Learning the weights.
@@ -134,23 +134,33 @@ export async function applyOutcomes(): Promise<LearnReport> {
   }
 
   for (const outcome of outcomes) {
-    const features = outcome.features as Partial<Features>;
+    const raw = outcome.features as Partial<Features>;
+    const features = Object.fromEntries(
+      FEATURE_NAMES.map((name) => [name, Number(raw[name] ?? 0)]),
+    ) as Features;
 
-    // Scale to 0..1 and centre the prediction the way the scorer would see it.
-    const x = Object.fromEntries(
-      FEATURE_NAMES.map((name) => [name, (Number(features[name] ?? 0)) / 10]),
+    // The score the current means would give this event, mapped to 0..1
+    // through a logistic centred on the triage threshold, so it is comparable
+    // with the label. Only the residual moves anything.
+    const means = Object.fromEntries(
+      FEATURE_NAMES.map((name) => [name, weights.get(name)?.mean ?? 1]),
     ) as Record<keyof Features, number>;
-
-    // Model prediction with current means, mapped to 0..1 through a logistic so
-    // it is comparable with the label.
-    let linear = 0;
-    for (const name of FEATURE_NAMES) linear += (weights.get(name)?.mean ?? 1) * x[name];
-    const predicted = 1 / (1 + Math.exp(-(linear - 2.5)));
+    const predicted = 1 / (1 + Math.exp(-(combine(features, means) - 25) / 8));
     const residual = Number(outcome.label) - predicted;
 
-    for (const name of FEATURE_NAMES) {
+    // Evidence weights: more of the feature should have meant a higher label.
+    for (const name of EVIDENCE_FEATURES) {
       const current = weights.get(name) ?? { mean: 1, variance: 0.5, observations: 0 };
-      weights.set(name, updateWeight(current, x[name], residual));
+      weights.set(name, updateWeight(current, features[name] / 10, residual));
+    }
+
+    // Gate weights run the other way. A gate penalises the absence of its
+    // feature, so if a low-novelty story turned out well the penalty was too
+    // strong and the weight should fall. Gates stay within 0..1.
+    for (const name of GATE_FEATURES) {
+      const current = weights.get(name) ?? { mean: 0.5, variance: 0.5, observations: 0 };
+      const updated = updateWeight(current, 1 - features[name] / 10, -residual);
+      weights.set(name, { ...updated, mean: Math.max(0, Math.min(1, updated.mean)) });
     }
   }
 
