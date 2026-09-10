@@ -206,7 +206,10 @@ async function readSetting<T>(key: string, fallback: T): Promise<T> {
  * is what turns "a minor incident, not news" into a story when it stops being
  * minor.
  */
-export async function triageCandidates(limit = 6): Promise<TriageReport> {
+export async function triageCandidates(
+  limit = 6,
+  deadline: number = Number.POSITIVE_INFINITY,
+): Promise<TriageReport> {
   const supabase = createAdminClient();
   const report: TriageReport = {
     considered: 0,
@@ -260,6 +263,9 @@ export async function triageCandidates(limit = 6): Promise<TriageReport> {
   const queue = [...(fresh ?? []), ...regrown].slice(0, limit);
 
   for (const event of queue) {
+    // A slow model must not eat the writer's share of the run. Whatever is
+    // left untriaged is still there next time.
+    if (Date.now() > deadline) break;
     report.considered += 1;
 
     const { data: mentions } = await supabase
