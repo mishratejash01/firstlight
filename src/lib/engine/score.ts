@@ -140,7 +140,8 @@ const MAGNITUDE_SCALE: Record<string, number> = {
   hn: 800,
   usgs: 1_500,
   polymarket: 40,
-  bluesky: 25,
+  // A trending *position*, not a count. Rank 1 should register, not dominate.
+  bluesky: 60,
   mastodon: 2_000,
   reddit: 20_000,
   youtube: 5_000_000,
@@ -399,22 +400,40 @@ async function loadRecentEntitySets(): Promise<string[][]> {
   return (data ?? []).map((r) => r.entities ?? []);
 }
 
-async function loadDemand(entities: string[]): Promise<number> {
-  if (!entities.length) return 0;
+/**
+ * Reader search demand, loaded once per pass.
+ *
+ * Previously a query per event; with 160 live events that was 160 queries a
+ * minute for a table that changes every few minutes. One read, then an
+ * in-memory match per event.
+ */
+type SearchRow = { query: string; zeroResults: boolean };
+
+async function loadSearches(): Promise<SearchRow[]> {
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("analytics_events")
     .select("search_query, properties")
     .eq("event_type", "internal_search")
     .gte("occurred_at", new Date(Date.now() - 7 * 24 * 3600_000).toISOString())
-    .limit(300);
+    .limit(500);
 
+  return (data ?? [])
+    .filter((row) => row.search_query)
+    .map((row) => ({
+      query: (row.search_query ?? "").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " "),
+      zeroResults:
+        Number((row.properties as Record<string, unknown> | null)?.result_count ?? 1) === 0,
+    }));
+}
+
+function demandFor(entities: string[], searches: SearchRow[]): number {
+  if (!entities.length) return 0;
+  const needles = entities.map((key) => key.replace(/-/g, " "));
   let score = 0;
-  for (const row of data ?? []) {
-    const query = (row.search_query ?? "").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ");
-    if (!entities.some((key) => query.includes(key.replace(/-/g, " ")))) continue;
-    const results = Number((row.properties as Record<string, unknown> | null)?.result_count ?? 1);
-    score += results === 0 ? 3 : 1;
+  for (const row of searches) {
+    if (!needles.some((needle) => row.query.includes(needle))) continue;
+    score += row.zeroResults ? 3 : 1;
   }
   return score;
 }
@@ -453,17 +472,19 @@ export async function scoreLiveEvents(): Promise<ScoreReport> {
   const baselines = (baselineRows ?? []) as unknown as Baseline[];
 
   const allSourceKeys = aggregates.flatMap((a) => a.sources.map((s) => s.key));
-  const [sourceInfo, recentSets] = await Promise.all([
+  const [sourceInfo, recentSets, searches] = await Promise.all([
     loadSourceInfo(allSourceKeys),
     loadRecentEntitySets(),
+    loadSearches(),
   ]);
 
   const results: { title: string; score: number }[] = [];
+  const updates: Record<string, unknown>[] = [];
 
   for (const agg of aggregates) {
     const entityBaselines = baselines.filter((b) => agg.entities.includes(b.entity));
     const effective = independentSources(agg, sourceInfo);
-    const demand = await loadDemand(agg.entities);
+    const demand = demandFor(agg.entities, searches);
 
     const features: Features = {
       burst: burstFeature(agg, entityBaselines),
@@ -479,25 +500,34 @@ export async function scoreLiveEvents(): Promise<ScoreReport> {
 
     const { score, sampled } = combine(features, weights, exploration);
 
-    await supabase
-      .from("story_events")
-      .update({
-        burst: features.burst,
-        surprise: features.surprise,
-        corroboration: features.corroboration,
-        lead_authority: features.lead_authority,
-        acceleration: features.acceleration,
-        magnitude: features.magnitude,
-        relevance: features.relevance,
-        novelty: features.novelty,
-        freshness: features.freshness,
-        independent_sources: Number(effective.toFixed(2)),
-        score,
-        score_breakdown: { features, sampled_weights: sampled } as never,
-      })
-      .eq("id", agg.event_id);
+    updates.push({
+      id: agg.event_id,
+      // Required by the insert half of the upsert even though every row exists;
+      // Postgres validates the INSERT before taking the ON CONFLICT path.
+      title: agg.title,
+      burst: features.burst,
+      surprise: features.surprise,
+      corroboration: features.corroboration,
+      lead_authority: features.lead_authority,
+      acceleration: features.acceleration,
+      magnitude: features.magnitude,
+      relevance: features.relevance,
+      novelty: features.novelty,
+      freshness: features.freshness,
+      independent_sources: Number(effective.toFixed(2)),
+      score,
+      score_breakdown: { features, sampled_weights: sampled },
+    });
 
     results.push({ title: agg.title, score });
+  }
+
+  // One round trip for the whole table instead of one per event.
+  for (let i = 0; i < updates.length; i += 200) {
+    const { error } = await supabase
+      .from("story_events")
+      .upsert(updates.slice(i, i + 200) as never, { onConflict: "id" });
+    if (error) console.error("[score] batch update failed", error.message);
   }
 
   results.sort((a, b) => b.score - a.score);
