@@ -94,6 +94,72 @@ async function release(eventId: string, reason: string, attempts: number): Promi
     .eq("id", eventId);
 }
 
+type NewsItem = { title: string; url: string; source: string };
+type SourceDoc = {
+  url: string;
+  source: string;
+  title: string | null;
+  byline: string | null;
+  content: string;
+};
+
+/**
+ * The source articles behind an event: one per outlet, the most authoritative
+ * outlets first, from the streams that link to actual articles. Reads up to
+ * `maxDocuments` of them; zero means headlines only.
+ */
+async function gatherDocuments(
+  eventId: string,
+  authority: Map<string, number>,
+  maxDocuments: number,
+): Promise<{ newsItems: NewsItem[]; documents: SourceDoc[] }> {
+  const supabase = createAdminClient();
+
+  const { data: mentions } = await supabase
+    .from("signal_mentions")
+    .select("title, url, source_kind, source_key, observed_at")
+    .eq("event_id", eventId)
+    .not("url", "is", null)
+    .in("source_kind", ["gnews", "rss", "hn"])
+    .order("observed_at", { ascending: true })
+    .limit(60);
+
+  const byHost = new Map<string, NewsItem>();
+  for (const mention of mentions ?? []) {
+    if (!mention.url) continue;
+    const host = hostOf(mention.url);
+    if (!host || host.includes("news.google.")) continue;
+    if (!byHost.has(host)) byHost.set(host, { title: mention.title, url: mention.url, source: mention.source_key });
+  }
+
+  const newsItems = [...byHost.entries()]
+    .sort((a, b) => (authority.get(b[0]) ?? 0.8) - (authority.get(a[0]) ?? 0.8))
+    .map(([, item]) => item);
+
+  let documents: SourceDoc[] = [];
+  if (maxDocuments > 0 && newsItems.length) {
+    const targets = newsItems.slice(0, maxDocuments);
+    const fetched = await getSourceDocuments(targets.map((item) => item.url));
+    documents = fetched
+      .filter((doc) => doc.status === "ok" && doc.content)
+      .map((doc) => ({
+        url: doc.url,
+        source: targets.find((item) => item.url === doc.url)?.source ?? doc.host,
+        title: doc.title,
+        byline: doc.byline,
+        content: doc.content as string,
+      }));
+  }
+
+  return { newsItems, documents };
+}
+
+async function loadAuthority(): Promise<Map<string, number>> {
+  const supabase = createAdminClient();
+  const { data: rows } = await supabase.from("source_authority").select("host, weight");
+  return new Map((rows ?? []).map((r) => [r.host, Number(r.weight)]));
+}
+
 export async function writeEvents(limit = 1): Promise<EventWriteReport> {
   const supabase = createAdminClient();
 
@@ -151,8 +217,7 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
     .select("id, name")
     .eq("is_active", true);
 
-  const { data: authorityRows } = await supabase.from("source_authority").select("host, weight");
-  const authority = new Map((authorityRows ?? []).map((r) => [r.host, Number(r.weight)]));
+  const authority = await loadAuthority();
 
   const publishedSlugs: string[] = [];
 
@@ -184,28 +249,11 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
       continue;
     }
 
-    // Source articles: one per outlet, the most authoritative outlets first,
-    // and only the streams that link to actual articles.
-    const { data: mentions } = await supabase
-      .from("signal_mentions")
-      .select("title, url, source_kind, source_key, observed_at")
-      .eq("event_id", event.id)
-      .not("url", "is", null)
-      .in("source_kind", ["gnews", "rss", "hn"])
-      .order("observed_at", { ascending: true })
-      .limit(60);
-
-    const byHost = new Map<string, { title: string; url: string; source: string }>();
-    for (const mention of mentions ?? []) {
-      if (!mention.url) continue;
-      const host = hostOf(mention.url);
-      if (!host || host.includes("news.google.")) continue;
-      if (!byHost.has(host)) byHost.set(host, { title: mention.title, url: mention.url, source: mention.source_key });
-    }
-
-    const newsItems = [...byHost.entries()]
-      .sort((a, b) => (authority.get(b[0]) ?? 0.8) - (authority.get(a[0]) ?? 0.8))
-      .map(([, item]) => item);
+    const { newsItems, documents } = await gatherDocuments(
+      event.id,
+      authority,
+      fetchSources ? maxDocuments : 0,
+    );
 
     if (!newsItems.length) {
       await release(event.id, "No linked coverage to write from.", attempts);
@@ -216,28 +264,6 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
         reason: "No linked articles yet — waiting for coverage.",
       });
       continue;
-    }
-
-    let documents: {
-      url: string;
-      source: string;
-      title: string | null;
-      byline: string | null;
-      content: string;
-    }[] = [];
-
-    if (fetchSources) {
-      const targets = newsItems.slice(0, maxDocuments);
-      const fetched = await getSourceDocuments(targets.map((item) => item.url));
-      documents = fetched
-        .filter((doc) => doc.status === "ok" && doc.content)
-        .map((doc) => ({
-          url: doc.url,
-          source: targets.find((item) => item.url === doc.url)?.source ?? doc.host,
-          title: doc.title,
-          byline: doc.byline,
-          content: doc.content as string,
-        }));
     }
 
     if (documents.length < minSourcesRequired) {
@@ -415,4 +441,82 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
   }
 
   return report;
+}
+
+export type RedraftOutcome = {
+  ok: boolean;
+  slug?: string;
+  sourcesRead?: number;
+  reason?: string;
+};
+
+/**
+ * Rewrites a written event's article from the same sources under the current
+ * house rules, keeping the headline, slug and status. The previous text is
+ * kept as a version by the articles trigger, so an editor can compare or
+ * revert. Structure (tags, entities, key facts, FAQs) is re-attached from the
+ * new draft.
+ */
+export async function redraftEvent(eventId: string): Promise<RedraftOutcome> {
+  const supabase = createAdminClient();
+  const maxDocuments = await readSetting<number>("engine_max_documents", 5);
+
+  const { data: event } = await supabase
+    .from("story_events")
+    .select("id, title, summary, article_id, triage_section, triage_angle, urgency")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (!event?.article_id) return { ok: false, reason: "No article is attached to this event." };
+
+  const { data: article } = await supabase
+    .from("articles")
+    .select("id, slug, headline, categories ( name )")
+    .eq("id", event.article_id)
+    .maybeSingle();
+  if (!article) return { ok: false, reason: "The article no longer exists." };
+
+  const { newsItems, documents } = await gatherDocuments(eventId, await loadAuthority(), maxDocuments);
+  if (!documents.length) return { ok: false, reason: "None of the source articles could be read." };
+
+  const section = article.categories as unknown as { name: string } | null;
+  const result = await draftFromTrend({
+    term: event.summary || event.title,
+    newsItems,
+    documents,
+    sectionName: section?.name,
+    angle: [
+      event.triage_angle,
+      `Keep this headline exactly: "${article.headline}".`,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  });
+  if (!result.ok) return { ok: false, reason: result.error };
+
+  const draft = result.data;
+  const body = draft.bodyMarkdown.trimEnd();
+  if (!/[.!?"'\)\]]$/.test(body)) {
+    return { ok: false, reason: "Draft ended mid-sentence and was discarded." };
+  }
+
+  const { error } = await supabase
+    .from("articles")
+    .update({
+      standfirst: draft.standfirst,
+      summary: draft.summary,
+      body: draft.bodyMarkdown,
+      ai_unverified_claims: draft.unverifiedClaims,
+      ai_generated_at: new Date().toISOString(),
+    })
+    .eq("id", article.id);
+  if (error) return { ok: false, reason: error.message };
+
+  // Clean re-attach: the new draft's structure replaces the old, rather than
+  // piling on top of it.
+  for (const table of ["article_tags", "article_entities", "article_key_facts", "article_faqs"] as const) {
+    await supabase.from(table).delete().eq("article_id", article.id);
+  }
+  await attachStructuredData(supabase, article.id, draft);
+
+  return { ok: true, slug: article.slug, sourcesRead: documents.length };
 }
