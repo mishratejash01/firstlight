@@ -91,6 +91,21 @@ export type WikidataMatch = {
  * planet. Nothing is returned when no candidate is of the right type, which
  * is the correct answer more often than any guess.
  */
+/**
+ * The forms of a name worth searching. Drafts write "Prince Rahim Aga Khan V"
+ * and "Dr Manmohan Singh"; Wikidata labels are "Rahim Aga Khan" and
+ * "Manmohan Singh". Honorifics and regnal numerals come off for the retry.
+ */
+function nameVariants(name: string): string[] {
+  const variants = [name];
+  const stripped = name
+    .replace(/^(?:prince|princess|king|queen|sir|dame|lord|lady|dr\.?|mr\.?|mrs\.?|ms\.?|justice|general|president|prime minister)\s+/i, "")
+    .replace(/\s+(?:[IVX]{1,4})$/i, "")
+    .trim();
+  if (stripped && stripped !== name) variants.push(stripped);
+  return variants;
+}
+
 export async function findWikidataItem(
   name: string,
   type: string,
@@ -98,11 +113,15 @@ export async function findWikidataItem(
   const classes = TYPE_CLASSES[type];
   if (!classes) return null;
 
-  const search = await getJson<{ search?: { id: string }[] }>(
-    "https://www.wikidata.org/w/api.php?action=wbsearchentities&language=en&type=item&limit=5&format=json&search=" +
-      encodeURIComponent(name),
-  );
-  const ids = (search?.search ?? []).map((hit) => hit.id);
+  let ids: string[] = [];
+  for (const variant of nameVariants(name)) {
+    const search = await getJson<{ search?: { id: string }[] }>(
+      "https://www.wikidata.org/w/api.php?action=wbsearchentities&language=en&type=item&limit=5&format=json&search=" +
+        encodeURIComponent(variant),
+    );
+    ids = (search?.search ?? []).map((hit) => hit.id);
+    if (ids.length) break;
+  }
   if (!ids.length) return null;
 
   const entities = await getJson<{ entities?: Record<string, Entity> }>(
