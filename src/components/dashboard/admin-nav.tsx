@@ -7,6 +7,7 @@ const PAGES = [
   { href: "/admin/sources", label: "Wire feeds", hint: "Sources and licences" },
   { href: "/admin/topics", label: "AI topics", hint: "Automatic publishing" },
   { href: "/admin/trends", label: "Trending", hint: "What people are searching" },
+  { href: "/admin/events", label: "Events", hint: "What is breaking, and why" },
   { href: "/admin/audience", label: "Audience", hint: "Readers and subscribers" },
 ] as const;
 
