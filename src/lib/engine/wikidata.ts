@@ -1,0 +1,243 @@
+import "server-only";
+
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import type { Database } from "@/lib/supabase/database.types";
+import type { LicensedImage } from "@/lib/media/openverse";
+
+/**
+ * Pictures of people and organisations, from the one place where identity is
+ * not a keyword match.
+ *
+ * Stock search fails on people because "Jackson" matches every Jackson. A
+ * Wikidata item is a specific person: the search resolves a name to an item,
+ * the item's type confirms it is the kind of thing we expected (a human, an
+ * organisation), and its P18 property is the picture the Wikipedia community
+ * has chosen for that exact subject. The file's licence is then read from
+ * Commons and only open licences are accepted.
+ *
+ * Also yields the item's identifier, which is recorded against our entity as
+ * a `sameAs` link — the thing search engines use to know that our "Narendra
+ * Modi" is the Narendra Modi.
+ */
+
+const UA = "TheFederalPostBot/1.0 (+https://newswebsite-pi.vercel.app)";
+
+/** Wikidata classes that count as the subject type the drafter labelled. */
+const TYPE_CLASSES: Record<string, string[]> = {
+  // human
+  Person: ["Q5"],
+  // organization, business, company, political party, government agency,
+  // sports team, university, international organization, nonprofit
+  Organization: [
+    "Q43229", "Q4830453", "Q783794", "Q7278", "Q327333", "Q12973014",
+    "Q3918", "Q484652", "Q163740", "Q1616075", "Q2085381", "Q891723",
+    "Q2659904", "Q476028", "Q1153191",
+  ],
+};
+
+/** Licences we will publish under. Everything else on Commons is declined. */
+const OPEN_LICENCES = /^(cc0|cc[ -]by(-sa)?[ -]?\d?(\.\d)?|public domain|pd)/i;
+
+async function getJson<T>(url: string): Promise<T | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12_000);
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: { "User-Agent": UA, Accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+    return (await response.json()) as T;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+type Entity = {
+  id: string;
+  labels?: { en?: { value: string } };
+  descriptions?: { en?: { value: string } };
+  claims?: Record<string, { mainsnak: { datavalue?: { value: unknown } } }[]>;
+};
+
+function claimValues(entity: Entity, property: string): unknown[] {
+  return (entity.claims?.[property] ?? [])
+    .map((claim) => claim.mainsnak.datavalue?.value)
+    .filter((value) => value !== undefined);
+}
+
+function instanceIds(entity: Entity): string[] {
+  return claimValues(entity, "P31")
+    .map((value) => (value as { id?: string }).id)
+    .filter((id): id is string => Boolean(id));
+}
+
+export type WikidataMatch = {
+  qid: string;
+  label: string;
+  description: string | null;
+  imageFile: string | null;
+};
+
+/**
+ * Resolves a name to a Wikidata item of the expected type.
+ *
+ * Several candidates are fetched and the first whose instance-of matches the
+ * type wins, so "Mercury" asked for as a Person does not come back as the
+ * planet. Nothing is returned when no candidate is of the right type, which
+ * is the correct answer more often than any guess.
+ */
+export async function findWikidataItem(
+  name: string,
+  type: string,
+): Promise<WikidataMatch | null> {
+  const classes = TYPE_CLASSES[type];
+  if (!classes) return null;
+
+  const search = await getJson<{ search?: { id: string }[] }>(
+    "https://www.wikidata.org/w/api.php?action=wbsearchentities&language=en&type=item&limit=5&format=json&search=" +
+      encodeURIComponent(name),
+  );
+  const ids = (search?.search ?? []).map((hit) => hit.id);
+  if (!ids.length) return null;
+
+  const entities = await getJson<{ entities?: Record<string, Entity> }>(
+    "https://www.wikidata.org/w/api.php?action=wbgetentities&props=labels|descriptions|claims&languages=en&format=json&ids=" +
+      ids.join("|"),
+  );
+
+  for (const id of ids) {
+    const entity = entities?.entities?.[id];
+    if (!entity) continue;
+    const instances = instanceIds(entity);
+    if (!instances.some((instance) => classes.includes(instance))) continue;
+
+    const image = claimValues(entity, "P18")[0];
+    return {
+      qid: id,
+      label: entity.labels?.en?.value ?? name,
+      description: entity.descriptions?.en?.value ?? null,
+      imageFile: typeof image === "string" ? image : null,
+    };
+  }
+
+  return null;
+}
+
+type ImageInfo = {
+  query?: {
+    pages?: Record<
+      string,
+      {
+        title: string;
+        imageinfo?: {
+          url: string;
+          thumburl?: string;
+          thumbwidth?: number;
+          thumbheight?: number;
+          width: number;
+          height: number;
+          descriptionurl: string;
+          extmetadata?: Record<string, { value: string }>;
+        }[];
+      }
+    >;
+  };
+};
+
+function stripHtml(value: string | undefined): string | null {
+  if (!value) return null;
+  const text = value.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+  return text || null;
+}
+
+/**
+ * The Commons file behind a P18 claim, with its licence, or null if the
+ * licence is not one we publish under.
+ */
+export async function commonsImage(fileName: string): Promise<LicensedImage | null> {
+  const data = await getJson<ImageInfo>(
+    "https://commons.wikimedia.org/w/api.php?action=query&prop=imageinfo&iiprop=url|size|extmetadata&iiurlwidth=1600&format=json&titles=" +
+      encodeURIComponent(`File:${fileName}`),
+  );
+
+  const page = Object.values(data?.query?.pages ?? {})[0];
+  const info = page?.imageinfo?.[0];
+  if (!info) return null;
+
+  const meta = info.extmetadata ?? {};
+  const licence = stripHtml(meta.LicenseShortName?.value) ?? "";
+  if (!OPEN_LICENCES.test(licence)) return null;
+
+  // Portraits under 600px wide look like thumbnails at hero size.
+  if (info.width < 600) return null;
+
+  return {
+    url: info.thumburl ?? info.url,
+    title: stripHtml(meta.ObjectName?.value) ?? page.title.replace(/^File:/, ""),
+    creator: stripHtml(meta.Artist?.value),
+    licence,
+    licenceUrl: stripHtml(meta.LicenseUrl?.value),
+    sourceUrl: info.descriptionurl,
+    provider: "wikimedia_commons",
+    width: info.thumbwidth ?? info.width,
+    height: info.thumbheight ?? info.height,
+  };
+}
+
+export type SubjectImage = { match: WikidataMatch; image: LicensedImage | null };
+
+/**
+ * Resolves a named person or organisation and, where Wikidata has one under
+ * an open licence, their picture. The match is returned even without a
+ * picture: the identity is worth recording on its own.
+ */
+export async function findSubjectImage(
+  name: string,
+  type: string,
+): Promise<SubjectImage | null> {
+  const match = await findWikidataItem(name, type);
+  if (!match) return null;
+
+  const image = match.imageFile ? await commonsImage(match.imageFile) : null;
+  return { match, image };
+}
+
+export function wikidataUrl(qid: string): string {
+  return `https://www.wikidata.org/wiki/${qid}`;
+}
+
+/**
+ * Records Wikidata identities against our entity rows, by name.
+ *
+ * Adds to whatever `sameAs` links the entity already has rather than
+ * replacing them, and never adds one twice.
+ */
+export async function recordSameAs(
+  supabase: SupabaseClient<Database>,
+  links: { name: string; url: string }[],
+): Promise<number> {
+  let recorded = 0;
+  for (const link of links) {
+    const { data: rows } = await supabase
+      .from("entities")
+      .select("id, same_as")
+      .ilike("name", link.name)
+      .limit(3);
+
+    for (const row of rows ?? []) {
+      const existing = Array.isArray(row.same_as) ? (row.same_as as string[]) : [];
+      if (existing.includes(link.url)) continue;
+      const { error } = await supabase
+        .from("entities")
+        .update({ same_as: [...existing, link.url] })
+        .eq("id", row.id);
+      if (!error) recorded += 1;
+    }
+  }
+  return recorded;
+}
