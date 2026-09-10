@@ -36,6 +36,8 @@ export type StreamResult = {
 
 export type PulseReport = {
   cadence: "fast" | "slow";
+  /** True when another pulse still held the lease and this one stood down. */
+  skipped?: boolean;
   durationMs: number;
   streams: StreamResult[];
   cluster: ClusterReport | null;
@@ -138,6 +140,35 @@ async function corroborateTopEvents(limit: number): Promise<number> {
 
 export async function runPulse(cadence: "fast" | "slow"): Promise<PulseReport> {
   const startedAt = Date.now();
+  const supabase = createAdminClient();
+
+  // The schedule fires on the minute regardless; only one pulse clusters at
+  // a time. The lease outlives any pulse that finishes normally and expires
+  // on one that does not.
+  const { data: leased } = await supabase.rpc("engine_try_lock", {
+    p_name: "pulse",
+    p_ttl_seconds: 150,
+  });
+  if (!leased) {
+    return {
+      cadence,
+      skipped: true,
+      durationMs: Date.now() - startedAt,
+      streams: [],
+      cluster: null,
+      rollup: 0,
+      scoring: { scored: 0, top: [] },
+    };
+  }
+
+  try {
+    return await pulseInner(cadence, startedAt);
+  } finally {
+    await supabase.rpc("engine_release_lock", { p_name: "pulse" });
+  }
+}
+
+async function pulseInner(cadence: "fast" | "slow", startedAt: number): Promise<PulseReport> {
   const supabase = createAdminClient();
 
   const { results: streams, cluster } = await runStreams(
