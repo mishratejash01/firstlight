@@ -1,10 +1,10 @@
 import "server-only";
 
-import { Output, generateText, type LanguageModel } from "ai";
+import { Output, generateText } from "ai";
 import { z } from "zod";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { aiIsConfigured, modelChain } from "@/lib/ai/config";
+import { aiIsConfigured, runWithChain } from "@/lib/ai/config";
 import type { Features } from "./score";
 
 /**
@@ -98,9 +98,6 @@ type CandidateMention = {
   observed_at: string;
 };
 
-function modelName(model: LanguageModel): string {
-  return typeof model === "string" ? model : model.modelId;
-}
 
 function minutesAgo(iso: string): number {
   return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
@@ -168,31 +165,21 @@ export async function triageEvent(input: {
     .filter(Boolean)
     .join("\n");
 
-  let lastError = "Triage model unavailable.";
-  for (const model of modelChain("assist")) {
+  try {
     const startedAt = Date.now();
-    try {
+    return await runWithChain("assist", async (model, entry) => {
       const { output } = await generateText({
         model,
-        // No retries on one model: a rate-limited model stays rate-limited for
-        // longer than a retry waits, and the next model in the chain is right there.
         maxRetries: 0,
         system: SYSTEM,
         prompt,
         output: Output.object({ schema: eventTriageSchema }),
       });
-      console.info(`[engine] triage ${modelName(model)} answered in ${Date.now() - startedAt} ms`);
-      return { ok: true, triage: output, modelId: modelName(model), ms: Date.now() - startedAt };
-    } catch (error) {
-      lastError = error instanceof Error ? error.message : "Triage request failed";
-      console.warn(
-        `[engine] triage ${modelName(model)} failed after ${Date.now() - startedAt} ms, stepping down:`,
-        lastError.slice(0, 200),
-      );
-    }
+      return { ok: true as const, triage: output, modelId: entry.modelId, ms: Date.now() - startedAt };
+    });
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Triage request failed" };
   }
-
-  return { ok: false, error: lastError };
 }
 
 export type TriageReport = {
