@@ -220,6 +220,10 @@ export async function commonsImage(fileName: string): Promise<LicensedImage | nu
   const licence = stripHtml(meta.LicenseShortName?.value) ?? "";
   if (!OPEN_LICENCES.test(licence)) return null;
 
+  // The file name is not the only place a logo announces itself.
+  const objectName = stripHtml(meta.ObjectName?.value) ?? "";
+  if (looksLikeSymbol(objectName)) return null;
+
   // Portraits under 600px wide look like thumbnails at hero size.
   if (info.width < 600) return null;
 
