@@ -448,7 +448,7 @@ export async function illustrateArticle({
     const placesLater = named.filter((subject) => isPlace(subject.type));
 
     for (const subject of peopleFirst) {
-      const found = await findSubjectImage(subject.name, subject.type);
+      const found = await findSubjectImage(subject.name, subject.type, headline);
       if (!found) continue;
       sameAs.push({ name: subject.name, url: wikidataUrl(found.match.qid) });
       if (!found.image) continue;
