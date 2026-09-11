@@ -154,6 +154,38 @@ export async function getArticlesByTag(slug: string, limit = 30) {
 }
 
 /** Full-text search over the weighted search_vector column. */
+/**
+ * Prefix search for suggestions as a reader types.
+ *
+ * The results page uses websearch syntax, which stems whole words: "orang"
+ * matches nothing until "orangutan" is complete. Suggestions want each word
+ * treated as the start of a word, so the query is built as prefix terms.
+ */
+export async function suggestArticles(
+  query: string,
+  limit = 6,
+): Promise<ArticleCardData[]> {
+  const words = query
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((word) => word.length > 1)
+    .slice(0, 6);
+  if (!words.length) return [];
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("articles")
+    .select(CARD_FIELDS)
+    .textSearch("search_vector", words.map((word) => `${word}:*`).join(" & "), { config: "english" })
+    .in("status", VISIBLE_STATUSES)
+    .lte("published_at", nowIso())
+    .order("published_at", { ascending: false })
+    .limit(limit);
+
+  if (error) return [];
+  return (data ?? []) as unknown as ArticleCardData[];
+}
+
 export async function searchArticles(
   query: string,
   limit = 30,
