@@ -32,7 +32,8 @@ export async function GET(request: Request) {
   const reillustrate = params.get("reillustrate");
   if (reillustrate) {
     const scope = params.get("scope") === "all" ? "all" : "cards";
-    const outcome = await reillustrateCards(Math.min(Math.max(Number(reillustrate), 1), 30), scope);
+    const slug = params.get("slug") ?? undefined;
+    const outcome = await reillustrateCards(Math.min(Math.max(Number(reillustrate), 1), 30), scope, slug);
     return Response.json({ ok: true, reillustrate: outcome });
   }
 
