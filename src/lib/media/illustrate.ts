@@ -216,9 +216,14 @@ async function sceneImage(
 
   // The writer's plain terms are the best query of all: libraries index
   // "stock market", not "trading terminal screens showing falling prices".
-  const plain = (terms ?? "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").trim();
-  const queries = new Set<string>([...(plain ? [plain] : []), scene, core.join(" ")]);
-  if (plain) for (const place of places.slice(0, 1)) queries.add(`${place} ${plain}`);
+  const plainTerms = (terms ?? "")
+    .toLowerCase()
+    .split(/[,;/]/)
+    .map((term) => term.replace(/[^a-z0-9 ]/g, " ").trim())
+    .filter((term) => term.length > 2)
+    .slice(0, 3);
+  const queries = new Set<string>([...plainTerms, scene, core.join(" ")]);
+  for (const place of places.slice(0, 1)) for (const term of plainTerms.slice(0, 1)) queries.add(`${place} ${term}`);
   for (const place of places.slice(0, 2)) for (const word of core) queries.add(`${place} ${word}`);
 
   type Candidate = { title: string; commonsFile?: string; stock?: LicensedImage & { tags: string[] } };
