@@ -204,7 +204,12 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
     .in("status", ["scheduled", "published"])
     .gte("ai_generated_at", new Date(Date.now() - 3600_000).toISOString());
 
-  report.remaining = Math.max(Math.min(dailyLimit - (count ?? 0), hourlyLimit - (lastHour ?? 0)), 0);
+  // Zero means no limit. The desk's own cadence — two stories every two
+  // minutes — is then the only pace, and what passes triage and the
+  // verification gate is the only count that matters.
+  const dailyRoom = dailyLimit > 0 ? dailyLimit - (count ?? 0) : Number.POSITIVE_INFINITY;
+  const hourlyRoom = hourlyLimit > 0 ? hourlyLimit - (lastHour ?? 0) : Number.POSITIVE_INFINITY;
+  report.remaining = Math.max(Math.min(dailyRoom, hourlyRoom), 0);
   if (report.remaining === 0) {
     report.outcomes.push({
       eventId: "",
@@ -236,6 +241,7 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
     .limit(40);
 
   if (!candidates?.length) return report;
+  if (!Number.isFinite(report.remaining)) report.remaining = candidates.length;
 
   const { data: categories } = await supabase
     .from("categories")
