@@ -7,7 +7,7 @@
  * twenty, and so the name in a search result can never drift from the name at
  * the top of the page.
  */
-export const SITE_NAME = "The Federal Post";
+export const SITE_NAME = "The India Front";
 
 /**
  * Where the paper's social accounts live.
