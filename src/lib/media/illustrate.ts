@@ -5,9 +5,11 @@ import { v2 as cloudinary } from "cloudinary";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   commonsImage,
+  commonsLogo,
   commonsSearchImage,
   commonsSearchTitles,
   findSubjectImage,
+  findWikidataItem,
   looksLikeSymbol,
   wikidataUrl,
   wikipediaPageImage,
@@ -27,6 +29,7 @@ import { buildTypographicCard } from "./typographic-card";
  * Order of preference:
  *   1. The Commons portrait of the person the story is about, resolved
  *      through Wikidata so it is that exact person, credited.
+ *   1a. The logo of the company the story is about, padded on a plain ground.
  *   1b. The scene the writer asked for, found on Commons or open stock and
  *       ranked by meaning against the brief.
  *   1c. The Commons picture of an institution, work or place the story is
@@ -71,6 +74,7 @@ function configureCloudinary(): boolean {
 async function uploadRemote(
   sourceUrl: string,
   folder: string,
+  options: { pad?: boolean } = {},
 ): Promise<{ url: string; publicId: string; bytes: number } | null> {
   try {
     const result = await cloudinary.uploader.upload(sourceUrl, {
@@ -78,9 +82,15 @@ async function uploadRemote(
       resource_type: "image",
       quality: "auto",
       fetch_format: "auto",
-      // Crop to the shape every card and hero on the site expects, rather than
-      // letting a 3:2 photograph decide the layout.
-      transformation: [{ width: 1600, height: 900, crop: "fill", gravity: "auto" }],
+      // Photographs are cropped to the shape every card and hero on the site
+      // expects. A logo is never cropped: it is scaled to sit in the middle
+      // of that shape on a plain ground, the way a paper runs a company mark.
+      transformation: options.pad
+        ? [
+            { width: 760, height: 430, crop: "fit" },
+            { width: 1600, height: 900, crop: "pad", background: "#F4F4F5" },
+          ]
+        : [{ width: 1600, height: 900, crop: "fill", gravity: "auto" }],
     });
     return {
       url: result.secure_url,
@@ -223,13 +233,19 @@ async function sceneImage(scene: string, places: string[] = []): Promise<License
   }
   if (!candidates.length) return null;
 
-  // The brief, with the story's place if it has one, is what the picture
-  // should be of. "Delhi heavy rain flooded city street" is closer to a
-  // photograph of Delhi flood relief than to a lane in Somerset.
-  const target = places.length ? `${places[0]} ${scene}` : scene;
-  const vectors = await embedTexts([target, ...candidates.map((c) => c.title)]);
+  // Similarity is measured against the scene itself. Folding the place into
+  // the target let the place take over: a California drone factory matched a
+  // California sequoia. The place decides order among candidates that
+  // already look like the scene, nothing more.
+  const vectors = await embedTexts([scene, ...candidates.map((c) => c.title)]);
   const targetVector = vectors[0];
   if (!targetVector) return null;
+
+  const placeTokens = places
+    .map((place) => [...place.split(/\s+/)].sort((a, b) => b.length - a.length)[0].toLowerCase())
+    .filter((token) => token.length >= 4);
+  const mentionsPlace = (title: string) =>
+    placeTokens.some((token) => title.toLowerCase().includes(token)) ? 1 : 0;
 
   const ranked = candidates
     .map((candidate, index) => ({
@@ -237,7 +253,11 @@ async function sceneImage(scene: string, places: string[] = []): Promise<License
       similarity: vectors[index + 1] ? cosine(targetVector, vectors[index + 1] as number[]) : 0,
     }))
     .filter((entry) => entry.similarity >= SCENE_SIMILARITY)
-    .sort((a, b) => b.similarity - a.similarity);
+    .sort(
+      (a, b) =>
+        mentionsPlace(b.candidate.title) - mentionsPlace(a.candidate.title) ||
+        b.similarity - a.similarity,
+    );
 
   for (const { candidate } of ranked.slice(0, 4)) {
     if (candidate.stock) return candidate.stock;
@@ -249,6 +269,9 @@ async function sceneImage(scene: string, places: string[] = []): Promise<License
   return null;
 }
 
+
+/** Subject types whose logo is the right picture for a story about them. */
+const LOGO_TYPES = new Set(["Organization", "Corporation", "SportsTeam", "Brand"]);
 
 /** Subject types with a specific identity that a name search can confirm. */
 const SEARCHABLE_TYPES = new Set([
@@ -326,8 +349,12 @@ export async function illustrateArticle({
   const sameAs: { name: string; url: string }[] = [];
 
   /** Copies a licensed image into our own account and records it. */
-  const publish = async (image: LicensedImage, alt: string): Promise<Illustration | null> => {
-    const uploaded = await uploadRemote(image.url, "newswebsite/illustrations");
+  const publish = async (
+    image: LicensedImage,
+    alt: string,
+    options: { pad?: boolean } = {},
+  ): Promise<Illustration | null> => {
+    const uploaded = await uploadRemote(image.url, "newswebsite/illustrations", options);
     if (!uploaded) return null;
 
     const credit = attributionFor(image);
@@ -385,6 +412,19 @@ export async function illustrateArticle({
       sameAs.push({ name: subject.name, url: wikidataUrl(found.match.qid) });
       if (!found.image) continue;
       const published = await publish(found.image, found.match.label);
+      if (published) return published;
+    }
+
+    // A company's own mark, for a story about the company's own doing. The
+    // desk asked for this in so many words: a model launch is better served
+    // by the lab's logo than by a picture of its office or a server rack.
+    for (const subject of named.filter((s) => LOGO_TYPES.has(s.type)).slice(0, 2)) {
+      const item = await findWikidataItem(subject.name, subject.type);
+      if (!item) continue;
+      sameAs.push({ name: subject.name, url: wikidataUrl(item.qid) });
+      const logo = await commonsLogo(item.qid);
+      if (!logo) continue;
+      const published = await publish(logo, `${item.label} logo`, { pad: true });
       if (published) return published;
     }
 
