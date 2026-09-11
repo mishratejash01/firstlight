@@ -244,6 +244,18 @@ export async function triageCandidates(
   const windowHours = await readSetting<number>("engine_event_window_hours", 48);
   const since = new Date(Date.now() - windowHours * 3600_000).toISOString();
 
+  // The model's free allowance is a daily figure; spending it all before
+  // lunch means no triage at all in the evening. Candidates above the budget
+  // wait, and the strongest still go first when the hour turns.
+  const budget = await readSetting<number>("engine_triage_hourly_budget", 40);
+  const { count: usedThisHour } = await supabase
+    .from("story_events")
+    .select("id", { count: "exact", head: true })
+    .gte("triaged_at", new Date(Date.now() - 3600_000).toISOString());
+  const room = Math.max(budget - (usedThisHour ?? 0), 0);
+  if (room === 0) return report;
+  limit = Math.min(limit, room);
+
   const [{ data: fresh }, { data: grown }, { data: categories }] = await Promise.all([
     supabase
       .from("story_events")
