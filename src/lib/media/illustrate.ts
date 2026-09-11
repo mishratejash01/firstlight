@@ -205,8 +205,11 @@ async function sceneImage(scene: string, places: string[] = []): Promise<License
       const candidates = await searchLicensedImages(query, 10);
       for (const candidate of candidates) {
         if (looksLikeSymbol(candidate.title ?? "") || looksLikePersonPhoto(candidate.title)) continue;
+        // The place may be confirmed by a tag; the scene must be in the title.
+        // Tags are generous — a church in Longyearbyen is tagged "arctic" —
+        // and a title is what the photographer actually saw.
         if (countMatches(candidate.title, candidate.tags, placeToken) < 1) continue;
-        if (countMatches(candidate.title, candidate.tags, core.join(" ")) >= 1) return candidate;
+        if (countMatches(candidate.title, [], core.join(" ")) >= 1) return candidate;
       }
     }
   }
@@ -227,8 +230,9 @@ async function sceneImage(scene: string, places: string[] = []): Promise<License
     const candidates = await searchLicensedImages(query, 10);
     for (const candidate of candidates) {
       if (looksLikeSymbol(candidate.title ?? "") || looksLikePersonPhoto(candidate.title)) continue;
-      if (!sharesKeyword(candidate.title, scene)) continue;
-      if (countMatches(candidate.title, candidate.tags, scene) >= 2) return candidate;
+      // Two scene words in the title itself. On tags alone, "historic city
+      // street with hotels" produced a Grand Canyon hotel.
+      if (countMatches(candidate.title, [], scene) >= 2) return candidate;
     }
   }
   return null;
@@ -266,17 +270,6 @@ function looksLikePersonPhoto(title: string | null): boolean {
 /** Crude stem: "orangutans" and "orangutan" are the same word for this purpose. */
 function stem(word: string): string {
   return word.toLowerCase().replace(/(ies|es|s)$/, (m) => (m === "ies" ? "y" : ""));
-}
-
-/** At least one distinctive word of the brief appears in the picture's own title. */
-function sharesKeyword(title: string | null, scene: string): boolean {
-  if (!title) return false;
-  const titleWords = title.toLowerCase().split(/[^a-z0-9]+/).map(stem);
-  return scene
-    .split(/\s+/)
-    .filter((word) => word.length > 3)
-    .map(stem)
-    .some((word) => titleWords.some((t) => t === word || (t.length > 4 && word.startsWith(t)) || (word.length > 4 && t.startsWith(word))));
 }
 
 /** Subject types with a specific identity that a name search can confirm. */
