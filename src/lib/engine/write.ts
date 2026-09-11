@@ -12,7 +12,7 @@ import { illustrateArticle } from "@/lib/media/illustrate";
 import { verifyEvent } from "./verify";
 import { Output, generateText } from "ai";
 import { z } from "zod";
-import { aiIsConfigured, modelChain } from "@/lib/ai/config";
+import { aiIsConfigured, runWithChain } from "@/lib/ai/config";
 import { recordSameAs } from "./wikidata";
 
 /**
@@ -175,6 +175,7 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
   const autoWrite = await readSetting<boolean>("engine_auto_write", true);
   const publishing = await readSetting<boolean>("autonomous_publishing_enabled", false);
   const dailyLimit = await readSetting<number>("autonomous_daily_limit", 6);
+  const hourlyLimit = await readSetting<number>("autonomous_hourly_limit", 10);
   const delayMinutes = await readSetting<number>("autonomous_publish_delay_minutes", 0);
   const fetchSources = await readSetting<boolean>("source_fetch_enabled", true);
   const maxDocuments = await readSetting<number>("engine_max_documents", 5);
@@ -195,13 +196,24 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
     .in("status", ["scheduled", "published"])
     .gte("ai_generated_at", since);
 
-  report.remaining = Math.max(dailyLimit - (count ?? 0), 0);
+  // The hourly limit is the working pace; the daily one is the ceiling.
+  const { count: lastHour } = await supabase
+    .from("articles")
+    .select("id", { count: "exact", head: true })
+    .eq("ai_assisted", true)
+    .in("status", ["scheduled", "published"])
+    .gte("ai_generated_at", new Date(Date.now() - 3600_000).toISOString());
+
+  report.remaining = Math.max(Math.min(dailyLimit - (count ?? 0), hourlyLimit - (lastHour ?? 0)), 0);
   if (report.remaining === 0) {
     report.outcomes.push({
       eventId: "",
       title: "—",
       status: "skipped",
-      reason: `Daily limit of ${dailyLimit} already reached.`,
+      reason:
+        (lastHour ?? 0) >= hourlyLimit
+          ? `Hourly limit of ${hourlyLimit} reached; resumes as the hour rolls.`
+          : `Daily limit of ${dailyLimit} already reached.`,
     });
     return report;
   }
@@ -214,7 +226,7 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
   const { data: candidates } = await supabase
     .from("story_events")
     .select(
-      "id, title, entities, independent_sources, write_attempts, triage_section, triage_angle, triage_reason, urgency, score",
+      "id, title, entities, independent_sources, write_attempts, triage_section, triage_angle, triage_reason, urgency, score, first_seen_at",
     )
     .or(
       `and(status.eq.newsworthy,or(claimed_at.is.null,claimed_at.lt.${retryBefore})),and(status.eq.writing,claimed_at.lt.${staleBefore})`,
@@ -248,10 +260,25 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
   const sectionOf = (name: string | null) =>
     (categories ?? []).find((c) => c.name.toLowerCase() === (name ?? "").toLowerCase()) ??
     (categories ?? [])[0];
+
+  // Order of the queue:
+  //   1. Breaking first, if it broke in the last three hours. Triage marked
+  //      it, and a breaking story written tomorrow is not breaking.
+  //   2. Then the section with the fewest live stories today.
+  //   3. Within a section, the score decayed by age — halved every six
+  //      hours — so a story that broke ten minutes ago beats one that has sat
+  //      in the queue since the morning with a slightly higher number.
+  const ageHours = (iso: string) => Math.max(0, (Date.now() - new Date(iso).getTime()) / 3_600_000);
+  const fresh = (e: { score: number | null; first_seen_at: string }) =>
+    Number(e.score ?? 0) * Math.pow(0.5, ageHours(e.first_seen_at) / 6);
+  const breaking = (e: { urgency: string | null; first_seen_at: string }) =>
+    e.urgency === "breaking" && ageHours(e.first_seen_at) <= 3 ? 1 : 0;
   candidates.sort((a, b) => {
+    const urgent = breaking(b) - breaking(a);
+    if (urgent) return urgent;
     const ca = perSection.get(sectionOf(a.triage_section)?.id ?? "") ?? 0;
     const cb = perSection.get(sectionOf(b.triage_section)?.id ?? "") ?? 0;
-    return ca - cb || Number(b.score) - Number(a.score);
+    return ca - cb || fresh(b) - fresh(a);
   });
 
   const authority = await loadAuthority();
@@ -585,8 +612,8 @@ const briefSchema = z.object({
 /** Asks the assist model what picture a story needs, when the draft did not say. */
 async function briefFor(headline: string, standfirst: string | null): Promise<string | null> {
   if (!aiIsConfigured()) return null;
-  for (const model of modelChain("assist")) {
-    try {
+  try {
+    return await runWithChain("assist", async (model) => {
       const { output } = await generateText({
         model,
         maxRetries: 0,
@@ -595,11 +622,10 @@ async function briefFor(headline: string, standfirst: string | null): Promise<st
         output: Output.object({ schema: briefSchema }),
       });
       return output.imageBrief;
-    } catch {
-      // Step down the chain.
-    }
+    });
+  } catch {
+    return null;
   }
-  return null;
 }
 
 export async function reillustrateCards(
