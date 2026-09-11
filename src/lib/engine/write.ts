@@ -1,5 +1,6 @@
 import "server-only";
 
+import { SITE_NAME } from "@/lib/site";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { slugify, withUniqueSuffix } from "@/lib/format/slug";
 import { submitToIndexNow } from "@/lib/seo/indexnow";
@@ -781,7 +782,7 @@ export async function reillustrateCards(
     .order("created_at", { ascending: false })
     .limit(scope === "all" ? limit * 3 : limit);
   if (slug) query = query.eq("slug", slug);
-  else if (scope === "cards") query = query.or("hero_image_credit.eq.The Federal Post,hero_image_url.is.null");
+  else if (scope === "cards") query = query.or(`hero_image_credit.eq.${SITE_NAME},hero_image_url.is.null`);
   const { data: articles } = await query;
 
   for (const article of articles ?? []) {
@@ -812,7 +813,7 @@ export async function reillustrateCards(
       if (!asset || asset.uploaded_by) continue;
     }
 
-    const isCard = article.hero_image_credit === "The Federal Post" || !article.hero_image_credit;
+    const isCard = article.hero_image_credit === SITE_NAME || !article.hero_image_credit;
     report.considered += 1;
 
     let brief = article.image_brief;
