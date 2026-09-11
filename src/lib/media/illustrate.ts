@@ -4,12 +4,15 @@ import { v2 as cloudinary } from "cloudinary";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  commonsImage,
   commonsSearchImage,
+  commonsSearchTitles,
   findSubjectImage,
   looksLikeSymbol,
   wikidataUrl,
   wikipediaPageImage,
 } from "@/lib/engine/wikidata";
+import { cosine, embedTexts } from "@/lib/engine/embeddings";
 import {
   attributionFor,
   searchLicensedImage,
@@ -165,100 +168,22 @@ function usableBrief(
 /**
  * A picture of the scene the writer described.
  *
- * Measured on real briefs before it was written this way: a full phrase like
- * "courtroom gavel on wooden desk" returns nothing from either library, so
- * the two most distinctive words are tried as well. Commons goes first
- * because its file names describe what is in the frame; the open-stock
- * library is tagged generously, which is how "historic city street with
- * hotels" once produced a Grand Canyon hotel on one shared word. Two words
- * must match, and on stock one of them must be in the title itself.
+ * Word rules kept failing in both directions: a skua on an ice floe passed
+ * on "arctic", a Delhi flood photograph failed for not saying "street". The
+ * engine's own embedding function judges meaning instead. Candidates are
+ * gathered from several queries — the scene, its two core words, and the
+ * story's place with each core word — and ranked by similarity between
+ * their titles and the brief. Measured on the pictures that had gone right
+ * and wrong: right ones scored 0.85 to 0.93, wrong ones 0.70 to 0.83. The
+ * best candidate wins only if it clears 0.82; otherwise there is no scene.
  */
-async function sceneImage(scene: string, places: string[] = []): Promise<LicensedImage | null> {
-  const content = scene.split(/\s+/).filter((word) => word.length > 3);
-  if (content.length < 2) return null;
-
-  // Where the story has a place, the place goes into the frame. Measured:
-  // "Delhi flooded street heavy rain" returns nothing from either library,
-  // "Delhi rain" returns Delhi in the rain from both. So the query is the
-  // place plus one scene word at a time, and a candidate must carry the
-  // place's name as well as a scene word.
-  // The scene's core: its longest words, which are its nouns more often than
-  // not. "heavy rain flooded city street" gives "flooded" and "street"; the
-  // first words gave "heavy", and "Delhi heavy" found the Minister for Heavy
-  // Industries.
-  const core = [...content].sort((a, b) => b.length - a.length).slice(0, 2);
-
-  for (const place of places) {
-    const placeToken = [...place.split(/\s+/)].sort((a, b) => b.length - a.length)[0].toLowerCase();
-    if (placeToken.length < 4) continue;
-    for (const word of core) {
-      const query = `${place} ${word}`;
-      const fromCommons = await commonsSearchImage(query);
-      if (
-        fromCommons &&
-        !looksLikePersonPhoto(fromCommons.title) &&
-        countMatches(fromCommons.title, [], placeToken) >= 1 &&
-        countMatches(fromCommons.title, [], core.join(" ")) >= 1
-      ) {
-        return fromCommons;
-      }
-      const candidates = await searchLicensedImages(query, 10);
-      for (const candidate of candidates) {
-        if (looksLikeSymbol(candidate.title ?? "") || looksLikePersonPhoto(candidate.title)) continue;
-        // The place may be confirmed by a tag; the scene must be in the title.
-        // Tags are generous — a church in Longyearbyen is tagged "arctic" —
-        // and a title is what the photographer actually saw.
-        if (countMatches(candidate.title, candidate.tags, placeToken) < 1) continue;
-        if (countMatches(candidate.title, [], core.join(" ")) >= 1) return candidate;
-      }
-    }
-  }
-
-  const shortened = [...content].sort((a, b) => b.length - a.length).slice(0, 2).join(" ");
-  const queries = [...new Set([scene, shortened])];
-
-  for (const query of queries) {
-    const fromCommons = await commonsSearchImage(query);
-    if (
-      fromCommons &&
-      !looksLikePersonPhoto(fromCommons.title) &&
-      countMatches(fromCommons.title, [], scene) >= 2
-    ) {
-      return fromCommons;
-    }
-
-    const candidates = await searchLicensedImages(query, 10);
-    for (const candidate of candidates) {
-      if (looksLikeSymbol(candidate.title ?? "") || looksLikePersonPhoto(candidate.title)) continue;
-      // Two scene words in the title itself. On tags alone, "historic city
-      // street with hotels" produced a Grand Canyon hotel.
-      if (countMatches(candidate.title, [], scene) >= 2) return candidate;
-    }
-  }
-  return null;
-}
-
-/** How many distinctive words of the scene appear in a picture's title and tags. */
-function countMatches(title: string | null, tags: string[], scene: string): number {
-  const haystack = [title ?? "", ...tags]
-    .join(" ")
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .map(stem)
-    .filter(Boolean);
-  return scene
-    .split(/\s+/)
-    .filter((word) => word.length > 3)
-    .map(stem)
-    .filter((word) => haystack.some((h) => h === word || (h.length > 4 && word.startsWith(h)) || (word.length > 4 && h.startsWith(word))))
-    .length;
-}
+const SCENE_SIMILARITY = 0.82;
 
 /**
  * A scene must be nameless, so a candidate whose title names a person is
  * not a scene. Official photo libraries title their portraits exactly this
- * way — "The Union Minister for Heavy Industries, Shri …", "ADC MD Imran
- * Raza with PRO …" — and both turned up for "Delhi rain".
+ * way — "The Union Minister for Heavy Industries, Shri …" — and one turned
+ * up for "Delhi heavy".
  */
 function looksLikePersonPhoto(title: string | null): boolean {
   if (!title) return false;
@@ -267,10 +192,60 @@ function looksLikePersonPhoto(title: string | null): boolean {
   );
 }
 
-/** Crude stem: "orangutans" and "orangutan" are the same word for this purpose. */
-function stem(word: string): string {
-  return word.toLowerCase().replace(/(ies|es|s)$/, (m) => (m === "ies" ? "y" : ""));
+async function sceneImage(scene: string, places: string[] = []): Promise<LicensedImage | null> {
+  const content = scene.split(/\s+/).filter((word) => word.length > 3);
+  if (content.length < 2) return null;
+  const core = [...content].sort((a, b) => b.length - a.length).slice(0, 2);
+
+  const queries = new Set<string>([scene, core.join(" ")]);
+  for (const place of places.slice(0, 2)) for (const word of core) queries.add(`${place} ${word}`);
+
+  type Candidate = { title: string; commonsFile?: string; stock?: LicensedImage & { tags: string[] } };
+  const candidates: Candidate[] = [];
+  const seen = new Set<string>();
+  const consider = (candidate: Candidate) => {
+    const key = candidate.title.toLowerCase();
+    if (seen.has(key) || looksLikeSymbol(candidate.title) || looksLikePersonPhoto(candidate.title)) return;
+    seen.add(key);
+    candidates.push(candidate);
+  };
+
+  for (const query of queries) {
+    for (const file of await commonsSearchTitles(query, 6)) {
+      consider({ title: file.replace(/\.[a-z0-9]+$/i, "").replace(/_/g, " "), commonsFile: file });
+    }
+    for (const stock of await searchLicensedImages(query, 6)) {
+      if (stock.title) consider({ title: stock.title, stock });
+    }
+  }
+  if (!candidates.length) return null;
+
+  // The brief, with the story's place if it has one, is what the picture
+  // should be of. "Delhi heavy rain flooded city street" is closer to a
+  // photograph of Delhi flood relief than to a lane in Somerset.
+  const target = places.length ? `${places[0]} ${scene}` : scene;
+  const vectors = await embedTexts([target, ...candidates.map((c) => c.title)]);
+  const targetVector = vectors[0];
+  if (!targetVector) return null;
+
+  const ranked = candidates
+    .map((candidate, index) => ({
+      candidate,
+      similarity: vectors[index + 1] ? cosine(targetVector, vectors[index + 1] as number[]) : 0,
+    }))
+    .filter((entry) => entry.similarity >= SCENE_SIMILARITY)
+    .sort((a, b) => b.similarity - a.similarity);
+
+  for (const { candidate } of ranked.slice(0, 4)) {
+    if (candidate.stock) return candidate.stock;
+    if (candidate.commonsFile) {
+      const image = await commonsImage(candidate.commonsFile);
+      if (image) return image;
+    }
+  }
+  return null;
 }
+
 
 /** Subject types with a specific identity that a name search can confirm. */
 const SEARCHABLE_TYPES = new Set([
