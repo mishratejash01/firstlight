@@ -428,15 +428,41 @@ async function loadSourceInfo(keys: string[]): Promise<SourceInfo> {
   };
 }
 
+/**
+ * What the site has already covered this week: the entities of every event
+ * the engine wrote, and of every article anyone published by any route —
+ * the wire desk, a contributor, an editor. Novelty measured only against the
+ * engine's own output would let it write a story the desk ran yesterday.
+ */
 async function loadRecentEntitySets(): Promise<string[][]> {
   const supabase = createAdminClient();
-  const { data } = await supabase
-    .from("story_events")
-    .select("entities")
-    .eq("status", "written")
-    .gte("last_seen_at", new Date(Date.now() - 7 * 24 * 3600_000).toISOString())
-    .limit(200);
-  return (data ?? []).map((r) => r.entities ?? []);
+  const since = new Date(Date.now() - 7 * 24 * 3600_000).toISOString();
+
+  const [{ data: events }, { data: linked }] = await Promise.all([
+    supabase
+      .from("story_events")
+      .select("entities")
+      .eq("status", "written")
+      .gte("last_seen_at", since)
+      .limit(200),
+    supabase
+      .from("article_entities")
+      .select("article_id, entities ( slug ), articles!inner ( status, published_at )")
+      .eq("articles.status", "published")
+      .gte("articles.published_at", since)
+      .limit(2000),
+  ]);
+
+  const byArticle = new Map<string, string[]>();
+  for (const row of linked ?? []) {
+    const slug = (row.entities as unknown as { slug: string } | null)?.slug;
+    if (!slug) continue;
+    const list = byArticle.get(row.article_id) ?? [];
+    list.push(slug);
+    byArticle.set(row.article_id, list);
+  }
+
+  return [...(events ?? []).map((r) => r.entities ?? []), ...byArticle.values()];
 }
 
 /**
