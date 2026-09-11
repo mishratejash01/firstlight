@@ -3,7 +3,7 @@ import "server-only";
 import { Output, generateText } from "ai";
 import type { z } from "zod";
 
-import { AI_UNAVAILABLE_MESSAGE, aiIsConfigured, modelChain } from "./config";
+import { AI_UNAVAILABLE_MESSAGE, aiIsConfigured, runWithChain } from "./config";
 import {
   draftedArticleSchema,
   headlineSuggestionSchema,
@@ -105,20 +105,6 @@ Therefore:
 
 export type AiResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
-/** Overload and rate limiting are worth stepping down a model for; nothing else is. */
-function isCapacityError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message.toLowerCase() : "";
-  return (
-    message.includes("high demand") ||
-    message.includes("overloaded") ||
-    message.includes("rate limit") ||
-    message.includes("quota") ||
-    message.includes("resource_exhausted") ||
-    message.includes("429") ||
-    message.includes("503")
-  );
-}
-
 /**
  * Generates structured output, stepping down the model chain on capacity
  * failures.
@@ -183,45 +169,30 @@ async function generateStructured<S extends z.ZodTypeAny>(
   kind: "drafting" | "assist",
   options: { system: string; prompt: string; schema: S },
 ): Promise<z.infer<S>> {
-  const models = modelChain(kind);
-  let lastError: unknown;
+  return runWithChain(kind, async (model) => {
+    const { output, finishReason } = await generateText({
+      model,
+      system: options.system,
+      prompt: options.prompt,
+      output: Output.object({ schema: options.schema }),
+      // No retries on one key: a refused key stays refused for longer than a
+      // retry waits, and the next key in the chain is right there.
+      maxRetries: 0,
+      // Generous, because reasoning tokens are drawn from the same budget as
+      // the text. A long source article plus a model that thinks before it
+      // writes will otherwise hit the ceiling mid-article.
+      maxOutputTokens: 12_000,
+    });
 
-  for (const model of models) {
-    try {
-      const { output, finishReason } = await generateText({
-        model,
-        system: options.system,
-        prompt: options.prompt,
-        output: Output.object({ schema: options.schema }),
-        // One attempt per model. The SDK's default of three means a model that
-        // is out of capacity is retried for close to a minute before the chain
-        // moves on, which is the slow way to reach the same answer.
-        maxRetries: 1,
-        // Generous, because reasoning tokens are drawn from the same budget as
-        // the text. A long source article plus a model that thinks before it
-        // writes will otherwise hit the ceiling mid-article.
-        maxOutputTokens: 12_000,
-      });
-
-      // A response cut off at the token limit still parses, because the schema
-      // fills in what it can — so it arrives looking like a valid article that
-      // simply stops mid-sentence. Publishing that is worse than failing.
-      if (finishReason === "length") {
-        throw new Error("Model hit the output limit and returned a truncated article.");
-      }
-
-      return unescapeDeep(output) as z.infer<S>;
-    } catch (error) {
-      lastError = error;
-      if (!isCapacityError(error)) throw error;
-      console.warn(
-        "[ai] model at capacity, stepping down:",
-        error instanceof Error ? error.message : error,
-      );
+    // A response cut off at the token limit still parses, because the schema
+    // fills in what it can — so it arrives looking like a valid article that
+    // simply stops mid-sentence. Publishing that is worse than failing.
+    if (finishReason === "length") {
+      throw new Error("Model hit the output limit and returned a truncated article.");
     }
-  }
 
-  throw lastError ?? new Error("Every model in the chain failed.");
+    return unescapeDeep(output) as z.infer<S>;
+  });
 }
 
 async function guarded<T>(run: () => Promise<T>): Promise<AiResult<T>> {
