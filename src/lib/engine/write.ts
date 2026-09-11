@@ -401,6 +401,9 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
       subjects: draft.entities
         .filter((entity) => entity.relation === "about")
         .map((entity) => ({ name: entity.name, type: entity.type })),
+      related: draft.entities
+        .filter((entity) => entity.relation !== "about")
+        .map((entity) => ({ name: entity.name, type: entity.type })),
     });
 
     const { data: article, error } = await supabase
@@ -586,17 +589,19 @@ export async function reillustrateCards(limit = 3): Promise<ReillustrateReport> 
     const { data: links } = await supabase
       .from("article_entities")
       .select("relation, entities ( name, entity_type )")
-      .eq("article_id", article.id)
-      .eq("relation", "about");
+      .eq("article_id", article.id);
 
-    const subjects = (links ?? [])
-      .map((row) => row.entities as unknown as { name: string; entity_type: string } | null)
-      .filter((entity): entity is { name: string; entity_type: string } => Boolean(entity))
-      .map((entity) => ({ name: entity.name, type: entity.entity_type }));
-    if (!subjects.length) continue;
+    const toSubject = (row: { relation: string; entities: unknown }) => {
+      const entity = row.entities as { name: string; entity_type: string } | null;
+      return entity ? { name: entity.name, type: entity.entity_type, relation: row.relation } : null;
+    };
+    const all = (links ?? []).map(toSubject).filter((s): s is NonNullable<typeof s> => Boolean(s));
+    const subjects = all.filter((s) => s.relation === "about");
+    const related = all.filter((s) => s.relation !== "about");
+    if (!subjects.length && !related.length) continue;
 
     const section = (article.categories as unknown as { name: string } | null)?.name ?? "News";
-    const illustration = await illustrateArticle({ headline: article.headline, section, subjects });
+    const illustration = await illustrateArticle({ headline: article.headline, section, subjects, related });
     if (!illustration || illustration.kind !== "photo") continue;
 
     const { error } = await supabase
