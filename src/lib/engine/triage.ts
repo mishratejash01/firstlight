@@ -258,7 +258,12 @@ export async function triageCandidates(
   const threshold = await readSetting<number>("engine_triage_threshold", 25);
   const beatThreshold = await readSetting<number>("engine_beat_triage_threshold", 10);
   const windowHours = await readSetting<number>("engine_event_window_hours", 48);
-  const since = new Date(Date.now() - windowHours * 3600_000).toISOString();
+  // Only what the desk could still write. Triaging a story that is already
+  // too old to publish spends a model call on nothing.
+  const maxAgeHours = await readSetting<number>("engine_max_story_age_hours", 8);
+  const since = new Date(
+    Date.now() - Math.min(windowHours, maxAgeHours > 0 ? maxAgeHours : windowHours) * 3600_000,
+  ).toISOString();
 
   // The model's free allowance is a daily figure; spending it all before
   // lunch means no triage at all in the evening. Candidates above the budget
@@ -292,6 +297,7 @@ export async function triageCandidates(
         .eq("status", "candidate")
         .is("triaged_at", null)
         .gte("score", beatThreshold)
+        .gte("first_seen_at", since)
         .in("id", beatIds.slice(0, 500))
         .order("score", { ascending: false })
         .limit(limit)
@@ -306,7 +312,7 @@ export async function triageCandidates(
       .eq("status", "candidate")
       .is("triaged_at", null)
       .gte("score", threshold)
-      .gte("last_seen_at", since)
+      .gte("first_seen_at", since)
       .order("score", { ascending: false })
       .limit(limit),
     supabase
@@ -317,7 +323,7 @@ export async function triageCandidates(
       .eq("status", "rejected")
       .not("triaged_score", "is", null)
       .gte("score", threshold)
-      .gte("last_seen_at", since)
+      .gte("first_seen_at", since)
       .order("score", { ascending: false })
       .limit(limit),
     supabase.from("categories").select("name").eq("is_active", true),
