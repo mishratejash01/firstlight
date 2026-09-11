@@ -7,6 +7,7 @@ import { applyOutcomes, harvestLabels } from "./learn";
 import { fetchBlueskyTrending, fetchHackerNews, fetchMastodonTrending } from "./streams/social";
 import { fetchWikipediaEditBursts, fetchWikipediaTopViews } from "./streams/wikipedia";
 import { fetchGoogleTopStories } from "./streams/google-top";
+import { fetchBeatSearches } from "./streams/topics";
 import { fetchEarthquakes, fetchPredictionMarkets } from "./streams/ground-truth";
 import { fetchRedditNews, redditConfigured } from "./streams/reddit";
 import { fetchYouTubeNews, youtubeConfigured } from "./streams/youtube";
@@ -72,6 +73,7 @@ const FAST_STREAMS: Stream[] = [
 
 const SLOW_STREAMS: Stream[] = [
   { name: "trends+gnews", fetch: fetchTrendMentions },
+  { name: "beats", fetch: fetchBeatSearches },
   { name: "wikipedia_views", fetch: fetchWikipediaTopViews },
   { name: "mastodon", fetch: fetchMastodonTrending },
   { name: "polymarket", fetch: fetchPredictionMarkets },
