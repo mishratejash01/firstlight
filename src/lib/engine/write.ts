@@ -10,6 +10,7 @@ import { getSourceDocuments } from "@/lib/fetch/extract";
 import { resolveGoogleNewsUrl } from "@/lib/fetch/google-redirect";
 import { illustrateArticle } from "@/lib/media/illustrate";
 import { verifyEvent } from "./verify";
+import { cosine, embedTexts } from "./embeddings";
 import { Output, generateText } from "ai";
 import { z } from "zod";
 import { aiIsConfigured, runWithChain } from "@/lib/ai/config";
@@ -169,6 +170,52 @@ async function loadAuthority(): Promise<Map<string, number>> {
   return new Map((rows ?? []).map((r) => [r.host, Number(r.weight)]));
 }
 
+/**
+ * Everything live on the site in the last two days, embedded once per run,
+ * so a candidate can be compared with all of it by meaning.
+ */
+type LiveStory = { slug: string; headline: string; vector: number[] };
+
+async function loadLiveStories(): Promise<LiveStory[]> {
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("articles")
+    .select("slug, headline, standfirst")
+    .in("status", ["published", "scheduled"])
+    .gte("created_at", new Date(Date.now() - 48 * 3600_000).toISOString())
+    .limit(300);
+  const rows = data ?? [];
+  const vectors = await embedTexts(rows.map((r) => `${r.headline}. ${r.standfirst ?? ""}`));
+  return rows
+    .map((r, i) => ({ slug: r.slug, headline: r.headline, vector: vectors[i] }))
+    .filter((r): r is LiveStory => Array.isArray(r.vector));
+}
+
+/**
+ * The published story a text duplicates, if any.
+ *
+ * Measured on a day's output: the same story written twice scored 0.99 and
+ * 0.93 by this comparison; genuine follow-ups and neighbouring stories sat
+ * between 0.84 and 0.89. The line is 0.90. A novelty feature that merely
+ * lowered a score let "Hong Kong jails Tiananmen vigil organisers" run twice
+ * in six hours under the same headline; this is a wall, not a weight.
+ */
+const DUPLICATE_SIMILARITY = 0.9;
+
+async function duplicateOf(text: string, live: LiveStory[]): Promise<LiveStory | null> {
+  if (!live.length) return null;
+  const [vector] = await embedTexts([text]);
+  if (!vector) return null;
+  let best: { story: LiveStory; similarity: number } | null = null;
+  for (const story of live) {
+    const similarity = cosine(vector, story.vector);
+    if (similarity >= DUPLICATE_SIMILARITY && (!best || similarity > best.similarity)) {
+      best = { story, similarity };
+    }
+  }
+  return best?.story ?? null;
+}
+
 export async function writeEvents(limit = 1): Promise<EventWriteReport> {
   const supabase = createAdminClient();
 
@@ -288,6 +335,7 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
   });
 
   const authority = await loadAuthority();
+  const live = await loadLiveStories();
 
   const publishedSlugs: string[] = [];
 
@@ -315,6 +363,29 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
         title: event.title,
         status: "skipped",
         reason: "Claimed by another run.",
+      });
+      continue;
+    }
+
+    // Already on the site? The event's own words against everything live.
+    const { data: topMentions } = await supabase
+      .from("signal_mentions")
+      .select("title")
+      .eq("event_id", event.id)
+      .order("observed_at", { ascending: false })
+      .limit(3);
+    const eventText = [event.title, ...(topMentions ?? []).map((m) => m.title)].join(". ");
+    const already = await duplicateOf(eventText, live);
+    if (already) {
+      await supabase
+        .from("story_events")
+        .update({ status: "rejected", triage_reason: `Duplicate of "${already.headline}" (${already.slug}).`, last_error: null })
+        .eq("id", event.id);
+      report.outcomes.push({
+        eventId: event.id,
+        title: event.title,
+        status: "skipped",
+        reason: `Already published: ${already.headline}`,
       });
       continue;
     }
@@ -409,6 +480,22 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
       continue;
     }
 
+    // And the draft itself, since a vague event title can hide a repeat.
+    const repeat = await duplicateOf(`${draft.headline}. ${draft.standfirst}`, live);
+    if (repeat) {
+      await supabase
+        .from("story_events")
+        .update({ status: "rejected", triage_reason: `Drafted a duplicate of "${repeat.headline}" (${repeat.slug}); discarded.`, last_error: null })
+        .eq("id", event.id);
+      report.outcomes.push({
+        eventId: event.id,
+        title: event.title,
+        status: "skipped",
+        reason: `Draft duplicated a published story: ${repeat.headline}`,
+      });
+      continue;
+    }
+
     const chosenSection =
       section ??
       (categories ?? []).find(
@@ -487,6 +574,8 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
     if (illustration?.sameAs.length) await recordSameAs(supabase, illustration.sameAs);
 
     if (publishing) publishedSlugs.push(article.slug);
+    const [freshVector] = await embedTexts([`${draft.headline}. ${draft.standfirst}`]);
+    if (freshVector) live.push({ slug: article.slug, headline: draft.headline, vector: freshVector });
 
     report.outcomes.push({
       eventId: event.id,
