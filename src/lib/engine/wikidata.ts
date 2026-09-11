@@ -101,9 +101,15 @@ function nameVariants(name: string): string[] {
 export async function findWikidataItem(
   name: string,
   type: string,
+  context?: string,
 ): Promise<WikidataMatch | null> {
   const wantHuman = type === "Person";
   const target = normaliseName(name);
+  const contextWords = new Set(
+    normaliseName(context ?? "")
+      .split(" ")
+      .filter((word) => word.length > 3),
+  );
 
   let ids: string[] = [];
   for (const variant of nameVariants(name)) {
@@ -130,8 +136,20 @@ export async function findWikidataItem(
     if (isDisambiguation) continue;
 
     if (wantHuman) {
-      // A person must be a human. "Mercury" asked for as a Person is not the planet.
+      // A person must be a human, must be called exactly this — the search
+      // is fuzzy and "Saurav Das" once came back as "Sourav Das", a different
+      // man — and, where the story gives any context, must be the kind of
+      // person the story is about: an activist's story does not get the
+      // portrait of an actor who shares the name.
       if (!isHuman) continue;
+      const label = entity.labels?.en?.value ?? "";
+      const aliases = (entity.aliases?.en ?? []).map((a) => a.value);
+      if (![label, ...aliases].map(normaliseName).includes(target)) continue;
+      if (contextWords.size) {
+        const description = normaliseName(entity.descriptions?.en?.value ?? "");
+        const shares = description.split(" ").some((word) => word.length > 3 && contextWords.has(word));
+        if (!shares) continue;
+      }
     } else {
       // Anything else must not be a human, and must actually be called what
       // we asked for: the search is fuzzy, the identity must not be.
@@ -347,8 +365,9 @@ export type SubjectImage = { match: WikidataMatch; image: LicensedImage | null }
 export async function findSubjectImage(
   name: string,
   type: string,
+  context?: string,
 ): Promise<SubjectImage | null> {
-  const match = await findWikidataItem(name, type);
+  const match = await findWikidataItem(name, type, context);
   if (!match) return null;
 
   const image = match.imageFile ? await commonsImage(match.imageFile) : null;
