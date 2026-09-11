@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   commonsSearchImage,
   findSubjectImage,
+  looksLikeSymbol,
   wikidataUrl,
   wikipediaPageImage,
 } from "@/lib/engine/wikidata";
@@ -268,7 +269,11 @@ export async function illustrateArticle({
 
     for (const query of stockQueries) {
       const candidate = await searchLicensedImage(query);
-      if (candidate && titleConfirmsSubject(candidate.title, query)) {
+      if (
+        candidate &&
+        titleConfirmsSubject(candidate.title, query) &&
+        !looksLikeSymbol(candidate.title ?? "")
+      ) {
         const published = await publish(candidate, candidate.title ?? query);
         if (published) return published;
       }
