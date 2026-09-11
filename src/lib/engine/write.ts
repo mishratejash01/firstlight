@@ -528,6 +528,7 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
         .filter((entity) => entity.relation !== "about")
         .map((entity) => ({ name: entity.name, type: entity.type })),
       brief: draft.imageBrief,
+      terms: draft.imageSearchTerms,
     });
 
     const { data: article, error } = await supabase
@@ -550,6 +551,7 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
         hero_image_alt: illustration?.alt ?? null,
         hero_image_credit: illustration?.credit ?? null,
         image_brief: draft.imageBrief,
+        image_terms: draft.imageSearchTerms,
       })
       .select("id, slug")
       .single();
@@ -702,10 +704,16 @@ const briefSchema = z.object({
     .describe(
       "The photograph this story needs, as a scene in three to eight words: 'hospital consultation room', 'monsoon flooding in a Delhi street'. A city, region or country may be named; never a person, a company or a party.",
     ),
+  imageSearchTerms: z
+    .string()
+    .describe("Two or three plain words a picture library indexes for the same photograph: 'stock market', 'server rack'. No names."),
 });
 
 /** Asks the assist model what picture a story needs, when the draft did not say. */
-async function briefFor(headline: string, standfirst: string | null): Promise<string | null> {
+async function briefFor(
+  headline: string,
+  standfirst: string | null,
+): Promise<{ brief: string; terms: string } | null> {
   if (!aiIsConfigured()) return null;
   try {
     return await runWithChain("assist", async (model) => {
@@ -716,7 +724,7 @@ async function briefFor(headline: string, standfirst: string | null): Promise<st
         prompt: `Headline: ${headline}\n${standfirst ? `Standfirst: ${standfirst}` : ""}`,
         output: Output.object({ schema: briefSchema }),
       });
-      return output.imageBrief;
+      return { brief: output.imageBrief, terms: output.imageSearchTerms };
     });
   } catch {
     return null;
@@ -733,7 +741,7 @@ export async function reillustrateCards(
 
   let query = supabase
     .from("articles")
-    .select("id, headline, standfirst, hero_image_url, hero_image_credit, image_brief, categories ( name )")
+    .select("id, headline, standfirst, hero_image_url, hero_image_credit, image_brief, image_terms, categories ( name )")
     .eq("ai_assisted", true)
     .in("status", ["scheduled", "published", "draft"])
     .gte("created_at", new Date(Date.now() - 14 * 24 * 3600_000).toISOString())
@@ -775,9 +783,14 @@ export async function reillustrateCards(
     report.considered += 1;
 
     let brief = article.image_brief;
-    if (!brief) {
-      brief = await briefFor(article.headline, article.standfirst);
-      if (brief) await supabase.from("articles").update({ image_brief: brief }).eq("id", article.id);
+    let terms = article.image_terms;
+    if (!brief || !terms) {
+      const asked = await briefFor(article.headline, article.standfirst);
+      if (asked) {
+        brief = brief ?? asked.brief;
+        terms = terms ?? asked.terms;
+        await supabase.from("articles").update({ image_brief: brief, image_terms: terms }).eq("id", article.id);
+      }
     }
     if (!subjects.length && !related.length && !brief) continue;
 
@@ -791,6 +804,7 @@ export async function reillustrateCards(
       subjects,
       related,
       brief,
+      terms,
       relevantOnly: !isCard,
     });
     if (!illustration) continue;
