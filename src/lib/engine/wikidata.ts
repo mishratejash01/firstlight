@@ -23,19 +23,6 @@ import type { LicensedImage } from "@/lib/media/openverse";
 
 const UA = "TheFederalPostBot/1.0 (+https://newswebsite-pi.vercel.app)";
 
-/** Wikidata classes that count as the subject type the drafter labelled. */
-const TYPE_CLASSES: Record<string, string[]> = {
-  // human
-  Person: ["Q5"],
-  // organization, business, company, political party, government agency,
-  // sports team, university, international organization, nonprofit
-  Organization: [
-    "Q43229", "Q4830453", "Q783794", "Q7278", "Q327333", "Q12973014",
-    "Q3918", "Q484652", "Q163740", "Q1616075", "Q2085381", "Q891723",
-    "Q2659904", "Q476028", "Q1153191",
-  ],
-};
-
 /**
  * Licences we will publish under. Everything else on Commons is declined.
  * Government open licences are common on official portraits — the UK's OGL,
@@ -115,8 +102,8 @@ export async function findWikidataItem(
   name: string,
   type: string,
 ): Promise<WikidataMatch | null> {
-  const classes = TYPE_CLASSES[type];
-  if (!classes) return null;
+  const wantHuman = type === "Person";
+  const target = normaliseName(name);
 
   let ids: string[] = [];
   for (const variant of nameVariants(name)) {
@@ -129,8 +116,8 @@ export async function findWikidataItem(
   }
   if (!ids.length) return null;
 
-  const entities = await getJson<{ entities?: Record<string, Entity> }>(
-    "https://www.wikidata.org/w/api.php?action=wbgetentities&props=labels|descriptions|claims&languages=en&format=json&ids=" +
+  const entities = await getJson<{ entities?: Record<string, Entity & { aliases?: { en?: { value: string }[] } }> }>(
+    "https://www.wikidata.org/w/api.php?action=wbgetentities&props=labels|descriptions|claims|aliases&languages=en&format=json&ids=" +
       ids.join("|"),
   );
 
@@ -138,7 +125,22 @@ export async function findWikidataItem(
     const entity = entities?.entities?.[id];
     if (!entity) continue;
     const instances = instanceIds(entity);
-    if (!instances.some((instance) => classes.includes(instance))) continue;
+    const isHuman = instances.includes("Q5");
+    const isDisambiguation = instances.includes("Q4167410");
+    if (isDisambiguation) continue;
+
+    if (wantHuman) {
+      // A person must be a human. "Mercury" asked for as a Person is not the planet.
+      if (!isHuman) continue;
+    } else {
+      // Anything else must not be a human, and must actually be called what
+      // we asked for: the search is fuzzy, the identity must not be.
+      if (isHuman) continue;
+      const label = entity.labels?.en?.value ?? "";
+      const aliases = (entity.aliases?.en ?? []).map((a) => a.value);
+      const names = [label, ...aliases].map(normaliseName);
+      if (!names.includes(target) && !normaliseName(label).includes(target)) continue;
+    }
 
     const image = claimValues(entity, "P18")[0];
     return {
@@ -150,6 +152,25 @@ export async function findWikidataItem(
   }
 
   return null;
+}
+
+function normaliseName(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f\u202a-\u202e]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/**
+ * Files that are pictures of a symbol rather than of the thing: a logo, a
+ * flag, a seal, a map, a vector emblem. Correct identity, wrong picture.
+ */
+const NOT_A_PHOTOGRAPH = /(logo|emblem|seal|flag|coat[_ ]of[_ ]arms|map|insignia|icon|wordmark|banner)/i;
+
+export function looksLikeSymbol(fileName: string): boolean {
+  return /\.(svg|gif)$/i.test(fileName) || NOT_A_PHOTOGRAPH.test(fileName);
 }
 
 type ImageInfo = {
@@ -184,6 +205,8 @@ function stripHtml(value: string | undefined): string | null {
  * licence is not one we publish under.
  */
 export async function commonsImage(fileName: string): Promise<LicensedImage | null> {
+  if (looksLikeSymbol(fileName)) return null;
+
   const data = await getJson<ImageInfo>(
     "https://commons.wikimedia.org/w/api.php?action=query&prop=imageinfo&iiprop=url|size|extmetadata&iiurlwidth=1600&format=json&titles=" +
       encodeURIComponent(`File:${fileName}`),
@@ -233,6 +256,59 @@ export async function findSubjectImage(
 
 export function wikidataUrl(qid: string): string {
   return `https://www.wikidata.org/wiki/${qid}`;
+}
+
+/**
+ * The lead image of the Wikipedia article about a subject.
+ *
+ * Usually the same file as the Wikidata claim, but Wikipedia's search is more
+ * forgiving of how a drafter phrases a name, and some subjects have a page
+ * image without a Wikidata claim. The page title has to match the name, so
+ * "Chilime" resolving to "Chilime Hydropower Plant" is accepted and "Jackson"
+ * resolving to a singer is not.
+ */
+export async function wikipediaPageImage(name: string): Promise<LicensedImage | null> {
+  const data = await getJson<{
+    query?: { pages?: Record<string, { title: string; pageimage?: string }> };
+  }>(
+    "https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrlimit=1&prop=pageimages&piprop=name&format=json&gsrsearch=" +
+      encodeURIComponent(name),
+  );
+  const page = Object.values(data?.query?.pages ?? {})[0];
+  if (!page?.pageimage) return null;
+
+  const title = normaliseName(page.title);
+  const wanted = normaliseName(name);
+  if (!title.includes(wanted) && !wanted.includes(title)) return null;
+
+  return commonsImage(page.pageimage);
+}
+
+/**
+ * A Commons search for the subject by name, accepting only files whose own
+ * title carries the name. "Supreme Court of India" finds photographs of the
+ * building; "DeepSeek office" finds nothing that passes, which is right.
+ */
+export async function commonsSearchImage(name: string): Promise<LicensedImage | null> {
+  const words = normaliseName(name)
+    .split(" ")
+    .filter((word) => word.length > 3);
+  if (!words.length) return null;
+  const needed = Math.min(2, words.length);
+
+  const data = await getJson<{ query?: { search?: { title: string }[] } }>(
+    "https://commons.wikimedia.org/w/api.php?action=query&list=search&srnamespace=6&srlimit=8&format=json&srsearch=" +
+      encodeURIComponent(`${name} filetype:bitmap`),
+  );
+
+  for (const hit of data?.query?.search ?? []) {
+    const fileName = hit.title.replace(/^File:/, "");
+    const haystack = normaliseName(fileName);
+    if (words.filter((word) => haystack.includes(word)).length < needed) continue;
+    const image = await commonsImage(fileName);
+    if (image) return image;
+  }
+  return null;
 }
 
 /**
