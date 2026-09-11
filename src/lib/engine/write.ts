@@ -554,3 +554,65 @@ export async function redraftEvent(eventId: string): Promise<RedraftOutcome> {
 
   return { ok: true, slug: article.slug, sourcesRead: documents.length };
 }
+
+export type ReillustrateReport = { considered: number; replaced: number; titles: string[] };
+
+/**
+ * Gives a photograph to stories that went out with a card.
+ *
+ * Runs from the stored entities, so it costs no model call: the drafter
+ * already said what each story was about. Looks at the last two days of
+ * card-illustrated stories and tries the illustrator again; the tiers are
+ * wider than they were when the story was written, and the card is what
+ * readers see until this succeeds.
+ */
+export async function reillustrateCards(limit = 3): Promise<ReillustrateReport> {
+  const supabase = createAdminClient();
+  const report: ReillustrateReport = { considered: 0, replaced: 0, titles: [] };
+
+  const { data: articles } = await supabase
+    .from("articles")
+    .select("id, headline, hero_image_credit, categories ( name )")
+    .eq("ai_assisted", true)
+    .in("status", ["scheduled", "published", "draft"])
+    .gte("created_at", new Date(Date.now() - 48 * 3600_000).toISOString())
+    .or("hero_image_credit.eq.The Federal Post,hero_image_url.is.null")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  for (const article of articles ?? []) {
+    report.considered += 1;
+
+    const { data: links } = await supabase
+      .from("article_entities")
+      .select("relation, entities ( name, entity_type )")
+      .eq("article_id", article.id)
+      .eq("relation", "about");
+
+    const subjects = (links ?? [])
+      .map((row) => row.entities as unknown as { name: string; entity_type: string } | null)
+      .filter((entity): entity is { name: string; entity_type: string } => Boolean(entity))
+      .map((entity) => ({ name: entity.name, type: entity.entity_type }));
+    if (!subjects.length) continue;
+
+    const section = (article.categories as unknown as { name: string } | null)?.name ?? "News";
+    const illustration = await illustrateArticle({ headline: article.headline, section, subjects });
+    if (!illustration || illustration.kind !== "photo") continue;
+
+    const { error } = await supabase
+      .from("articles")
+      .update({
+        hero_image_url: illustration.url,
+        hero_image_alt: illustration.alt,
+        hero_image_credit: illustration.credit,
+      })
+      .eq("id", article.id);
+    if (error) continue;
+
+    if (illustration.sameAs.length) await recordSameAs(supabase, illustration.sameAs);
+    report.replaced += 1;
+    report.titles.push(article.headline);
+  }
+
+  return report;
+}
