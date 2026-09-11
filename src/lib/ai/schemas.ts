@@ -21,6 +21,11 @@ export const draftedArticleSchema = z.object({
       "The article in Markdown. Use ## headings that mirror how readers phrase searches — what happened, who is involved, what happens next, key numbers.",
     ),
   suggestedTags: z.array(z.string()).describe("Topic tags, lower case, three to six."),
+  imageBrief: z
+    .string()
+    .describe(
+      "The photograph this story needs, as a generic scene in three to eight words a picture library would understand: 'hospital consultation room', 'undersea cable repair ship', 'monsoon flooding in a city street'. No names of people, companies or places, no faces of identifiable people.",
+    ),
   keyFacts: z
     .array(
       z.object({
