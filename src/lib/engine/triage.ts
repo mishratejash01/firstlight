@@ -84,6 +84,17 @@ Treat as newsworthy:
 - Significant business: results, insolvency, regulation, jobs, deals
 - Science and technology with real-world consequence
 - Sport beyond the result: governance, doping, finance, safety
+- Artificial intelligence, covered deeply: new models and their capabilities,
+  research results, safety and existential-risk warnings from researchers or
+  the people running the labs, what Altman, Amodei, Hassabis, Musk, Huang and
+  their peers say on the record, regulation, lab funding, and the effects on
+  jobs. A model release from a major lab is news, not marketing.
+- Startups: funding rounds from Series A up, unicorns, notable founders,
+  accelerator cohorts, collapses and acquisitions.
+
+Sections: put anything whose subject is artificial intelligence in AI, even
+when a company or a government is the actor; funding rounds, founders and
+new companies in Startups; the rest of technology in Technology.
 
 A sharp rise in attention from several independent outlets is evidence of
 something happening; it is not on its own evidence that it is news. Be strict.
