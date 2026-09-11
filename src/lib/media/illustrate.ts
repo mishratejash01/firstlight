@@ -182,24 +182,31 @@ async function sceneImage(scene: string, places: string[] = []): Promise<License
   // "Delhi rain" returns Delhi in the rain from both. So the query is the
   // place plus one scene word at a time, and a candidate must carry the
   // place's name as well as a scene word.
+  // The scene's core: its longest words, which are its nouns more often than
+  // not. "heavy rain flooded city street" gives "flooded" and "street"; the
+  // first words gave "heavy", and "Delhi heavy" found the Minister for Heavy
+  // Industries.
+  const core = [...content].sort((a, b) => b.length - a.length).slice(0, 2);
+
   for (const place of places) {
     const placeToken = [...place.split(/\s+/)].sort((a, b) => b.length - a.length)[0].toLowerCase();
     if (placeToken.length < 4) continue;
-    for (const word of content.slice(0, 3)) {
+    for (const word of core) {
       const query = `${place} ${word}`;
       const fromCommons = await commonsSearchImage(query);
       if (
         fromCommons &&
+        !looksLikePersonPhoto(fromCommons.title) &&
         countMatches(fromCommons.title, [], placeToken) >= 1 &&
-        countMatches(fromCommons.title, [], scene) >= 1
+        countMatches(fromCommons.title, [], core.join(" ")) >= 1
       ) {
         return fromCommons;
       }
       const candidates = await searchLicensedImages(query, 10);
       for (const candidate of candidates) {
-        if (looksLikeSymbol(candidate.title ?? "")) continue;
+        if (looksLikeSymbol(candidate.title ?? "") || looksLikePersonPhoto(candidate.title)) continue;
         if (countMatches(candidate.title, candidate.tags, placeToken) < 1) continue;
-        if (countMatches(candidate.title, candidate.tags, scene) >= 1) return candidate;
+        if (countMatches(candidate.title, candidate.tags, core.join(" ")) >= 1) return candidate;
       }
     }
   }
@@ -209,11 +216,17 @@ async function sceneImage(scene: string, places: string[] = []): Promise<License
 
   for (const query of queries) {
     const fromCommons = await commonsSearchImage(query);
-    if (fromCommons && countMatches(fromCommons.title, [], scene) >= 2) return fromCommons;
+    if (
+      fromCommons &&
+      !looksLikePersonPhoto(fromCommons.title) &&
+      countMatches(fromCommons.title, [], scene) >= 2
+    ) {
+      return fromCommons;
+    }
 
     const candidates = await searchLicensedImages(query, 10);
     for (const candidate of candidates) {
-      if (looksLikeSymbol(candidate.title ?? "")) continue;
+      if (looksLikeSymbol(candidate.title ?? "") || looksLikePersonPhoto(candidate.title)) continue;
       if (!sharesKeyword(candidate.title, scene)) continue;
       if (countMatches(candidate.title, candidate.tags, scene) >= 2) return candidate;
     }
@@ -235,6 +248,19 @@ function countMatches(title: string | null, tags: string[], scene: string): numb
     .map(stem)
     .filter((word) => haystack.some((h) => h === word || (h.length > 4 && word.startsWith(h)) || (word.length > 4 && h.startsWith(word))))
     .length;
+}
+
+/**
+ * A scene must be nameless, so a candidate whose title names a person is
+ * not a scene. Official photo libraries title their portraits exactly this
+ * way — "The Union Minister for Heavy Industries, Shri …", "ADC MD Imran
+ * Raza with PRO …" — and both turned up for "Delhi rain".
+ */
+function looksLikePersonPhoto(title: string | null): boolean {
+  if (!title) return false;
+  return /\b(minister|ministry|secretary|president|chairman|chairperson|commissioner|governor|director|officer|chief|ceo|md|mla|mp|shri|smt|dr|mr|mrs|ms|sir|hon|addressing|addresses|meeting|meets|inaugurat|felicitat|press conference|with the)\b/i.test(
+    title,
+  );
 }
 
 /** Crude stem: "orangutans" and "orangutan" are the same word for this purpose. */
