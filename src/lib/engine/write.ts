@@ -106,6 +106,7 @@ type SourceDoc = {
   title: string | null;
   byline: string | null;
   content: string;
+  publishedAt: string | null;
 };
 
 /**
@@ -158,6 +159,7 @@ async function gatherDocuments(
         title: doc.title,
         byline: doc.byline,
         content: doc.content as string,
+        publishedAt: doc.publishedAt,
       }));
   }
 
@@ -429,6 +431,29 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
         reason: "No readable source text — refusing to write from headlines alone.",
       });
       continue;
+    }
+
+    // The sources' own dates decide whether this is still news. A feed
+    // without dates made a three-day-old Airbnb story look new; the article
+    // pages knew better. If every dated source is older than the ceiling,
+    // the story is stale whatever the engine's clock says.
+    const dated = documents.map((doc) => doc.publishedAt).filter((d): d is string => Boolean(d));
+    if (dated.length && maxAgeHours > 0) {
+      const newest = Math.max(...dated.map((d) => new Date(d).getTime()));
+      const ageHours = (Date.now() - newest) / 3_600_000;
+      if (ageHours > maxAgeHours) {
+        await supabase
+          .from("story_events")
+          .update({ status: "rejected", triage_reason: `Stale: newest source was published ${Math.round(ageHours)} hours ago.`, last_error: null })
+          .eq("id", event.id);
+        report.outcomes.push({
+          eventId: event.id,
+          title: event.title,
+          status: "skipped",
+          reason: `Sources are ${Math.round(ageHours)} hours old.`,
+        });
+        continue;
+      }
     }
 
     // The gate. How many independent sources this needs depends on what the
