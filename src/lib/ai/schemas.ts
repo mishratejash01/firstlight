@@ -24,7 +24,7 @@ export const draftedArticleSchema = z.object({
   imageBrief: z
     .string()
     .describe(
-      "The photograph this story needs, as a generic scene in three to eight words a picture library would understand: 'hospital consultation room', 'undersea cable repair ship', 'monsoon flooding in a city street'. No names of people, companies or places, no faces of identifiable people.",
+      "The photograph this story needs, as a scene in three to eight words a picture library would understand: 'hospital consultation room', 'undersea cable repair ship', 'monsoon flooding in a Delhi street'. A city, region or country may be named; never a person, a company or a party, and no faces of identifiable people.",
     ),
   keyFacts: z
     .array(
