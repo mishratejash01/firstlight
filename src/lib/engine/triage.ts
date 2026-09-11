@@ -284,6 +284,11 @@ export async function triageCandidates(
 
   const sections = (categories ?? []).map((c) => c.name);
 
+  // The desk's own exclusion list — horoscopes, betting, lottery draws —
+  // curated on the trends page. A match is a verdict that needs no model.
+  const { data: exclusions } = await supabase.from("trend_exclusions").select("pattern");
+  const patterns = (exclusions ?? []).map((row) => row.pattern.toLowerCase()).filter(Boolean);
+
   const regrown = (grown ?? []).filter(
     (event) => Number(event.score) >= Number(event.triaged_score) * 1.5 + 5,
   );
@@ -295,6 +300,22 @@ export async function triageCandidates(
     // left untriaged is still there next time.
     if (Date.now() > deadline) break;
     report.considered += 1;
+
+    const excludedBy = patterns.find((pattern) => event.title.toLowerCase().includes(pattern));
+    if (excludedBy) {
+      report.rejected += 1;
+      await supabase
+        .from("story_events")
+        .update({
+          status: "rejected",
+          triage_category: "other",
+          triage_reason: `Matched the exclusion "${excludedBy}".`,
+          triaged_at: new Date().toISOString(),
+          triaged_score: event.score,
+        })
+        .eq("id", event.id);
+      continue;
+    }
 
     const { data: mentions } = await supabase
       .from("signal_mentions")
