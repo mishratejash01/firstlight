@@ -239,6 +239,7 @@ export async function triageCandidates(
   }
 
   const threshold = await readSetting<number>("engine_triage_threshold", 25);
+  const beatThreshold = await readSetting<number>("engine_beat_triage_threshold", 10);
   const windowHours = await readSetting<number>("engine_event_window_hours", 48);
   const since = new Date(Date.now() - windowHours * 3600_000).toISOString();
 
@@ -253,6 +254,31 @@ export async function triageCandidates(
   const room = Math.max(budget - (usedThisHour ?? 0), 0);
   if (room === 0) return report;
   limit = Math.min(limit, room);
+
+  // Standing beats are wanted in depth, so their events go to triage from a
+  // lower score: a single TechCrunch report of a model release is worth the
+  // model's opinion where a single report of a council meeting is not.
+  const { data: beatMentions } = await supabase
+    .from("signal_mentions")
+    .select("event_id")
+    .not("raw->beat", "is", null)
+    .gte("observed_at", since)
+    .limit(5000);
+  const beatIds = [...new Set((beatMentions ?? []).map((m) => m.event_id).filter((id): id is string => Boolean(id)))];
+
+  const { data: onBeat } = beatIds.length
+    ? await supabase
+        .from("story_events")
+        .select(
+          "id, title, entities, first_seen_at, region_mix, score, score_breakdown, independent_sources",
+        )
+        .eq("status", "candidate")
+        .is("triaged_at", null)
+        .gte("score", beatThreshold)
+        .in("id", beatIds.slice(0, 500))
+        .order("score", { ascending: false })
+        .limit(limit)
+    : { data: [] };
 
   const [{ data: fresh }, { data: grown }, { data: categories }] = await Promise.all([
     supabase
@@ -291,7 +317,10 @@ export async function triageCandidates(
     (event) => Number(event.score) >= Number(event.triaged_score) * 1.5 + 5,
   );
 
-  const queue = [...(fresh ?? []), ...regrown].slice(0, limit);
+  const seenIds = new Set<string>();
+  const queue = [...(onBeat ?? []), ...(fresh ?? []), ...regrown]
+    .filter((event) => (seenIds.has(event.id) ? false : (seenIds.add(event.id), true)))
+    .slice(0, limit);
 
   for (const event of queue) {
     // A slow model must not eat the writer's share of the run. Whatever is
