@@ -218,7 +218,7 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
     )
     .lt("write_attempts", MAX_ATTEMPTS)
     .order("score", { ascending: false })
-    .limit(Math.min(limit, report.remaining));
+    .limit(40);
 
   if (!candidates?.length) return report;
 
@@ -227,11 +227,35 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
     .select("id, name")
     .eq("is_active", true);
 
+  // Balance across sections. Every candidate here has already passed triage,
+  // so choosing among them by section costs nothing in quality; it only
+  // decides which good story goes first. The section with the fewest stories
+  // live in the last day goes first, the score breaks ties, and a section
+  // with nothing worth writing simply gets nothing.
+  const { data: recent } = await supabase
+    .from("articles")
+    .select("category_id")
+    .eq("ai_assisted", true)
+    .in("status", ["scheduled", "published"])
+    .gte("ai_generated_at", since);
+  const perSection = new Map<string, number>();
+  for (const row of recent ?? []) {
+    perSection.set(row.category_id, (perSection.get(row.category_id) ?? 0) + 1);
+  }
+  const sectionOf = (name: string | null) =>
+    (categories ?? []).find((c) => c.name.toLowerCase() === (name ?? "").toLowerCase()) ??
+    (categories ?? [])[0];
+  candidates.sort((a, b) => {
+    const ca = perSection.get(sectionOf(a.triage_section)?.id ?? "") ?? 0;
+    const cb = perSection.get(sectionOf(b.triage_section)?.id ?? "") ?? 0;
+    return ca - cb || Number(b.score) - Number(a.score);
+  });
+
   const authority = await loadAuthority();
 
   const publishedSlugs: string[] = [];
 
-  for (const event of candidates) {
+  for (const event of candidates.slice(0, Math.min(limit, report.remaining))) {
     const attempts = (event.write_attempts ?? 0) + 1;
 
     // The claim. A single UPDATE whose WHERE repeats the availability test, so
