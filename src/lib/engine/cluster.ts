@@ -48,6 +48,8 @@ export type ClusterReport = {
   unembedded: number;
   /** Mentions set aside because their text is not in a script we can cluster. */
   skipped: number;
+  /** Search hits that did not land on the event they were fetched for. */
+  discarded: number;
 };
 
 /**
@@ -94,9 +96,22 @@ type LiveEvent = {
   id: string;
   title: string;
   entities: string[];
+  source_keys: string[];
   centroid: number[] | null;
   mention_count: number;
 };
+
+/**
+ * An outlet already on the event must be filing a near-duplicate to join it.
+ *
+ * An outlet rarely files forty pieces on one story in a day, but a national
+ * desk files forty pieces a day on the same beat, and on a compressed
+ * embedding those sit close enough to chain into one ever-growing event.
+ * Requiring near-identity from a repeat outlet — measured on the engine's own
+ * data — split those attractors into their real stories while leaving
+ * genuinely multi-outlet clusters whole.
+ */
+const SAME_OUTLET_SIMILARITY = 0.95;
 
 /**
  * Nearest live events by centroid, from the HNSW index.
@@ -126,6 +141,7 @@ async function nearestEvents(
         id: row.id,
         title: row.title,
         entities: row.entities ?? [],
+        source_keys: row.source_keys ?? [],
         centroid,
         mention_count: row.mention_count,
       },
@@ -164,7 +180,7 @@ async function entityFallbackEvent(
 
   const { data } = await supabase
     .from("story_events")
-    .select("id, title, entities, centroid, mention_count")
+    .select("id, title, entities, centroid, mention_count, source_keys")
     .in("status", ["candidate", "newsworthy"])
     .gte("last_seen_at", new Date(Date.now() - windowHours * 3600_000).toISOString())
     .overlaps("entities", entities)
@@ -178,6 +194,7 @@ async function entityFallbackEvent(
         id: row.id,
         title: row.title,
         entities: row.entities ?? [],
+        source_keys: row.source_keys ?? [],
         centroid: parseVector(row.centroid as unknown),
         mention_count: row.mention_count,
       };
@@ -193,6 +210,7 @@ async function attachToEvent(
   entities: string[],
   observedAt: string,
   region: string | null,
+  sourceKey: string,
 ) {
   const supabase = createAdminClient();
 
@@ -209,18 +227,21 @@ async function attachToEvent(
   // row was just read, and one pulse's worth of drift is not worth a function.
   const { data: current } = await supabase
     .from("story_events")
-    .select("region_mix, mention_count")
+    .select("region_mix, mention_count, source_keys")
     .eq("id", event.id)
     .single();
 
   const mix = ((current?.region_mix as Record<string, number>) ?? {});
   if (region) mix[region] = (mix[region] ?? 0) + 1;
 
+  const sourceKeys = [...new Set([...(current?.source_keys ?? event.source_keys), sourceKey])];
+
   await supabase
     .from("story_events")
     .update({
       centroid: centroid as never,
       entities: mergedEntities,
+      source_keys: sourceKeys,
       mention_count: (current?.mention_count ?? event.mention_count) + 1,
       last_seen_at: observedAt,
       region_mix: mix as never,
@@ -247,6 +268,7 @@ async function foundEvent(
       last_seen_at: observedAt,
       mention_count: 1,
       source_count: 1,
+      source_keys: [mention.sourceKey],
       region_mix: mention.region ? { [mention.region]: 1 } : {},
     })
     .select("id")
@@ -274,6 +296,7 @@ export async function ingestMentions(mentions: IncomingMention[]): Promise<Clust
     founded: 0,
     unembedded: 0,
     skipped: 0,
+    discarded: 0,
   };
   if (!mentions.length) return report;
 
@@ -314,6 +337,36 @@ export async function ingestMentions(mentions: IncomingMention[]): Promise<Clust
 
     if (!embedding) report.unembedded += 1;
 
+    // Decide where the mention belongs before storing it, so a search hit
+    // that belongs nowhere is never stored at all.
+    let target: LiveEvent | null = null;
+
+    if (embedding) {
+      const candidates = await nearestEvents(embedding, windowHours);
+      for (const { event, similarity } of candidates) {
+        const close =
+          similarity >= STRICT_SIMILARITY ||
+          (similarity >= loose && sharesEntity(event.entities, entities));
+        if (!close) continue;
+        if (event.source_keys.includes(mention.sourceKey) && similarity < SAME_OUTLET_SIMILARITY) {
+          continue;
+        }
+        target = event;
+        break;
+      }
+    } else {
+      target = await entityFallbackEvent(entities, windowHours);
+    }
+
+    // A corroboration hit was fetched for one specific event. If it does not
+    // land there it is not corroboration — it is a search result about
+    // something else, and storing it founds junk events by the hundred.
+    const fetchedFor = mention.raw?.corroboratingEvent;
+    if (typeof fetchedFor === "string" && target?.id !== fetchedFor) {
+      report.discarded += 1;
+      continue;
+    }
+
     const { data: inserted, error } = await supabase
       .from("signal_mentions")
       .insert({
@@ -340,26 +393,16 @@ export async function ingestMentions(mentions: IncomingMention[]): Promise<Clust
     }
     report.inserted += 1;
 
-    let target: LiveEvent | null = null;
-
-    if (embedding) {
-      const candidates = await nearestEvents(embedding, windowHours);
-      for (const { event, similarity } of candidates) {
-        if (similarity >= STRICT_SIMILARITY) {
-          target = event;
-          break;
-        }
-        if (similarity >= loose && sharesEntity(event.entities, entities)) {
-          target = event;
-          break;
-        }
-      }
-    } else {
-      target = await entityFallbackEvent(entities, windowHours);
-    }
-
     if (target) {
-      await attachToEvent(target, inserted.id, embedding, entities, observedAt, mention.region ?? null);
+      await attachToEvent(
+        target,
+        inserted.id,
+        embedding,
+        entities,
+        observedAt,
+        mention.region ?? null,
+        mention.sourceKey,
+      );
       report.joined += 1;
     } else {
       await foundEvent(mention, inserted.id, embedding, entities, observedAt);
