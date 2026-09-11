@@ -17,9 +17,11 @@ import { buildTypographicCard } from "./typographic-card";
  * Gives an article a lead image.
  *
  * Order of preference:
- *   1. The Wikimedia Commons picture of whatever the story is about — a
- *      person, a court, a village, an artwork — resolved through Wikidata so
- *      it is that exact subject, credited.
+ *   1. The Wikimedia Commons picture of the person, institution or work the
+ *      story is about, resolved through Wikidata so it is that exact
+ *      subject, credited.
+ *   1b. The scene the writer asked for, as open stock — generic and nameless.
+ *   1c. The Commons picture of a place the story is about.
  *   2. The lead image of the subject's Wikipedia article.
  *   3. A Commons file whose own title names the subject.
  *   4. Open stock of a place or a specific multi-word subject, accepted only
@@ -137,6 +139,34 @@ async function readSetting<T>(key: string, fallback: T): Promise<T> {
  * organisations and events all fail — a stock portrait is usually the wrong
  * person, and an organisation's name is rarely unique.
  */
+/**
+ * A brief is usable when it is what it is meant to be: a nameless scene. One
+ * that smuggles a name back in — a capitalised word that is not the first,
+ * or any of the story's subjects — is dropped rather than searched.
+ */
+function usableBrief(
+  brief: string | null | undefined,
+  subjects: { name: string }[],
+): string | null {
+  const text = (brief ?? "").trim().replace(/[."']/g, "");
+  if (text.split(/\s+/).length < 2 || text.length > 80) return null;
+  const words = text.split(/\s+/);
+  if (words.slice(1).some((word) => /^[A-Z]/.test(word))) return null;
+  const lower = text.toLowerCase();
+  if (subjects.some((subject) => lower.includes(subject.name.toLowerCase()))) return null;
+  return lower;
+}
+
+/** At least one distinctive word of the brief appears in the picture's own title. */
+function sharesKeyword(title: string | null, scene: string): boolean {
+  if (!title) return false;
+  const haystack = title.toLowerCase();
+  return scene
+    .split(/\s+/)
+    .filter((word) => word.length > 3)
+    .some((word) => haystack.includes(word));
+}
+
 /** Subject types with a specific identity that a name search can confirm. */
 const SEARCHABLE_TYPES = new Set([
   "Place",
@@ -186,6 +216,7 @@ export async function illustrateArticle({
   section,
   subjects,
   related = [],
+  brief = null,
   uploadedBy,
 }: {
   headline: string;
@@ -194,6 +225,8 @@ export async function illustrateArticle({
   subjects: { name: string; type: string }[];
   /** Places and organisations the story mentions; tried only after the subjects fail. */
   related?: { name: string; type: string }[];
+  /** The scene the writer asked for: generic, nameless, e.g. "hospital consultation room". */
+  brief?: string | null;
   uploadedBy?: string | null;
 }): Promise<Illustration | null> {
   if (!configureCloudinary()) return null;
@@ -240,13 +273,46 @@ export async function illustrateArticle({
       .filter((subject) => subject.name.length > 2)
       .slice(0, 4);
 
+    const isPlace = (type: string) => type === "Place";
+
     // Tier one: the picture Wikipedia's editors chose for that exact subject.
     // Identity is resolved by name and type on Wikidata, so this is the one
     // route where the picture cannot be of a different Jackson. Every
     // subject type qualifies — a court, a village, a tapestry, a charity —
     // not only people. Measured on the stories that had ended up as cards,
     // this alone would have illustrated eight of twelve subjects.
-    for (const subject of named) {
+    // A person, an institution or a work first. A place comes after the
+    // brief below: a landmark of the city a story mentions is real and
+    // correctly identified and still the wrong picture for a medical story.
+    const identityFirst = named.filter((subject) => !isPlace(subject.type));
+    const placesLater = named.filter((subject) => isPlace(subject.type));
+
+    for (const subject of identityFirst) {
+      const found = await findSubjectImage(subject.name, subject.type);
+      if (!found) continue;
+      sameAs.push({ name: subject.name, url: wikidataUrl(found.match.qid) });
+      if (!found.image) continue;
+      const published = await publish(found.image, found.match.label);
+      if (published) return published;
+    }
+
+    // The scene the writer asked for. Generic by rule, so a keyword search
+    // cannot land on the wrong person; relevant by construction, because the
+    // writer described the story rather than a name in it.
+    const scene = usableBrief(brief, named);
+    if (scene) {
+      const candidate = (await searchLicensedImage(scene)) ?? (await commonsSearchImage(scene));
+      if (
+        candidate &&
+        !looksLikeSymbol(candidate.title ?? "") &&
+        sharesKeyword(candidate.title, scene)
+      ) {
+        const published = await publish(candidate, `${scene} (file image)`);
+        if (published) return published;
+      }
+    }
+
+    for (const subject of placesLater) {
       const found = await findSubjectImage(subject.name, subject.type);
       if (!found) continue;
       sameAs.push({ name: subject.name, url: wikidataUrl(found.match.qid) });
