@@ -140,6 +140,25 @@ export async function findWikidataItem(
       const aliases = (entity.aliases?.en ?? []).map((a) => a.value);
       const names = [label, ...aliases].map(normaliseName);
       if (!names.includes(target) && !normaliseName(label).includes(target)) continue;
+
+      // An acronym is not a word that happens to spell the same: "MIRA", an
+      // organisation, resolved to Mira, a town near Venice, on a case-blind
+      // match. A short all-caps name must match an all-caps label or alias.
+      const isAcronym = /^[A-Z0-9&.]{2,6}$/.test(name.trim());
+      if (isAcronym && ![label, ...aliases].some((n) => n === name.trim())) continue;
+
+      // And the kind of thing must agree with what the drafter said it was.
+      const description = (entity.descriptions?.en?.value ?? "").toLowerCase();
+      const looksLikePlace =
+        /\b(town|city|village|municipality|comune|commune|hamlet|settlement|river|lake|mountain|island|district|county|province|region|neighbou?rhood|street|road)\b/.test(
+          description,
+        );
+      const looksLikeOrganisation =
+        /\b(company|corporation|organization|organisation|business|startup|agency|institute|university|club|team|party|charity|band|label|publisher|newspaper|magazine|website)\b/.test(
+          description,
+        );
+      if (type === "Place" && looksLikeOrganisation && !looksLikePlace) continue;
+      if (type !== "Place" && looksLikePlace && !looksLikeOrganisation) continue;
     }
 
     const image = claimValues(entity, "P18")[0];
