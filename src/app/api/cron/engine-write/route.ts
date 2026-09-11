@@ -1,4 +1,7 @@
+import { generateText } from "ai";
+
 import { createAdminClient } from "@/lib/supabase/admin";
+import { runWithChain } from "@/lib/ai/config";
 import { triageCandidates } from "@/lib/engine/triage";
 import { redraftEvent, reillustrateCards, writeEvents } from "@/lib/engine/write";
 
@@ -26,7 +29,21 @@ export async function GET(request: Request) {
   }
 
   const params = new URL(request.url).searchParams;
-  const limit = Math.min(Math.max(Number(params.get("limit") ?? 1), 1), 3);
+  const limit = Math.min(Math.max(Number(params.get("limit") ?? 2), 1), 4);
+
+  // One trivial call through the chain, reporting which key answered.
+  if (params.get("probe")) {
+    const startedAt = Date.now();
+    try {
+      const answer = await runWithChain(params.get("probe") === "drafting" ? "drafting" : "assist", async (model, entry) => {
+        const { text } = await generateText({ model, maxRetries: 0, prompt: "Reply with the single word OK." });
+        return { text: text.trim().slice(0, 20), key: entry.label, model: entry.modelId };
+      });
+      return Response.json({ ok: true, probe: { ...answer, ms: Date.now() - startedAt } });
+    } catch (error) {
+      return Response.json({ ok: false, error: error instanceof Error ? error.message : "probe failed" }, { status: 502 });
+    }
+  }
 
   // Give card-illustrated stories another go at a photograph, and return.
   const reillustrate = params.get("reillustrate");
