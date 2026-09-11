@@ -223,6 +223,10 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
   const publishing = await readSetting<boolean>("autonomous_publishing_enabled", false);
   const dailyLimit = await readSetting<number>("autonomous_daily_limit", 6);
   const hourlyLimit = await readSetting<number>("autonomous_hourly_limit", 10);
+  // Nothing older than this is written, however good it looks. News is a
+  // perishable good; a story that could not gather its sources in this long
+  // is dropped rather than published late.
+  const maxAgeHours = await readSetting<number>("engine_max_story_age_hours", 8);
   const delayMinutes = await readSetting<number>("autonomous_publish_delay_minutes", 0);
   const fetchSources = await readSetting<boolean>("source_fetch_enabled", true);
   const maxDocuments = await readSetting<number>("engine_max_documents", 5);
@@ -284,8 +288,9 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
       `and(status.eq.newsworthy,or(claimed_at.is.null,claimed_at.lt.${retryBefore})),and(status.eq.writing,claimed_at.lt.${staleBefore})`,
     )
     .lt("write_attempts", MAX_ATTEMPTS)
-    .order("score", { ascending: false })
-    .limit(40);
+    .gte("first_seen_at", new Date(Date.now() - (maxAgeHours > 0 ? maxAgeHours : 24 * 365) * 3600_000).toISOString())
+    .order("first_seen_at", { ascending: false })
+    .limit(60);
 
   if (!candidates?.length) return report;
   if (!Number.isFinite(report.remaining)) report.remaining = candidates.length;
@@ -314,14 +319,15 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
     (categories ?? []).find((c) => c.name.toLowerCase() === (name ?? "").toLowerCase()) ??
     (categories ?? [])[0];
 
-  // Order of the queue:
-  //   1. Breaking first, if it broke in the last three hours. Triage marked
-  //      it, and a breaking story written tomorrow is not breaking.
-  //   2. Then the section with the fewest live stories today.
-  //   3. Within a section, the score decayed by age — halved every six
-  //      hours — so a story that broke ten minutes ago beats one that has sat
-  //      in the queue since the morning with a slightly higher number.
+  // Order of the queue, age first:
+  //   1. Breaking, if it broke in the last three hours.
+  //   2. Then by age in two-hour steps — what came in this hour before what
+  //      came in earlier, always.
+  //   3. Within a step, the section with the fewest live stories today, so
+  //      balance still decides among stories of the same freshness.
+  //   4. Then the score, decayed by age within the step.
   const ageHours = (iso: string) => Math.max(0, (Date.now() - new Date(iso).getTime()) / 3_600_000);
+  const ageStep = (iso: string) => Math.floor(ageHours(iso) / 2);
   const fresh = (e: { score: number | null; first_seen_at: string }) =>
     Number(e.score ?? 0) * Math.pow(0.5, ageHours(e.first_seen_at) / 6);
   const breaking = (e: { urgency: string | null; first_seen_at: string }) =>
@@ -329,6 +335,8 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
   candidates.sort((a, b) => {
     const urgent = breaking(b) - breaking(a);
     if (urgent) return urgent;
+    const step = ageStep(a.first_seen_at) - ageStep(b.first_seen_at);
+    if (step) return step;
     const ca = perSection.get(sectionOf(a.triage_section)?.id ?? "") ?? 0;
     const cb = perSection.get(sectionOf(b.triage_section)?.id ?? "") ?? 0;
     return ca - cb || fresh(b) - fresh(a);
