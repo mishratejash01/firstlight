@@ -3,20 +3,29 @@ import "server-only";
 import { v2 as cloudinary } from "cloudinary";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { findSubjectImage, wikidataUrl } from "@/lib/engine/wikidata";
-import { attributionFor, searchLicensedImage } from "./openverse";
+import {
+  commonsSearchImage,
+  findSubjectImage,
+  wikidataUrl,
+  wikipediaPageImage,
+} from "@/lib/engine/wikidata";
+import { attributionFor, searchLicensedImage, type LicensedImage } from "./openverse";
 import { buildTypographicCard } from "./typographic-card";
 
 /**
  * Gives an article a lead image.
  *
  * Order of preference:
- *   1. The Wikimedia Commons picture of the person or organisation the story
- *      is about, resolved through Wikidata so it is that person, credited.
- *   2. An openly licensed photograph of the place, credited.
- *   3. A generated typographic card.
+ *   1. The Wikimedia Commons picture of whatever the story is about — a
+ *      person, a court, a village, an artwork — resolved through Wikidata so
+ *      it is that exact subject, credited.
+ *   2. The lead image of the subject's Wikipedia article.
+ *   3. A Commons file whose own title names the subject.
+ *   4. Open stock of a place or a specific multi-word subject, accepted only
+ *      when the photo's title confirms it.
+ *   5. A generated typographic card.
  *
- * There is deliberately no fourth option. The photograph from the article we
+ * There is deliberately no sixth option. The photograph from the article we
  * read is not available to us — it belongs to the outlet or their agency — and
  * a synthesised photorealistic image of a real event is fabrication whatever
  * the caption says.
@@ -179,88 +188,89 @@ export async function illustrateArticle({
 
   const sameAs: { name: string; url: string }[] = [];
 
+  /** Copies a licensed image into our own account and records it. */
+  const publish = async (image: LicensedImage, alt: string): Promise<Illustration | null> => {
+    const uploaded = await uploadRemote(image.url, "newswebsite/illustrations");
+    if (!uploaded) return null;
+
+    const credit = attributionFor(image);
+    await supabase.from("media_assets").insert({
+      public_id: uploaded.publicId,
+      secure_url: uploaded.url,
+      resource_type: "image",
+      bytes: uploaded.bytes,
+      // The subject, not the headline: alt text describes the picture, not
+      // the story it illustrates.
+      alt_text: alt,
+      credit,
+      licence: image.licence,
+      licence_url: image.licenceUrl,
+      creator: image.creator,
+      source_url: image.sourceUrl,
+      provider: image.provider,
+      uploaded_by: uploadedBy ?? null,
+    });
+
+    return { url: uploaded.url, alt, credit, kind: "photo", sameAs };
+  };
+
   if (allowPhotos) {
-    // People and organisations first, through Wikidata. This is the one route
-    // where the picture is tied to an identity rather than a keyword: the
-    // item was matched on type, and the image is the one Wikipedia's editors
-    // chose for that exact subject.
+    // The subjects the drafter said the story is about, in its order: the
+    // first is usually the main one.
     const named = subjects
-      .filter((subject) => subject.type === "Person" || subject.type === "Organization")
-      .slice(0, 2);
+      .map((subject) => ({ name: subject.name.trim(), type: subject.type }))
+      .filter((subject) => subject.name.length > 2)
+      .slice(0, 4);
 
+    // Tier one: the picture Wikipedia's editors chose for that exact subject.
+    // Identity is resolved by name and type on Wikidata, so this is the one
+    // route where the picture cannot be of a different Jackson. Every
+    // subject type qualifies — a court, a village, a tapestry, a charity —
+    // not only people. Measured on the stories that had ended up as cards,
+    // this alone would have illustrated eight of twelve subjects.
     for (const subject of named) {
-      const found = await findSubjectImage(subject.name.trim(), subject.type);
+      const found = await findSubjectImage(subject.name, subject.type);
       if (!found) continue;
-
-      sameAs.push({ name: subject.name.trim(), url: wikidataUrl(found.match.qid) });
+      sameAs.push({ name: subject.name, url: wikidataUrl(found.match.qid) });
       if (!found.image) continue;
-
-      const uploaded = await uploadRemote(found.image.url, "newswebsite/illustrations");
-      if (!uploaded) continue;
-
-      const credit = attributionFor(found.image);
-      await supabase.from("media_assets").insert({
-        public_id: uploaded.publicId,
-        secure_url: uploaded.url,
-        resource_type: "image",
-        bytes: uploaded.bytes,
-        alt_text: found.match.label,
-        credit,
-        licence: found.image.licence,
-        licence_url: found.image.licenceUrl,
-        creator: found.image.creator,
-        source_url: found.image.sourceUrl,
-        provider: found.image.provider,
-        uploaded_by: uploadedBy ?? null,
-      });
-
-      return { url: uploaded.url, alt: found.match.label, credit, kind: "photo", sameAs };
+      const published = await publish(found.image, found.match.label);
+      if (published) return published;
     }
 
-    const queries = photoCandidates(subjects);
+    // Tier two: the lead image of the subject's Wikipedia article, for
+    // subjects with a page but no Wikidata claim. Page title must match.
+    for (const subject of named) {
+      if (subject.type === "Person") continue;
+      const image = await wikipediaPageImage(subject.name);
+      if (!image) continue;
+      const published = await publish(image, subject.name);
+      if (published) return published;
+    }
 
-    let found = null;
-    let usedQuery = section;
-    for (const query of queries) {
+    // Tier three: a Commons file whose own title carries the subject's name.
+    for (const subject of named) {
+      if (subject.type === "Person") continue;
+      const image = await commonsSearchImage(subject.name);
+      if (!image) continue;
+      const published = await publish(image, image.title ?? subject.name);
+      if (published) return published;
+    }
+
+    // Tier four: open stock, for places and for specific multi-word subjects,
+    // accepted only when the photo's own title confirms the subject. Single
+    // common words are still excluded: that is where the collisions live.
+    const stockQueries = [
+      ...photoCandidates(subjects),
+      ...named
+        .filter((subject) => subject.type !== "Person" && subject.name.split(/\s+/).length >= 2)
+        .map((subject) => subject.name),
+    ].filter((query, index, all) => all.indexOf(query) === index);
+
+    for (const query of stockQueries) {
       const candidate = await searchLicensedImage(query);
-      // Reject anything whose own title does not confirm the subject. Better a
-      // card than a picture of the wrong Jackson.
       if (candidate && titleConfirmsSubject(candidate.title, query)) {
-        found = candidate;
-        usedQuery = query;
-        break;
-      }
-    }
-
-    if (found) {
-      const uploaded = await uploadRemote(found.url, "newswebsite/illustrations");
-      if (uploaded) {
-        const credit = attributionFor(found);
-
-        await supabase.from("media_assets").insert({
-          public_id: uploaded.publicId,
-          secure_url: uploaded.url,
-          resource_type: "image",
-          bytes: uploaded.bytes,
-          // The subject, not the headline: alt text describes the picture, not
-          // the story it illustrates.
-          alt_text: found.title ?? usedQuery,
-          credit,
-          licence: found.licence,
-          licence_url: found.licenceUrl,
-          creator: found.creator,
-          source_url: found.sourceUrl,
-          provider: found.provider,
-          uploaded_by: uploadedBy ?? null,
-        });
-
-        return {
-          url: uploaded.url,
-          alt: found.title ?? usedQuery,
-          credit,
-          kind: "photo",
-          sameAs,
-        };
+        const published = await publish(candidate, candidate.title ?? query);
+        if (published) return published;
       }
     }
   }
