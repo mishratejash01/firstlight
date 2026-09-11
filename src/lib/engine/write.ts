@@ -578,7 +578,7 @@ const briefSchema = z.object({
   imageBrief: z
     .string()
     .describe(
-      "The photograph this story needs, as a generic scene in three to eight words: 'hospital consultation room', 'undersea cable repair ship'. No names of people, companies or places.",
+      "The photograph this story needs, as a scene in three to eight words: 'hospital consultation room', 'monsoon flooding in a Delhi street'. A city, region or country may be named; never a person, a company or a party.",
     ),
 });
 
@@ -590,7 +590,7 @@ async function briefFor(headline: string, standfirst: string | null): Promise<st
       const { output } = await generateText({
         model,
         maxRetries: 0,
-        system: "You choose stock photographs for a news desk. Describe the scene, never a person or a named place.",
+        system: "You choose stock photographs for a news desk. Describe the scene; a place may be named, a person or a company never.",
         prompt: `Headline: ${headline}\n${standfirst ? `Standfirst: ${standfirst}` : ""}`,
         output: Output.object({ schema: briefSchema }),
       });
