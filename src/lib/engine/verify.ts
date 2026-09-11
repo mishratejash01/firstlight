@@ -4,7 +4,7 @@ import { Output, generateText } from "ai";
 import { z } from "zod";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { aiIsConfigured, modelChain } from "@/lib/ai/config";
+import { aiIsConfigured, runWithChain } from "@/lib/ai/config";
 
 /**
  * The verification gate: how sure do we need to be before we write?
@@ -100,12 +100,10 @@ export async function verifyEvent(input: {
 
   let extracted: z.infer<typeof claimsSchema> | null = null;
 
-  for (const model of modelChain("assist")) {
-    try {
+  try {
+    extracted = await runWithChain("assist", async (model) => {
       const { output } = await generateText({
         model,
-        // No retries on one model: a rate-limited model stays rate-limited for
-        // longer than a retry waits, and the next model in the chain is right there.
         maxRetries: 0,
         system: `You are a fact desk. Extract the specific factual claims these sources make
 about the story, grade the severity of each, and note which sources support or
@@ -115,11 +113,10 @@ supported claim.`,
         prompt: `Story: ${input.title}\n\n${sourceBlock}`,
         output: Output.object({ schema: claimsSchema }),
       });
-      extracted = output;
-      break;
-    } catch (error) {
-      console.warn("[verify] model failed, stepping down", error instanceof Error ? error.message : error);
-    }
+      return output;
+    });
+  } catch (error) {
+    console.warn("[verify] every model refused", error instanceof Error ? error.message : error);
   }
 
   if (!extracted) return unavailable("Verification model unavailable.");
