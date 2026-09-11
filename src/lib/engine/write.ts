@@ -793,7 +793,10 @@ export async function reillustrateCards(
       brief,
       relevantOnly: !isCard,
     });
-    if (!illustration || illustration.kind !== "photo") continue;
+    if (!illustration) continue;
+    // A card is only worth applying to a story that has nothing at all; a
+    // story that already has a card keeps waiting for a photograph.
+    if (illustration.kind !== "photo" && article.hero_image_url) continue;
 
     const { error } = await supabase
       .from("articles")
