@@ -162,7 +162,8 @@ export async function runAutonomousGeneration(): Promise<GenerationReport> {
 
   if (!enabled) return report;
 
-  const remaining = Math.max(dailyLimit - publishedToday, 0);
+  // Zero means no daily limit.
+  const remaining = dailyLimit > 0 ? Math.max(dailyLimit - publishedToday, 0) : 50;
   if (remaining === 0) return report;
 
   const { data: topics } = await supabase
