@@ -10,6 +10,9 @@ import { getSourceDocuments } from "@/lib/fetch/extract";
 import { resolveGoogleNewsUrl } from "@/lib/fetch/google-redirect";
 import { illustrateArticle } from "@/lib/media/illustrate";
 import { verifyEvent } from "./verify";
+import { Output, generateText } from "ai";
+import { z } from "zod";
+import { aiIsConfigured, modelChain } from "@/lib/ai/config";
 import { recordSameAs } from "./wikidata";
 
 /**
@@ -404,6 +407,7 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
       related: draft.entities
         .filter((entity) => entity.relation !== "about")
         .map((entity) => ({ name: entity.name, type: entity.type })),
+      brief: draft.imageBrief,
     });
 
     const { data: article, error } = await supabase
@@ -425,6 +429,7 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
         hero_image_url: illustration?.url ?? null,
         hero_image_alt: illustration?.alt ?? null,
         hero_image_credit: illustration?.credit ?? null,
+        image_brief: draft.imageBrief,
       })
       .select("id, slug")
       .single();
@@ -569,22 +574,61 @@ export type ReillustrateReport = { considered: number; replaced: number; titles:
  * wider than they were when the story was written, and the card is what
  * readers see until this succeeds.
  */
-export async function reillustrateCards(limit = 3): Promise<ReillustrateReport> {
+const briefSchema = z.object({
+  imageBrief: z
+    .string()
+    .describe(
+      "The photograph this story needs, as a generic scene in three to eight words: 'hospital consultation room', 'undersea cable repair ship'. No names of people, companies or places.",
+    ),
+});
+
+/** Asks the assist model what picture a story needs, when the draft did not say. */
+async function briefFor(headline: string, standfirst: string | null): Promise<string | null> {
+  if (!aiIsConfigured()) return null;
+  for (const model of modelChain("assist")) {
+    try {
+      const { output } = await generateText({
+        model,
+        maxRetries: 0,
+        system: "You choose stock photographs for a news desk. Describe the scene, never a person or a named place.",
+        prompt: `Headline: ${headline}\n${standfirst ? `Standfirst: ${standfirst}` : ""}`,
+        output: Output.object({ schema: briefSchema }),
+      });
+      return output.imageBrief;
+    } catch {
+      // Step down the chain.
+    }
+  }
+  return null;
+}
+
+/**
+ * Stories whose picture could only have come from a place or a passing
+ * mention: nothing they are about is a person, an institution or a work.
+ * Those are the ones a landmark stands in for, and the ones a brief fixes.
+ */
+function onlyPlaces(subjects: { type: string; relation: string }[]): boolean {
+  const about = subjects.filter((s) => s.relation === "about");
+  return about.every((s) => s.type === "Place");
+}
+
+export async function reillustrateCards(limit = 3, scope: "cards" | "all" = "cards"): Promise<ReillustrateReport> {
   const supabase = createAdminClient();
   const report: ReillustrateReport = { considered: 0, replaced: 0, titles: [] };
 
-  const { data: articles } = await supabase
+  let query = supabase
     .from("articles")
-    .select("id, headline, hero_image_credit, categories ( name )")
+    .select("id, headline, standfirst, hero_image_credit, image_brief, categories ( name )")
     .eq("ai_assisted", true)
     .in("status", ["scheduled", "published", "draft"])
     .gte("created_at", new Date(Date.now() - 14 * 24 * 3600_000).toISOString())
-    .or("hero_image_credit.eq.The Federal Post,hero_image_url.is.null")
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .limit(scope === "all" ? limit * 3 : limit);
+  if (scope === "cards") query = query.or("hero_image_credit.eq.The Federal Post,hero_image_url.is.null");
+  const { data: articles } = await query;
 
   for (const article of articles ?? []) {
-    report.considered += 1;
+    if (report.considered >= limit) break;
 
     const { data: links } = await supabase
       .from("article_entities")
@@ -598,10 +642,22 @@ export async function reillustrateCards(limit = 3): Promise<ReillustrateReport> 
     const all = (links ?? []).map(toSubject).filter((s): s is NonNullable<typeof s> => Boolean(s));
     const subjects = all.filter((s) => s.relation === "about");
     const related = all.filter((s) => s.relation !== "about");
-    if (!subjects.length && !related.length) continue;
+
+    // In the wider scope, only stories whose picture can only have been a
+    // stand-in are redone; a real portrait of the subject is left alone.
+    const isCard = article.hero_image_credit === "The Federal Post" || !article.hero_image_credit;
+    if (scope === "all" && !isCard && !onlyPlaces(all)) continue;
+    report.considered += 1;
+
+    let brief = article.image_brief;
+    if (!brief) {
+      brief = await briefFor(article.headline, article.standfirst);
+      if (brief) await supabase.from("articles").update({ image_brief: brief }).eq("id", article.id);
+    }
+    if (!subjects.length && !related.length && !brief) continue;
 
     const section = (article.categories as unknown as { name: string } | null)?.name ?? "News";
-    const illustration = await illustrateArticle({ headline: article.headline, section, subjects, related });
+    const illustration = await illustrateArticle({ headline: article.headline, section, subjects, related, brief });
     if (!illustration || illustration.kind !== "photo") continue;
 
     const { error } = await supabase
