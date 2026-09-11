@@ -227,7 +227,7 @@ async function attachToEvent(
   // row was just read, and one pulse's worth of drift is not worth a function.
   const { data: current } = await supabase
     .from("story_events")
-    .select("region_mix, mention_count, source_keys")
+    .select("region_mix, mention_count, source_keys, last_seen_at")
     .eq("id", event.id)
     .single();
 
@@ -243,7 +243,10 @@ async function attachToEvent(
       entities: mergedEntities,
       source_keys: sourceKeys,
       mention_count: (current?.mention_count ?? event.mention_count) + 1,
-      last_seen_at: observedAt,
+      // Never earlier than it already is: a late-arriving mention with an
+      // old publication time must not make the event look older.
+      last_seen_at:
+        current?.last_seen_at && current.last_seen_at > observedAt ? current.last_seen_at : observedAt,
       region_mix: mix as never,
     })
     .eq("id", event.id);
