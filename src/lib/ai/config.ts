@@ -8,6 +8,7 @@ import { createGroq } from "@ai-sdk/groq";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { LanguageModel } from "ai";
 
+import { SITE_NAME } from "@/lib/site";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -122,7 +123,7 @@ function build(provider: Provider, key: string, modelId: string): LanguageModel 
         apiKey: key,
         headers: {
           "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL ?? "https://newswebsite-pi.vercel.app",
-          "X-Title": "The Federal Post",
+          "X-Title": SITE_NAME,
         },
       })(modelId);
     case "anthropic":
