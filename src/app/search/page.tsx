@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 
 import { ArticleCard } from "@/components/article/article-card";
 import { SiteFooter } from "@/components/site/site-footer";
+import { SearchField } from "@/components/site/search-field";
 import { SiteHeader } from "@/components/site/site-header";
 import { searchArticles } from "@/lib/queries/articles";
 import { captureRequestContext, logSearch } from "@/lib/analytics/server-events";
@@ -39,23 +40,9 @@ export default async function SearchPage(props: PageProps<"/search">) {
       <main className="route-enter mx-auto max-w-page px-4 sm:px-6">
         <div className="border-b border-hairline py-8">
           <h1 className="text-hero text-ink">Search</h1>
-          <form action="/search" method="get" className="mt-5 flex max-w-xl flex-col gap-2 sm:flex-row">
-            <label htmlFor="q" className="sr-only">Search articles</label>
-            <input
-              id="q"
-              name="q"
-              type="search"
-              defaultValue={query}
-              placeholder="Search reporting"
-              className="min-w-0 flex-1 rounded-control border border-hairline bg-paper px-3 py-2.5 text-body text-ink placeholder:text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-            />
-            <button
-              type="submit"
-              className="rounded-control border border-accent bg-accent px-5 py-2.5 text-body text-paper hover:opacity-90"
-            >
-              Search
-            </button>
-          </form>
+          <div className="mt-5">
+            <SearchField variant="full" defaultValue={query} />
+          </div>
         </div>
 
         {query ? (
