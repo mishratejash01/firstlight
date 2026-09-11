@@ -148,6 +148,8 @@ export async function triageEvent(input: {
   independentSources: number;
   mentions: CandidateMention[];
   sections: string[];
+  /** Headlines already live on the site, so a repeat can be called a repeat. */
+  published?: string[];
 }): Promise<
   { ok: true; triage: EventTriage; modelId: string; ms: number } | { ok: false; error: string }
 > {
@@ -183,6 +185,9 @@ export async function triageEvent(input: {
     regions ? `Regions: ${regions}` : "",
     `\nWhat each source is saying:\n${evidence || "  (no headlines captured)"}`,
     `\nSignal readings:\n${describeSignals(input.features, input.independentSources)}`,
+    input.published?.length
+      ? `\nAlready published on our site in the last day (mark a repeat of any of these as duplicate):\n${input.published.map((h) => `  - ${h}`).join("\n")}`
+      : "",
     `\nAvailable sections: ${input.sections.join(", ")}`,
   ]
     .filter(Boolean)
@@ -320,6 +325,15 @@ export async function triageCandidates(
 
   const sections = (categories ?? []).map((c) => c.name);
 
+  const { data: recent } = await supabase
+    .from("articles")
+    .select("headline")
+    .in("status", ["published", "scheduled"])
+    .gte("created_at", new Date(Date.now() - 24 * 3600_000).toISOString())
+    .order("created_at", { ascending: false })
+    .limit(60);
+  const published = (recent ?? []).map((r) => r.headline);
+
   // The desk's own exclusion list — horoscopes, betting, lottery draws —
   // curated on the trends page. A match is a verdict that needs no model.
   const { data: exclusions } = await supabase.from("trend_exclusions").select("pattern");
@@ -374,6 +388,7 @@ export async function triageCandidates(
       independentSources: Number(event.independent_sources ?? 0),
       mentions: (mentions ?? []) as CandidateMention[],
       sections,
+      published,
     });
 
     if (!result.ok) {
