@@ -323,9 +323,12 @@ export async function wikipediaPageImage(name: string): Promise<LicensedImage | 
   const page = Object.values(data?.query?.pages ?? {})[0];
   if (!page?.pageimage) return null;
 
+  // The page must be about the name, not a fragment of it: "Mira Murati"
+  // must not resolve to Mira, a town near Venice, because "Mira" fits
+  // inside her name. Every word of the name has to be in the page title.
   const title = normaliseName(page.title);
-  const wanted = normaliseName(name);
-  if (!title.includes(wanted) && !wanted.includes(title)) return null;
+  const wanted = normaliseName(name).split(" ").filter((word) => word.length > 1);
+  if (!wanted.length || !wanted.every((word) => title.split(" ").includes(word))) return null;
 
   return commonsImage(page.pageimage);
 }
