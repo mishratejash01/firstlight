@@ -57,6 +57,79 @@ export function attributionFor(image: LicensedImage): string {
   return parts.join(" ");
 }
 
+/**
+ * Several usable candidates for a query, with the library's own tags, so a
+ * caller can judge relevance rather than take the first hit on trust.
+ */
+export async function searchLicensedImages(
+  query: string,
+  limit = 8,
+): Promise<(LicensedImage & { tags: string[] })[]> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+
+  const url =
+    "https://api.openverse.org/v1/images/" +
+    `?q=${encodeURIComponent(query)}` +
+    `&page_size=${Math.min(Math.max(limit, 1), 20)}` +
+    "&license_type=commercial,modification" +
+    "&size=medium,large" +
+    "&mature=false";
+
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "TheFederalPostBot/1.0 (+https://newswebsite-pi.vercel.app)",
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    });
+    if (!response.ok) return [];
+
+    const data = (await response.json()) as {
+      results?: {
+        url?: string;
+        title?: string;
+        creator?: string;
+        license?: string;
+        license_version?: string;
+        license_url?: string;
+        foreign_landing_url?: string;
+        provider?: string;
+        width?: number;
+        height?: number;
+        tags?: { name?: string }[];
+      }[];
+    };
+
+    const usable: (LicensedImage & { tags: string[] })[] = [];
+    for (const result of data.results ?? []) {
+      if (!result.url || !licenceIsUsable(result.license)) continue;
+      const code = (result.license ?? "").split(/\s+/)[0].toLowerCase();
+      if ((code === "by" || code === "by-sa") && !result.creator) continue;
+      if (result.width && result.height && result.height > result.width) continue;
+      usable.push({
+        url: result.url,
+        title: result.title ?? null,
+        creator: result.creator ?? null,
+        licence: [result.license, result.license_version].filter(Boolean).join(" "),
+        licenceUrl: result.license_url ?? null,
+        sourceUrl: result.foreign_landing_url ?? null,
+        provider: result.provider ?? "Openverse",
+        width: result.width ?? null,
+        height: result.height ?? null,
+        tags: (result.tags ?? []).map((tag) => tag.name ?? "").filter(Boolean),
+      });
+    }
+    return usable;
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function searchLicensedImage(
   query: string,
 ): Promise<LicensedImage | null> {
