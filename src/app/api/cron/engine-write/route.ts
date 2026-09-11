@@ -2,6 +2,7 @@ import { generateText } from "ai";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runWithChain } from "@/lib/ai/config";
+import { commonsLogo, findWikidataItem } from "@/lib/engine/wikidata";
 import { triageCandidates } from "@/lib/engine/triage";
 import { redraftEvent, reillustrateCards, writeEvents } from "@/lib/engine/write";
 
@@ -30,6 +31,14 @@ export async function GET(request: Request) {
 
   const params = new URL(request.url).searchParams;
   const limit = Math.min(Math.max(Number(params.get("limit") ?? 2), 1), 4);
+
+  // What the identity lookup makes of a name, for checking a bad picture.
+  const identity = params.get("identity");
+  if (identity) {
+    const item = await findWikidataItem(identity, params.get("type") ?? "Organization");
+    const logo = item ? await commonsLogo(item.qid) : null;
+    return Response.json({ ok: true, identity, type: params.get("type") ?? "Organization", item, logo: logo?.title ?? null });
+  }
 
   // One trivial call through the chain, reporting which key answered.
   if (params.get("probe")) {
