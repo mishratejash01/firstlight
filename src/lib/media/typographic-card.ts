@@ -1,5 +1,7 @@
 import "server-only";
 
+import { SITE_NAME } from "@/lib/site";
+
 /**
  * A generated lead card, for stories where no suitably licensed photograph
  * exists.
@@ -96,6 +98,6 @@ export function buildTypographicCard({
           letter-spacing="0.5" fill="#9AA0AC">${escapeXml(section)}</text>
     ${headlineLines}
     <text x="80" y="${HEIGHT - 64}" font-family="Helvetica, Arial, sans-serif"
-          font-size="19" fill="#9AA0AC">The Federal Post</text>
+          font-size="19" fill="#9AA0AC">${escapeXml(SITE_NAME)}</text>
   </svg>`;
 }
