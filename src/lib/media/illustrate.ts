@@ -526,6 +526,20 @@ export async function illustrateArticle({
       .slice(0, 3);
 
     for (const subject of mentioned) {
+      // A mentioned company's mark before its building, for the same reason
+      // as above: a story about people leaving the labs is better served by
+      // a lab's logo than by its office block.
+      if (LOGO_TYPES.has(subject.type)) {
+        const item = await findWikidataItem(subject.name, subject.type);
+        if (item) {
+          sameAs.push({ name: subject.name, url: wikidataUrl(item.qid) });
+          const logo = await commonsLogo(item.qid);
+          if (logo) {
+            const published = await publish(logo, `${item.label} logo`, { pad: true });
+            if (published) return published;
+          }
+        }
+      }
       const found = await findSubjectImage(subject.name, subject.type);
       if (found?.image) {
         const published = await publish(found.image, found.match.label);
