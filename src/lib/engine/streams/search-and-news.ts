@@ -24,6 +24,16 @@ function hostOf(url: string): string {
   }
 }
 
+/** A stable key for an outlet: its host where the feed gives one, else its name. */
+export function outletKey(name: string | null | undefined, siteUrl: string | null | undefined): string {
+  if (siteUrl) {
+    const host = hostOf(siteUrl);
+    if (host !== "unknown") return host;
+  }
+  const slug = (name ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return slug ? `outlet:${slug}` : "unknown";
+}
+
 async function readSetting<T>(key: string, fallback: T): Promise<T> {
   const supabase = createAdminClient();
   const { data } = await supabase
@@ -100,13 +110,16 @@ export async function fetchCorroborationFor(
     for (const hit of hits.slice(0, 12)) {
       mentions.push({
         sourceKind: "gnews",
-        sourceKey: hostOf(hit.url),
+        // The link is a Google redirect, so the outlet has to come from the
+        // feed's source tag. Keyed by the outlet's own host, every hit from a
+        // different paper is a different source, which is the whole point.
+        sourceKey: outletKey(hit.source, hit.sourceUrl),
         externalId: `gnews:${hit.url}`,
         title: hit.title,
         url: hit.url,
         region,
         observedAt: hit.publishedAt ?? undefined,
-        raw: { source: hit.source, corroboratingEvent: event.id },
+        raw: { source: hit.source, sourceUrl: hit.sourceUrl, corroboratingEvent: event.id },
       });
     }
   }
