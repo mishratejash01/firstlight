@@ -602,7 +602,11 @@ async function briefFor(headline: string, standfirst: string | null): Promise<st
   return null;
 }
 
-export async function reillustrateCards(limit = 3, scope: "cards" | "all" = "cards"): Promise<ReillustrateReport> {
+export async function reillustrateCards(
+  limit = 3,
+  scope: "cards" | "all" = "cards",
+  slug?: string,
+): Promise<ReillustrateReport> {
   const supabase = createAdminClient();
   const report: ReillustrateReport = { considered: 0, replaced: 0, titles: [] };
 
@@ -614,7 +618,8 @@ export async function reillustrateCards(limit = 3, scope: "cards" | "all" = "car
     .gte("created_at", new Date(Date.now() - 14 * 24 * 3600_000).toISOString())
     .order("created_at", { ascending: false })
     .limit(scope === "all" ? limit * 3 : limit);
-  if (scope === "cards") query = query.or("hero_image_credit.eq.The Federal Post,hero_image_url.is.null");
+  if (slug) query = query.eq("slug", slug);
+  else if (scope === "cards") query = query.or("hero_image_credit.eq.The Federal Post,hero_image_url.is.null");
   const { data: articles } = await query;
 
   for (const article of articles ?? []) {
