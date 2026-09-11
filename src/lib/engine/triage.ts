@@ -99,6 +99,18 @@ new companies in Startups; the rest of technology in Technology.
 A sharp rise in attention from several independent outlets is evidence of
 something happening; it is not on its own evidence that it is news. Be strict.
 A publication that chases every spike stops being a publication.
+
+Two rules about your own knowledge:
+- Your training predates today. Products, models, companies, office-holders
+  and events you have never heard of are the normal case, not a sign of
+  fiction. Never reject a story as unverifiable or fictional because it is
+  new to you. Judge it by the sources: a lab's own announcement plus an
+  established outlet is a real launch.
+- What the leaders of the major AI and technology companies say on the
+  record — about their products, their rivals, the industry, its risks, its
+  timelines or its economics — is news for the AI section, including
+  projections and warnings. "Marketing" is a press release nobody
+  independent picked up, not a chief executive's public statement.
 `.trim();
 
 type CandidateMention = {
