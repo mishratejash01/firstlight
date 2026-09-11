@@ -26,6 +26,11 @@ export const draftedArticleSchema = z.object({
     .describe(
       "The photograph this story needs, as a scene in three to eight words a picture library would understand: 'hospital consultation room', 'undersea cable repair ship', 'monsoon flooding in a Delhi street'. A city, region or country may be named; never a person, a company or a party, and no faces of identifiable people.",
     ),
+  imageSearchTerms: z
+    .string()
+    .describe(
+      "Two or three plain words a picture library indexes, for the same photograph: 'stock market', 'server rack', 'flooded street', 'courtroom'. No names.",
+    ),
   keyFacts: z
     .array(
       z.object({
