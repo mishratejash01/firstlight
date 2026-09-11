@@ -127,6 +127,19 @@ export async function fetchCorroborationFor(
   return mentions;
 }
 
+/**
+ * Wire feeds that are themselves beat coverage. An item from TechCrunch's
+ * AI feed is AI news whether or not a search also found it, and should get
+ * the beat's priority and threshold.
+ */
+const BEAT_FEEDS: Record<string, string> = {
+  "techcrunch-ai": "ai",
+  "the-verge-ai": "ai",
+  "mit-technology-review-ai": "ai",
+  "wired-ai": "ai",
+  "techcrunch-startups": "startups",
+};
+
 /** Wire items already ingested by the RSS worker, as mentions. */
 export async function fetchWireMentions(): Promise<IncomingMention[]> {
   const supabase = createAdminClient();
@@ -148,7 +161,10 @@ export async function fetchWireMentions(): Promise<IncomingMention[]> {
       body: item.summary,
       url: item.link,
       observedAt: item.published_at ?? item.ingested_at,
-      raw: { wireItemId: item.id },
+      raw: {
+        wireItemId: item.id,
+        ...(source?.slug && BEAT_FEEDS[source.slug] ? { beat: BEAT_FEEDS[source.slug] } : {}),
+      },
     };
   });
 }
