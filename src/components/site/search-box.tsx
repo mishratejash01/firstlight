@@ -1,13 +1,14 @@
 import Link from "next/link";
 
+import { SearchField } from "@/components/site/search-field";
+
 /**
  * Search, from the flag.
  *
- * A plain GET form to /search, so it works before hydration and without
- * JavaScript. On a phone the dateline row has no room for a field, so the
- * control collapses to a link that opens the search page, which has its own
- * field. The glyph is drawn inline rather than pulled from an icon set: one
- * shape, no dependency.
+ * On a phone the dateline row has no room for a field, so the control
+ * collapses to a link that opens the search page, which has its own field.
+ * Wider screens get the suggesting field. The glyph is drawn inline rather
+ * than pulled from an icon set: one shape, no dependency.
  */
 function Glyph() {
   return (
@@ -37,28 +38,9 @@ export function SearchBox() {
       >
         <Glyph />
       </Link>
-
-      <form
-        action="/search"
-        method="get"
-        role="search"
-        className="hidden items-center gap-2 border-b border-hairline pb-0.5 sm:flex"
-      >
-        <label htmlFor="site-search" className="sr-only">
-          Search
-        </label>
-        <input
-          id="site-search"
-          type="search"
-          name="q"
-          placeholder="Search"
-          autoComplete="off"
-          className="w-36 bg-transparent text-meta text-ink placeholder:text-muted focus:outline-none"
-        />
-        <button type="submit" aria-label="Search" className="text-ink hover:text-accent">
-          <Glyph />
-        </button>
-      </form>
+      <div className="hidden sm:block">
+        <SearchField variant="compact" />
+      </div>
     </>
   );
 }
