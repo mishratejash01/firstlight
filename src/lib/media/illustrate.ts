@@ -10,7 +10,12 @@ import {
   wikidataUrl,
   wikipediaPageImage,
 } from "@/lib/engine/wikidata";
-import { attributionFor, searchLicensedImage, type LicensedImage } from "./openverse";
+import {
+  attributionFor,
+  searchLicensedImage,
+  searchLicensedImages,
+  type LicensedImage,
+} from "./openverse";
 import { buildTypographicCard } from "./typographic-card";
 
 /**
@@ -155,6 +160,53 @@ function usableBrief(
   const lower = text.toLowerCase();
   if (subjects.some((subject) => lower.includes(subject.name.toLowerCase()))) return null;
   return lower;
+}
+
+/**
+ * A picture of the scene the writer described.
+ *
+ * Measured on real briefs before it was written this way: a full phrase like
+ * "courtroom gavel on wooden desk" returns nothing from either library, so
+ * the two most distinctive words are tried as well. Commons goes first
+ * because its file names describe what is in the frame; the open-stock
+ * library is tagged generously, which is how "historic city street with
+ * hotels" once produced a Grand Canyon hotel on one shared word. Two words
+ * must match, and on stock one of them must be in the title itself.
+ */
+async function sceneImage(scene: string): Promise<LicensedImage | null> {
+  const content = scene.split(/\s+/).filter((word) => word.length > 3);
+  if (content.length < 2) return null;
+  const shortened = [...content].sort((a, b) => b.length - a.length).slice(0, 2).join(" ");
+  const queries = [...new Set([scene, shortened])];
+
+  for (const query of queries) {
+    const fromCommons = await commonsSearchImage(query);
+    if (fromCommons && countMatches(fromCommons.title, [], scene) >= 2) return fromCommons;
+
+    const candidates = await searchLicensedImages(query, 10);
+    for (const candidate of candidates) {
+      if (looksLikeSymbol(candidate.title ?? "")) continue;
+      if (!sharesKeyword(candidate.title, scene)) continue;
+      if (countMatches(candidate.title, candidate.tags, scene) >= 2) return candidate;
+    }
+  }
+  return null;
+}
+
+/** How many distinctive words of the scene appear in a picture's title and tags. */
+function countMatches(title: string | null, tags: string[], scene: string): number {
+  const haystack = [title ?? "", ...tags]
+    .join(" ")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .map(stem)
+    .filter(Boolean);
+  return scene
+    .split(/\s+/)
+    .filter((word) => word.length > 3)
+    .map(stem)
+    .filter((word) => haystack.some((h) => h === word || (h.length > 4 && word.startsWith(h)) || (word.length > 4 && h.startsWith(word))))
+    .length;
 }
 
 /** Crude stem: "orangutans" and "orangutan" are the same word for this purpose. */
@@ -310,12 +362,8 @@ export async function illustrateArticle({
     // writer described the story rather than a name in it.
     const scene = usableBrief(brief, named);
     if (scene) {
-      const candidate = (await searchLicensedImage(scene)) ?? (await commonsSearchImage(scene));
-      if (
-        candidate &&
-        !looksLikeSymbol(candidate.title ?? "") &&
-        sharesKeyword(candidate.title, scene)
-      ) {
+      const candidate = await sceneImage(scene);
+      if (candidate) {
         const published = await publish(candidate, `${scene} (file image)`);
         if (published) return published;
       }
