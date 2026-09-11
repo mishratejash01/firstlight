@@ -1,4 +1,4 @@
-# The Federal Post
+# The India Front
 
 A general-interest news platform: politics, business, technology, world, health, science,
 sports, culture and opinion.
