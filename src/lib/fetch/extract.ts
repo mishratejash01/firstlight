@@ -40,9 +40,53 @@ export type SourceDocument = {
   excerpt: string | null;
   content: string | null;
   wordCount: number | null;
+  /** When the outlet says it published the piece, if the page says so. */
+  publishedAt: string | null;
   status: "ok" | "blocked" | "failed" | "unextractable";
   error?: string;
 };
+
+/**
+ * The publication date the page declares about itself.
+ *
+ * Feeds do not always carry one — Google Trends matches never do — and a
+ * story dated by the moment we first saw it can be days old. The article
+ * page usually knows: Open Graph and article meta tags, JSON-LD, or a
+ * <time> element in the byline. First plausible date wins.
+ */
+function declaredPublishedAt(document: Document): string | null {
+  const candidates: string[] = [];
+  const meta = (selector: string) =>
+    document.querySelector(selector)?.getAttribute("content") ?? null;
+  for (const selector of [
+    'meta[property="article:published_time"]',
+    'meta[name="article:published_time"]',
+    'meta[property="og:published_time"]',
+    'meta[name="pubdate"]',
+    'meta[name="publish-date"]',
+    'meta[name="date"]',
+    'meta[itemprop="datePublished"]',
+    'meta[name="dc.date"]',
+    'meta[name="DC.date.issued"]',
+  ]) {
+    const value = meta(selector);
+    if (value) candidates.push(value);
+  }
+  for (const script of Array.from(document.querySelectorAll('script[type="application/ld+json"]')).slice(0, 5)) {
+    const match = /"datePublished"\s*:\s*"([^"]+)"/.exec(script.textContent ?? "");
+    if (match) candidates.push(match[1]);
+  }
+  const time = document.querySelector("time[datetime]")?.getAttribute("datetime");
+  if (time) candidates.push(time);
+
+  for (const candidate of candidates) {
+    const parsed = new Date(candidate);
+    if (!Number.isNaN(parsed.getTime()) && parsed.getFullYear() > 2000 && parsed.getTime() < Date.now() + 86_400_000) {
+      return parsed.toISOString();
+    }
+  }
+  return null;
+}
 
 function tidy(text: string): string {
   return text
@@ -62,6 +106,7 @@ async function fetchAndExtract(url: string): Promise<SourceDocument> {
     excerpt: null,
     content: null,
     wordCount: null,
+    publishedAt: null,
     status: "failed",
   };
 
@@ -138,6 +183,12 @@ async function fetchAndExtract(url: string): Promise<SourceDocument> {
     }
 
     const truncated = content.slice(0, MAX_CONTENT_CHARS);
+    const declared = declaredPublishedAt(document as unknown as Document);
+    const readabilityDate = (article as { publishedTime?: string | null }).publishedTime;
+    const fromReadability =
+      readabilityDate && !Number.isNaN(new Date(readabilityDate).getTime())
+        ? new Date(readabilityDate).toISOString()
+        : null;
 
     return {
       url,
@@ -147,6 +198,7 @@ async function fetchAndExtract(url: string): Promise<SourceDocument> {
       excerpt: article.excerpt ? tidy(article.excerpt) : null,
       content: truncated,
       wordCount: truncated.split(/\s+/).filter(Boolean).length,
+      publishedAt: declared ?? fromReadability,
       status: "ok",
     };
   } catch (error) {
@@ -172,7 +224,7 @@ export async function getSourceDocument(url: string): Promise<SourceDocument> {
 
   const { data: cached } = await supabase
     .from("source_documents")
-    .select("url, host, title, byline, excerpt, content, word_count, status, error, fetched_at")
+    .select("url, host, title, byline, excerpt, content, word_count, published_at, status, error, fetched_at")
     .eq("url", url)
     .maybeSingle();
 
@@ -185,6 +237,7 @@ export async function getSourceDocument(url: string): Promise<SourceDocument> {
       excerpt: cached.excerpt,
       content: cached.content,
       wordCount: cached.word_count,
+      publishedAt: cached.published_at,
       status: cached.status as SourceDocument["status"],
       error: cached.error ?? undefined,
     };
@@ -201,6 +254,7 @@ export async function getSourceDocument(url: string): Promise<SourceDocument> {
       excerpt: document.excerpt,
       content: document.content,
       word_count: document.wordCount,
+      published_at: document.publishedAt,
       status: document.status,
       error: document.error ?? null,
       fetched_at: new Date().toISOString(),
