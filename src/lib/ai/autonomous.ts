@@ -90,6 +90,9 @@ async function publishDraft(
     subjects: draft.entities
       .filter((entity) => entity.relation === "about")
       .map((entity) => ({ name: entity.name, type: entity.type })),
+    related: draft.entities
+      .filter((entity) => entity.relation !== "about")
+      .map((entity) => ({ name: entity.name, type: entity.type })),
   });
 
   const { data: article, error } = await supabase
