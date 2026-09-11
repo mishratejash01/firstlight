@@ -1400,6 +1400,7 @@ export type Database = {
           burst: number
           centroid: string | null
           claimed_at: string | null
+          corroborated_at: string | null
           corroboration: number
           created_at: string
           entities: string[]
@@ -1419,6 +1420,7 @@ export type Database = {
           score_breakdown: Json
           severity: string | null
           source_count: number
+          source_keys: string[]
           status: string
           summary: string | null
           surprise: number
@@ -1440,6 +1442,7 @@ export type Database = {
           burst?: number
           centroid?: string | null
           claimed_at?: string | null
+          corroborated_at?: string | null
           corroboration?: number
           created_at?: string
           entities?: string[]
@@ -1459,6 +1462,7 @@ export type Database = {
           score_breakdown?: Json
           severity?: string | null
           source_count?: number
+          source_keys?: string[]
           status?: string
           summary?: string | null
           surprise?: number
@@ -1480,6 +1484,7 @@ export type Database = {
           burst?: number
           centroid?: string | null
           claimed_at?: string | null
+          corroborated_at?: string | null
           corroboration?: number
           created_at?: string
           entities?: string[]
@@ -1499,6 +1504,7 @@ export type Database = {
           score_breakdown?: Json
           severity?: string | null
           source_count?: number
+          source_keys?: string[]
           status?: string
           summary?: string | null
           surprise?: number
@@ -1903,6 +1909,7 @@ export type Database = {
           id: string
           mention_count: number
           similarity: number
+          source_keys: string[]
           title: string
         }[]
       }
