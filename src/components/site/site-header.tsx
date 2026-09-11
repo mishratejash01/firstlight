@@ -2,6 +2,7 @@ import { SITE_NAME } from "@/lib/site";
 import Link from "next/link";
 
 import { AccountMenu } from "@/components/site/account-menu";
+import { SearchBox } from "@/components/site/search-box";
 import { SocialLinks } from "@/components/site/social-links";
 import { BreakingStrip } from "@/components/article/breaking-strip";
 import { getNavCategories } from "@/lib/queries/navigation";
@@ -58,6 +59,7 @@ export async function SiteHeader({
               <time dateTime={now.toISOString().slice(0, 10)}>{today}</time>
             </p>
             <div className="flex items-center gap-4">
+              <SearchBox />
               <SocialLinks className="sm:hidden" />
               <AccountMenu />
             </div>
