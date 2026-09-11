@@ -306,12 +306,29 @@ function magnitudeFeature(agg: Aggregate): number {
   return clamp(Math.sqrt(best) * 10, 0, 10);
 }
 
-/** Home-market share, plus reader demand where we have any. */
-function relevanceFeature(agg: Aggregate, demand: number): number {
+/**
+ * Home-market share, reader demand, and editorial priority: an event that a
+ * standing beat search brought in — artificial intelligence, startups — is
+ * one the desk has said it wants covered in depth, and that is relevance
+ * in the plainest sense.
+ */
+function relevanceFeature(agg: Aggregate, demand: number, onBeat: boolean): number {
   const mix = agg.region_mix ?? {};
   const total = Object.values(mix).reduce((s, n) => s + Number(n), 0);
   const home = total ? Number(mix[HOME_REGION] ?? 0) / total : 0;
-  return clamp(home * 6 + Math.min(demand, 4), 0, 10);
+  return clamp(home * 6 + Math.min(demand, 4) + (onBeat ? 5 : 0), 0, 10);
+}
+
+/** Events with at least one mention from a standing beat search. */
+async function loadBeatEvents(): Promise<Set<string>> {
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("signal_mentions")
+    .select("event_id")
+    .not("raw->beat", "is", null)
+    .gte("observed_at", new Date(Date.now() - 48 * 3600_000).toISOString())
+    .limit(5000);
+  return new Set((data ?? []).map((r) => r.event_id).filter((id): id is string => Boolean(id)));
 }
 
 /** 1 minus the strongest entity overlap with anything published in a week. */
@@ -541,10 +558,11 @@ export async function scoreLiveEvents(): Promise<ScoreReport> {
   const baselines = (baselineRows ?? []) as unknown as Baseline[];
 
   const allSourceKeys = aggregates.flatMap((a) => a.sources.map((s) => s.key));
-  const [sourceInfo, recentSets, searches] = await Promise.all([
+  const [sourceInfo, recentSets, searches, beatEvents] = await Promise.all([
     loadSourceInfo(allSourceKeys),
     loadRecentEntitySets(),
     loadSearches(),
+    loadBeatEvents(),
   ]);
 
   const results: { title: string; score: number }[] = [];
@@ -564,7 +582,7 @@ export async function scoreLiveEvents(): Promise<ScoreReport> {
       lead_authority: authorityFeature(agg, sourceInfo),
       acceleration: accelerationFeature(agg),
       magnitude: magnitudeFeature(agg),
-      relevance: relevanceFeature(agg, demand),
+      relevance: relevanceFeature(agg, demand, beatEvents.has(agg.event_id)),
       novelty: noveltyFeature(agg, recentSets),
       freshness: freshnessFeature(agg),
     };
