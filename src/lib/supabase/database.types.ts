@@ -480,6 +480,7 @@ export type Database = {
           hero_image_url: string | null
           id: string
           image_brief: string | null
+          image_terms: string | null
           is_breaking: boolean
           meta_description: string | null
           meta_title: string | null
@@ -515,6 +516,7 @@ export type Database = {
           hero_image_url?: string | null
           id?: string
           image_brief?: string | null
+          image_terms?: string | null
           is_breaking?: boolean
           meta_description?: string | null
           meta_title?: string | null
@@ -550,6 +552,7 @@ export type Database = {
           hero_image_url?: string | null
           id?: string
           image_brief?: string | null
+          image_terms?: string | null
           is_breaking?: boolean
           meta_description?: string | null
           meta_title?: string | null
