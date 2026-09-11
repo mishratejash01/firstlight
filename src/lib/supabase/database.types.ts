@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_key_health: {
+        Row: {
+          calls: number
+          cooling_until: string | null
+          errors: number
+          key_id: string
+          label: string
+          last_error: string | null
+          last_error_at: string | null
+          last_used_at: string | null
+          provider: string
+          updated_at: string
+        }
+        Insert: {
+          calls?: number
+          cooling_until?: string | null
+          errors?: number
+          key_id: string
+          label: string
+          last_error?: string | null
+          last_error_at?: string | null
+          last_used_at?: string | null
+          provider: string
+          updated_at?: string
+        }
+        Update: {
+          calls?: number
+          cooling_until?: string | null
+          errors?: number
+          key_id?: string
+          label?: string
+          last_error?: string | null
+          last_error_at?: string | null
+          last_used_at?: string | null
+          provider?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_topics: {
         Row: {
           angle: string | null
@@ -1781,6 +1820,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      ai_key_record: {
+        Args: {
+          p_cooldown_seconds?: number
+          p_error?: string
+          p_key_id: string
+          p_label: string
+          p_ok: boolean
+          p_provider: string
+        }
+        Returns: undefined
+      }
       dashboard_content_performance: {
         Args: {
           p_category_id?: string
