@@ -181,11 +181,15 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
   if (!autoWrite) return report;
 
   // Shared with every other automated writer, counted from the database.
+  // The cap is on what reaches readers: drafts an editor never published do
+  // not use it up, otherwise a morning of drafting would silence the desk
+  // for the rest of the day once publishing is switched on.
   const since = new Date(Date.now() - 24 * 3600_000).toISOString();
   const { count } = await supabase
     .from("articles")
     .select("id", { count: "exact", head: true })
     .eq("ai_assisted", true)
+    .in("status", ["scheduled", "published"])
     .gte("ai_generated_at", since);
 
   report.remaining = Math.max(dailyLimit - (count ?? 0), 0);
