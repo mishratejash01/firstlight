@@ -26,11 +26,20 @@ import { EVIDENCE_FEATURES, FEATURE_NAMES, GATE_FEATURES, combine, type Features
  * signals that can disagree keep it honest.
  */
 
-/** Observation noise. Labels are noisy; one strong disagreement should not swing a weight. */
-const NOISE_VARIANCE = 0.35;
+/**
+ * Observation noise. Labels are noisy and, worse, can be systematically wrong
+ * for a while — twenty-eight bad "outlet" zeros once drove corroboration to
+ * nothing in a single pass. Each label now moves a weight a little; it takes
+ * hundreds agreeing to move it far.
+ */
+const NOISE_VARIANCE = 2.0;
 /** Floors, so a weight never becomes certain enough to stop being explored. */
 const MIN_VARIANCE = 0.02;
 const MAX_ABS_WEIGHT = 4;
+/** Evidence weights stay positive: more corroboration is never a reason to bury a story. */
+const MIN_EVIDENCE_WEIGHT = 0.1;
+/** No learning from a batch that says the same thing about everything. */
+const MIN_BATCH = 5;
 
 type Weight = { mean: number; variance: number; observations: number };
 
@@ -138,8 +147,17 @@ export async function applyOutcomes(): Promise<LearnReport> {
     .maybeSingle();
   const centre = Number(thresholdRow?.value ?? 18);
 
-  if (!outcomes?.length) {
-    return { outcomes: 0, weights: Object.fromEntries([...weights].map(([k, w]) => [k, { mean: w.mean, variance: w.variance }])) };
+  const summary = () =>
+    Object.fromEntries([...weights].map(([k, w]) => [k, { mean: w.mean, variance: w.variance }]));
+
+  if (!outcomes?.length) return { outcomes: 0, weights: summary() };
+
+  // A batch of identical labels carries no information about which features
+  // matter — only that the desk was right or wrong about everything — and
+  // applying it moves every weight in the same direction. Wait for contrast.
+  const labels = outcomes.map((o) => Number(o.label));
+  if (outcomes.length < MIN_BATCH || Math.max(...labels) - Math.min(...labels) < 0.3) {
+    return { outcomes: 0, weights: summary() };
   }
 
   for (const outcome of outcomes) {
@@ -160,7 +178,8 @@ export async function applyOutcomes(): Promise<LearnReport> {
     // Evidence weights: more of the feature should have meant a higher label.
     for (const name of EVIDENCE_FEATURES) {
       const current = weights.get(name) ?? { mean: 1, variance: 0.5, observations: 0 };
-      weights.set(name, updateWeight(current, features[name] / 10, residual));
+      const updated = updateWeight(current, features[name] / 10, residual);
+      weights.set(name, { ...updated, mean: Math.max(MIN_EVIDENCE_WEIGHT, updated.mean) });
     }
 
     // Gate weights run the other way. A gate penalises the absence of its
@@ -180,6 +199,7 @@ export async function applyOutcomes(): Promise<LearnReport> {
         mean: Number(weight.mean.toFixed(4)),
         variance: Number(weight.variance.toFixed(4)),
         observations: weight.observations,
+        updated_at: new Date().toISOString(),
       })
       .eq("feature", feature);
   }
@@ -210,14 +230,21 @@ export async function harvestLabels(): Promise<{ outlet: number; reader: number 
   const supabase = createAdminClient();
   const counts = { outlet: 0, reader: 0 };
 
+  // Judged four hours after the article existed, from everything on the
+  // event by then — not only what arrived after our write. A story eight
+  // outlets carried before we wrote it is a hit; measuring only what came
+  // later called every such story a miss and taught the weights nonsense.
   const cutoff = new Date(Date.now() - 4 * 3600_000).toISOString();
   const { data: written } = await supabase
     .from("story_events")
-    .select("id, article_id, updated_at")
+    .select("id, article_id, articles!inner ( created_at )")
     .eq("status", "written")
-    .lte("updated_at", cutoff)
-    .gte("updated_at", new Date(Date.now() - 48 * 3600_000).toISOString())
+    .lte("articles.created_at", cutoff)
+    .gte("articles.created_at", new Date(Date.now() - 48 * 3600_000).toISOString())
     .limit(50);
+
+  const { data: authorityRows } = await supabase.from("source_authority").select("host, weight");
+  const authority = new Map((authorityRows ?? []).map((a) => [a.host, Number(a.weight)]));
 
   for (const event of written ?? []) {
     const { data: already } = await supabase
@@ -227,18 +254,12 @@ export async function harvestLabels(): Promise<{ outlet: number; reader: number 
     const have = new Set((already ?? []).map((r) => r.label_source));
 
     if (!have.has("outlet")) {
-      // Sources that arrived after we wrote, weighted by authority.
-      const { data: later } = await supabase
+      const { data: mentions } = await supabase
         .from("signal_mentions")
         .select("source_key")
-        .eq("event_id", event.id)
-        .gte("observed_at", event.updated_at);
-      const hosts = [...new Set((later ?? []).map((m) => m.source_key))];
-      const { data: authority } = await supabase
-        .from("source_authority")
-        .select("host, weight")
-        .in("host", hosts);
-      const strong = (authority ?? []).filter((a) => Number(a.weight) >= 1.5).length;
+        .eq("event_id", event.id);
+      const outlets = new Set((mentions ?? []).map((m) => m.source_key));
+      const strong = [...outlets].filter((host) => (authority.get(host) ?? 0) >= 1.5).length;
 
       if (await recordOutcome(event.id, "outlet", strong >= 2 ? 1 : 0)) counts.outlet += 1;
     }
