@@ -6,6 +6,7 @@ import { scoreLiveEvents, type ScoreReport } from "./score";
 import { applyOutcomes, harvestLabels } from "./learn";
 import { fetchBlueskyTrending, fetchHackerNews, fetchMastodonTrending } from "./streams/social";
 import { fetchWikipediaEditBursts, fetchWikipediaTopViews } from "./streams/wikipedia";
+import { fetchGoogleTopStories } from "./streams/google-top";
 import { fetchEarthquakes, fetchPredictionMarkets } from "./streams/ground-truth";
 import { fetchRedditNews, redditConfigured } from "./streams/reddit";
 import { fetchYouTubeNews, youtubeConfigured } from "./streams/youtube";
@@ -50,7 +51,18 @@ export type PulseReport = {
 
 type Stream = { name: string; fetch: () => Promise<IncomingMention[]> };
 
+/**
+ * Runs a stream only on minutes divisible by `n`. The pulse fires on the
+ * minute, so this is a fixed cadence without a third schedule.
+ */
+function everyMinutes(n: number, fetch: () => Promise<IncomingMention[]>) {
+  return async () => (new Date().getUTCMinutes() % n === 0 ? fetch() : []);
+}
+
 const FAST_STREAMS: Stream[] = [
+  // Google's own front page per region: cross-outlet by construction, a
+  // quarter of it new every five minutes, one to four soft items in forty.
+  { name: "google_top", fetch: everyMinutes(5, fetchGoogleTopStories) },
   { name: "bluesky", fetch: fetchBlueskyTrending },
   { name: "wikipedia_edits", fetch: fetchWikipediaEditBursts },
   { name: "usgs", fetch: fetchEarthquakes },
@@ -119,15 +131,24 @@ async function runStreams(
  */
 async function corroborateTopEvents(limit: number): Promise<number> {
   const supabase = createAdminClient();
+  // Not the same eight every quarter hour: an event searched recently is
+  // skipped, so the budget reaches further down the table.
+  const recently = new Date(Date.now() - 90 * 60_000).toISOString();
   const { data: top } = await supabase
     .from("story_events")
     .select("id, title, entities")
     .in("status", ["candidate", "newsworthy"])
     .gte("last_seen_at", new Date(Date.now() - 6 * 3600_000).toISOString())
+    .or(`corroborated_at.is.null,corroborated_at.lt.${recently}`)
     .order("score", { ascending: false })
     .limit(limit);
 
   if (!top?.length) return 0;
+
+  await supabase
+    .from("story_events")
+    .update({ corroborated_at: new Date().toISOString() })
+    .in("id", top.map((e) => e.id));
 
   const mentions = await fetchCorroborationFor(
     top.map((e) => ({ id: e.id, title: e.title, entities: e.entities ?? [] })),
