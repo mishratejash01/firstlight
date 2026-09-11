@@ -540,14 +540,11 @@ export async function illustrateArticle({
           }
         }
       }
+      // Identity-resolved only. A name search for a passing mention is where
+      // "Mocha", the port, became a cup of coffee.
       const found = await findSubjectImage(subject.name, subject.type);
       if (found?.image) {
         const published = await publish(found.image, found.match.label);
-        if (published) return published;
-      }
-      const image = (await wikipediaPageImage(subject.name)) ?? (await commonsSearchImage(subject.name));
-      if (image) {
-        const published = await publish(image, image.title ?? subject.name);
         if (published) return published;
       }
     }
