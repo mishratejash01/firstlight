@@ -608,7 +608,7 @@ export async function reillustrateCards(limit = 3, scope: "cards" | "all" = "car
 
   let query = supabase
     .from("articles")
-    .select("id, headline, standfirst, hero_image_credit, image_brief, categories ( name )")
+    .select("id, headline, standfirst, hero_image_url, hero_image_credit, image_brief, categories ( name )")
     .eq("ai_assisted", true)
     .in("status", ["scheduled", "published", "draft"])
     .gte("created_at", new Date(Date.now() - 14 * 24 * 3600_000).toISOString())
@@ -632,6 +632,18 @@ export async function reillustrateCards(limit = 3, scope: "cards" | "all" = "car
     const all = (links ?? []).map(toSubject).filter((s): s is NonNullable<typeof s> => Boolean(s));
     const subjects = all.filter((s) => s.relation === "about");
     const related = all.filter((s) => s.relation !== "about");
+
+    // A picture a person chose is theirs. The engine's own uploads carry no
+    // uploader; anything uploaded by a user, or pointing outside our media
+    // library altogether, is left exactly as it is.
+    if (article.hero_image_url) {
+      const { data: asset } = await supabase
+        .from("media_assets")
+        .select("uploaded_by")
+        .eq("secure_url", article.hero_image_url)
+        .maybeSingle();
+      if (!asset || asset.uploaded_by) continue;
+    }
 
     const isCard = article.hero_image_credit === "The Federal Post" || !article.hero_image_credit;
     report.considered += 1;
