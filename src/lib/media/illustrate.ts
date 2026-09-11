@@ -2,6 +2,7 @@ import "server-only";
 
 import { v2 as cloudinary } from "cloudinary";
 
+import { SITE_NAME } from "@/lib/site";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   commonsImage,
@@ -612,7 +613,7 @@ export async function illustrateArticle({
     resource_type: "image",
     bytes: uploaded.bytes,
     alt_text: `${section}: ${headline}`,
-    credit: "The Federal Post",
+    credit: SITE_NAME,
     provider: "generated",
     uploaded_by: uploadedBy ?? null,
   });
@@ -622,7 +623,7 @@ export async function illustrateArticle({
     // Says what it is. A screen reader user should not be told this is a
     // photograph of the event.
     alt: `${section} — ${headline}`,
-    credit: "The Federal Post",
+    credit: SITE_NAME,
     kind: "card",
     sameAs,
   };
