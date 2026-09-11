@@ -148,20 +148,22 @@ async function readSetting<T>(key: string, fallback: T): Promise<T> {
  * person, and an organisation's name is rarely unique.
  */
 /**
- * A brief is usable when it is what it is meant to be: a nameless scene. One
- * that smuggles a name back in — a capitalised word that is not the first,
- * or any of the story's subjects — is dropped rather than searched.
+ * A brief is usable when it is what it is meant to be: a scene without a
+ * person in it. Geography is allowed — "monsoon flooding in a Delhi street"
+ * is a better search than the same without Delhi, and a place cannot be the
+ * wrong person. The story's own people are the names that must not appear.
  */
 function usableBrief(
   brief: string | null | undefined,
-  subjects: { name: string }[],
+  subjects: { name: string; type: string }[],
 ): string | null {
   const text = (brief ?? "").trim().replace(/[."']/g, "");
-  if (text.split(/\s+/).length < 2 || text.length > 80) return null;
-  const words = text.split(/\s+/);
-  if (words.slice(1).some((word) => /^[A-Z]/.test(word))) return null;
+  if (text.split(/\s+/).length < 2 || text.length > 90) return null;
   const lower = text.toLowerCase();
-  if (subjects.some((subject) => lower.includes(subject.name.toLowerCase()))) return null;
+  const people = subjects.filter((subject) => subject.type === "Person");
+  if (people.some((person) => lower.includes(person.name.toLowerCase()))) return null;
+  // A surname alone is enough to be a person.
+  if (people.some((person) => person.name.split(/\s+/).some((part) => part.length > 3 && lower.includes(part.toLowerCase())))) return null;
   return lower;
 }
 
