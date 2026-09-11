@@ -6,6 +6,7 @@ import { submitToIndexNow } from "@/lib/seo/indexnow";
 import { draftingModelId } from "./config";
 import { attachStructuredData } from "./attach-structure";
 import { draftArticle } from "./draft";
+import { illustrateArticle } from "@/lib/media/illustrate";
 import type { DraftedArticle } from "./schemas";
 
 /**
@@ -76,6 +77,21 @@ async function publishDraft(
 
   const publishedAt = new Date(Date.now() + delayMinutes * 60_000).toISOString();
 
+  // Same illustrator as the event desk, from the subjects the drafter named,
+  // so a topic piece never goes out as a hole where the picture should be.
+  const { data: category } = await supabase
+    .from("categories")
+    .select("name")
+    .eq("id", categoryId)
+    .maybeSingle();
+  const illustration = await illustrateArticle({
+    headline: draft.headline,
+    section: category?.name ?? "News",
+    subjects: draft.entities
+      .filter((entity) => entity.relation === "about")
+      .map((entity) => ({ name: entity.name, type: entity.type })),
+  });
+
   const { data: article, error } = await supabase
     .from("articles")
     .insert({
@@ -85,6 +101,9 @@ async function publishDraft(
       summary: draft.summary,
       body: draft.bodyMarkdown,
       category_id: categoryId,
+      hero_image_url: illustration?.url ?? null,
+      hero_image_alt: illustration?.alt ?? null,
+      hero_image_credit: illustration?.credit ?? null,
       origin: "original",
       // A delay above zero means the row is live in the database but not yet
       // visible: the public read policy admits it only once published_at has
