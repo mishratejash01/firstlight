@@ -288,6 +288,15 @@ export async function wikipediaPageImage(name: string): Promise<LicensedImage | 
   return commonsImage(page.pageimage);
 }
 
+/** File names a Commons search returns for a query, cheapest call first. */
+export async function commonsSearchTitles(query: string, limit = 8): Promise<string[]> {
+  const data = await getJson<{ query?: { search?: { title: string }[] } }>(
+    `https://commons.wikimedia.org/w/api.php?action=query&list=search&srnamespace=6&srlimit=${limit}&format=json&srsearch=` +
+      encodeURIComponent(`${query} filetype:bitmap`),
+  );
+  return (data?.query?.search ?? []).map((hit) => hit.title.replace(/^File:/, ""));
+}
+
 /**
  * A Commons search for the subject by name, accepting only files whose own
  * title carries the name. "Supreme Court of India" finds photographs of the
