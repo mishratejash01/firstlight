@@ -137,6 +137,17 @@ async function readSetting<T>(key: string, fallback: T): Promise<T> {
  * organisations and events all fail — a stock portrait is usually the wrong
  * person, and an organisation's name is rarely unique.
  */
+/** Subject types with a specific identity that a name search can confirm. */
+const SEARCHABLE_TYPES = new Set([
+  "Place",
+  "Organization",
+  "GovernmentOrganization",
+  "CreativeWork",
+  "SportsTeam",
+  "EducationalOrganization",
+  "Corporation",
+]);
+
 function photoCandidates(
   subjects: { name: string; type: string }[],
 ): string[] {
@@ -255,9 +266,15 @@ export async function illustrateArticle({
       if (published) return published;
     }
 
+    // Search tiers only run for things that have a specific identity — a
+    // place, an institution, a work. A generic noun the drafter typed as a
+    // product or event ("Sub-Inspector") matches any file with the word in
+    // it, which is how an Indian recruitment story got a Malaysian policeman.
+    const searchable = (type: string) => SEARCHABLE_TYPES.has(type);
+
     // Tier three: a Commons file whose own title carries the subject's name.
     for (const subject of named) {
-      if (subject.type === "Person") continue;
+      if (!searchable(subject.type)) continue;
       const image = await commonsSearchImage(subject.name);
       if (!image) continue;
       const published = await publish(image, image.title ?? subject.name);
@@ -270,7 +287,7 @@ export async function illustrateArticle({
     const stockQueries = [
       ...photoCandidates(subjects),
       ...named
-        .filter((subject) => subject.type !== "Person" && subject.name.split(/\s+/).length >= 2)
+        .filter((subject) => searchable(subject.type) && subject.name.split(/\s+/).length >= 2)
         .map((subject) => subject.name),
     ].filter((query, index, all) => all.indexOf(query) === index);
 
@@ -297,7 +314,7 @@ export async function illustrateArticle({
       .filter(
         (subject) =>
           subject.name.length > 2 &&
-          subject.type !== "Person" &&
+          searchable(subject.type) &&
           !named.some((n) => n.name === subject.name),
       )
       .slice(0, 3);
