@@ -167,7 +167,7 @@ function normaliseName(value: string): string {
  * Files that are pictures of a symbol rather than of the thing: a logo, a
  * flag, a seal, a map, a vector emblem. Correct identity, wrong picture.
  */
-const NOT_A_PHOTOGRAPH = /(logo|emblem|seal|flag|coat[_ ]of[_ ]arms|\bmaps?\b|bioregion|diagram|chart|insignia|icon|wordmark|banner)/i;
+const NOT_A_PHOTOGRAPH = /(logo|emblem|seal|flag|coat[_ ]of[_ ]arms|\bmaps?\b|bioregion|diagram|chart|satellite|landsat|sentinel-|insignia|icon|wordmark|banner|montage|collage)/i;
 
 export function looksLikeSymbol(fileName: string): boolean {
   return /\.(svg|gif)$/i.test(fileName) || NOT_A_PHOTOGRAPH.test(fileName);
