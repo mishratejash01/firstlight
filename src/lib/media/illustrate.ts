@@ -205,12 +205,20 @@ function looksLikePersonPhoto(title: string | null): boolean {
   );
 }
 
-async function sceneImage(scene: string, places: string[] = []): Promise<LicensedImage | null> {
+async function sceneImage(
+  scene: string,
+  places: string[] = [],
+  terms: string | null = null,
+): Promise<LicensedImage | null> {
   const content = scene.split(/\s+/).filter((word) => word.length > 3);
   if (content.length < 2) return null;
   const core = [...content].sort((a, b) => b.length - a.length).slice(0, 2);
 
-  const queries = new Set<string>([scene, core.join(" ")]);
+  // The writer's plain terms are the best query of all: libraries index
+  // "stock market", not "trading terminal screens showing falling prices".
+  const plain = (terms ?? "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").trim();
+  const queries = new Set<string>([...(plain ? [plain] : []), scene, core.join(" ")]);
+  if (plain) for (const place of places.slice(0, 1)) queries.add(`${place} ${plain}`);
   for (const place of places.slice(0, 2)) for (const word of core) queries.add(`${place} ${word}`);
 
   type Candidate = { title: string; commonsFile?: string; stock?: LicensedImage & { tags: string[] } };
@@ -323,6 +331,7 @@ export async function illustrateArticle({
   subjects,
   related = [],
   brief = null,
+  terms = null,
   relevantOnly = false,
   uploadedBy,
 }: {
@@ -334,6 +343,8 @@ export async function illustrateArticle({
   related?: { name: string; type: string }[];
   /** The scene the writer asked for: generic, nameless, e.g. "hospital consultation room". */
   brief?: string | null;
+  /** The writer's plain library terms for the same picture, e.g. "stock market". */
+  terms?: string | null;
   /** Stop after the relevant tiers — subject identity and the brief — rather than falling back. */
   relevantOnly?: boolean;
   uploadedBy?: string | null;
@@ -440,7 +451,7 @@ export async function illustrateArticle({
         .map((subject) => subject.name.trim())
         .filter((name, index, all) => name.length > 2 && all.indexOf(name) === index)
         .slice(0, 2);
-      const candidate = await sceneImage(scene, places);
+      const candidate = await sceneImage(scene, places, terms);
       if (candidate) {
         const published = await publish(candidate, `${scene} (file image)`);
         if (published) return published;
