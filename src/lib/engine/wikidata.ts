@@ -240,6 +240,48 @@ export async function commonsImage(fileName: string): Promise<LicensedImage | nu
   };
 }
 
+/**
+ * The organisation's logo, from its Wikidata claim, as a Commons file.
+ *
+ * Logos are refused everywhere else in the illustrator because a logo is
+ * the wrong picture for a story about a place or a person. For a story
+ * about a company's own doing — a model it launched, money it raised — the
+ * logo is the honest picture, and the desk asked for it. Only open licences
+ * are accepted; a vector file is served as the rendered PNG Commons makes.
+ */
+export async function commonsLogo(qid: string): Promise<LicensedImage | null> {
+  const entities = await getJson<{ entities?: Record<string, Entity> }>(
+    "https://www.wikidata.org/w/api.php?action=wbgetentities&props=claims&format=json&ids=" + qid,
+  );
+  const file = claimValues(entities?.entities?.[qid] ?? { id: qid }, "P154")[0];
+  if (typeof file !== "string") return null;
+
+  const data = await getJson<ImageInfo>(
+    "https://commons.wikimedia.org/w/api.php?action=query&prop=imageinfo&iiprop=url|size|extmetadata&iiurlwidth=1200&format=json&titles=" +
+      encodeURIComponent(`File:${file}`),
+  );
+  const page = Object.values(data?.query?.pages ?? {})[0];
+  const info = page?.imageinfo?.[0];
+  if (!info) return null;
+
+  const meta = info.extmetadata ?? {};
+  const licence = stripHtml(meta.LicenseShortName?.value) ?? "";
+  if (!/^(cc0|cc[ -]by(-sa)?[ -]?\d?(\.\d)?|public domain|pd|mit|apache)/i.test(licence)) return null;
+  if (info.width < 256) return null;
+
+  return {
+    url: info.thumburl ?? info.url,
+    title: file.replace(/\.[a-z0-9]+$/i, "").replace(/_/g, " "),
+    creator: stripHtml(meta.Artist?.value),
+    licence,
+    licenceUrl: stripHtml(meta.LicenseUrl?.value),
+    sourceUrl: info.descriptionurl,
+    provider: "wikimedia_commons",
+    width: info.thumbwidth ?? info.width,
+    height: info.thumbheight ?? info.height,
+  };
+}
+
 export type SubjectImage = { match: WikidataMatch; image: LicensedImage | null };
 
 /**
