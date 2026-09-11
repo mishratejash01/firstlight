@@ -147,18 +147,16 @@ export async function findWikidataItem(
       const isAcronym = /^[A-Z0-9&.]{2,6}$/.test(name.trim());
       if (isAcronym && ![label, ...aliases].some((n) => n === name.trim())) continue;
 
-      // And the kind of thing must agree with what the drafter said it was.
+      // And the kind of thing must agree with what the drafter said it was,
+      // judged positively from Wikidata's own description. "TAR" the startup
+      // resolved to The Amazing Race through an alias; "Mocha" the port
+      // resolved to the coffee. A place has to read as a place, a company as
+      // a company, a work as a work; anything else is a different thing with
+      // the same name.
       const description = (entity.descriptions?.en?.value ?? "").toLowerCase();
-      const looksLikePlace =
-        /\b(town|city|village|municipality|comune|commune|hamlet|settlement|river|lake|mountain|island|district|county|province|region|neighbou?rhood|street|road)\b/.test(
-          description,
-        );
-      const looksLikeOrganisation =
-        /\b(company|corporation|organization|organisation|business|startup|agency|institute|university|club|team|party|charity|band|label|publisher|newspaper|magazine|website)\b/.test(
-          description,
-        );
-      if (type === "Place" && looksLikeOrganisation && !looksLikePlace) continue;
-      if (type !== "Place" && looksLikePlace && !looksLikeOrganisation) continue;
+      const kind = kindOf(description);
+      const wanted = wantedKind(type);
+      if (wanted && kind !== wanted) continue;
     }
 
     const image = claimValues(entity, "P18")[0];
@@ -170,6 +168,44 @@ export async function findWikidataItem(
     };
   }
 
+  return null;
+}
+
+type Kind = "place" | "organisation" | "work" | "other";
+
+/** What Wikidata's one-line description says a thing is. */
+function kindOf(description: string): Kind {
+  if (
+    /\b(town|city|village|municipality|comune|commune|hamlet|settlement|capital|port|river|lake|sea|strait|bay|mountain|island|district|county|province|state|region|country|neighbou?rhood|street|road|building|stadium|airport|station|park|square|temple|museum|university campus)\b/.test(
+      description,
+    )
+  ) {
+    return "place";
+  }
+  if (
+    /\b(company|corporation|firm|business|startup|manufacturer|developer|bank|organization|organisation|agency|institute|institution|laboratory|university|college|school|hospital|club|team|party|charity|foundation|network|group|alliance|association|federation|league|ministry|department|commission|court|police|force|authority|council|newspaper|magazine|publisher|broadcaster|website|label)\b/.test(
+      description,
+    )
+  ) {
+    return "organisation";
+  }
+  if (
+    /\b(film|movie|television series|tv series|reality (television|tv)|show|album|song|single|novel|book|poem|painting|tapestry|artwork|sculpture|video game|software|language model|model|programme|program)\b/.test(
+      description,
+    )
+  ) {
+    return "work";
+  }
+  return "other";
+}
+
+/** The kind the drafter's type implies, or null when the type is too loose to check. */
+function wantedKind(type: string): Kind | null {
+  if (type === "Place") return "place";
+  if (["Organization", "Corporation", "GovernmentOrganization", "SportsTeam", "EducationalOrganization", "Brand"].includes(type)) {
+    return "organisation";
+  }
+  if (type === "CreativeWork" || type === "Product") return "work";
   return null;
 }
 
