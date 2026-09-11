@@ -145,9 +145,17 @@ function isCapacityError(error: unknown): boolean {
  * newlines, which is the signature of the double-escaped case.
  */
 function unescapeModelText(text: string): string {
-  if (!text.includes("\\")) return text;
+  // The other form the same fault takes: HTML line breaks and paragraph tags
+  // in place of newlines. The renderer escapes markup, so they print as text.
+  let out = text
+    .replace(/\s*<br\s*\/?>\s*<br\s*\/?>\s*/gi, "\n\n")
+    .replace(/\s*<br\s*\/?>\s*/gi, "\n")
+    .replace(/<\/?p>/gi, "")
+    .replace(/&nbsp;/gi, " ");
 
-  let out = text.replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+  if (!out.includes("\\")) return out;
+
+  out = out.replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
   if (!out.includes("\n")) {
     out = out
       .replace(/\\n/g, "\n")
