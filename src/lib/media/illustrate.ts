@@ -25,11 +25,12 @@ import { buildTypographicCard } from "./typographic-card";
  * Gives an article a lead image.
  *
  * Order of preference:
- *   1. The Wikimedia Commons picture of the person, institution or work the
- *      story is about, resolved through Wikidata so it is that exact
- *      subject, credited.
- *   1b. The scene the writer asked for, as open stock — generic and nameless.
- *   1c. The Commons picture of a place the story is about.
+ *   1. The Commons portrait of the person the story is about, resolved
+ *      through Wikidata so it is that exact person, credited.
+ *   1b. The scene the writer asked for, found on Commons or open stock and
+ *       ranked by meaning against the brief.
+ *   1c. The Commons picture of an institution, work or place the story is
+ *       about. Usually a building; correct, but further from the story.
  *   2. The lead image of the subject's Wikipedia article.
  *   3. A Commons file whose own title names the subject.
  *   4. Open stock of a place or a specific multi-word subject, accepted only
@@ -366,13 +367,19 @@ export async function illustrateArticle({
     // subject type qualifies — a court, a village, a tapestry, a charity —
     // not only people. Measured on the stories that had ended up as cards,
     // this alone would have illustrated eight of twelve subjects.
-    // A person, an institution or a work first. A place comes after the
-    // brief below: a landmark of the city a story mentions is real and
-    // correctly identified and still the wrong picture for a medical story.
-    const identityFirst = named.filter((subject) => !isPlace(subject.type));
+    // Only a person's own portrait outranks the scene the writer asked for.
+    // An institution's Wikidata picture is nearly always its building, and a
+    // building is the wrong picture for almost any story about what the
+    // institution did: OpenAI's model launch got its San Francisco office.
+    // So people first, then the scene, then institutions and works, then
+    // places — each correctly identified, each further from the story.
+    const peopleFirst = named.filter((subject) => subject.type === "Person");
+    const institutionsLater = named.filter(
+      (subject) => subject.type !== "Person" && !isPlace(subject.type),
+    );
     const placesLater = named.filter((subject) => isPlace(subject.type));
 
-    for (const subject of identityFirst) {
+    for (const subject of peopleFirst) {
       const found = await findSubjectImage(subject.name, subject.type);
       if (!found) continue;
       sameAs.push({ name: subject.name, url: wikidataUrl(found.match.qid) });
@@ -405,7 +412,7 @@ export async function illustrateArticle({
     // another.
     if (relevantOnly) return null;
 
-    for (const subject of placesLater) {
+    for (const subject of [...institutionsLater, ...placesLater]) {
       const found = await findSubjectImage(subject.name, subject.type);
       if (!found) continue;
       sameAs.push({ name: subject.name, url: wikidataUrl(found.match.qid) });
