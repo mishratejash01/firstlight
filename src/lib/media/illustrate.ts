@@ -24,9 +24,11 @@ import { buildTypographicCard } from "./typographic-card";
  *   3. A Commons file whose own title names the subject.
  *   4. Open stock of a place or a specific multi-word subject, accepted only
  *      when the photo's title confirms it.
- *   5. A generated typographic card.
+ *   5. A place or institution the story mentions, resolved the same way and
+ *      captioned with its own name.
+ *   6. A generated typographic card.
  *
- * There is deliberately no sixth option. The photograph from the article we
+ * There is deliberately no seventh option. The photograph from the article we
  * read is not available to us — it belongs to the outlet or their agency — and
  * a synthesised photorealistic image of a real event is fabrication whatever
  * the caption says.
@@ -172,11 +174,15 @@ export async function illustrateArticle({
   headline,
   section,
   subjects,
+  related = [],
   uploadedBy,
 }: {
   headline: string;
   section: string;
+  /** What the story is about, in the drafter's order. */
   subjects: { name: string; type: string }[];
+  /** Places and organisations the story mentions; tried only after the subjects fail. */
+  related?: { name: string; type: string }[];
   uploadedBy?: string | null;
 }): Promise<Illustration | null> {
   if (!configureCloudinary()) return null;
@@ -239,9 +245,10 @@ export async function illustrateArticle({
     }
 
     // Tier two: the lead image of the subject's Wikipedia article, for
-    // subjects with a page but no Wikidata claim. Page title must match.
+    // subjects with a page but no Wikidata claim. The page title must match
+    // the name, which is what makes this safe for people too: the lead image
+    // on "Chris Johnson (running back)" is that Chris Johnson.
     for (const subject of named) {
-      if (subject.type === "Person") continue;
       const image = await wikipediaPageImage(subject.name);
       if (!image) continue;
       const published = await publish(image, subject.name);
@@ -275,6 +282,35 @@ export async function illustrateArticle({
         !looksLikeSymbol(candidate.title ?? "")
       ) {
         const published = await publish(candidate, candidate.title ?? query);
+        if (published) return published;
+      }
+    }
+
+    // Tier five: a place or institution the story mentions — the university
+    // behind a study, the city where a scholar lived, the bank whose rate
+    // moved. Identity-resolved like the subjects, and captioned with its own
+    // name, so the reader is told what the picture shows rather than led to
+    // believe it is the event itself. Every story that still ended up as a
+    // card had one of these.
+    const mentioned = related
+      .map((subject) => ({ name: subject.name.trim(), type: subject.type }))
+      .filter(
+        (subject) =>
+          subject.name.length > 2 &&
+          subject.type !== "Person" &&
+          !named.some((n) => n.name === subject.name),
+      )
+      .slice(0, 3);
+
+    for (const subject of mentioned) {
+      const found = await findSubjectImage(subject.name, subject.type);
+      if (found?.image) {
+        const published = await publish(found.image, found.match.label);
+        if (published) return published;
+      }
+      const image = (await wikipediaPageImage(subject.name)) ?? (await commonsSearchImage(subject.name));
+      if (image) {
+        const published = await publish(image, image.title ?? subject.name);
         if (published) return published;
       }
     }
