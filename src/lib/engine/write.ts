@@ -602,16 +602,6 @@ async function briefFor(headline: string, standfirst: string | null): Promise<st
   return null;
 }
 
-/**
- * Stories whose picture could only have come from a place or a passing
- * mention: nothing they are about is a person, an institution or a work.
- * Those are the ones a landmark stands in for, and the ones a brief fixes.
- */
-function onlyPlaces(subjects: { type: string; relation: string }[]): boolean {
-  const about = subjects.filter((s) => s.relation === "about");
-  return about.every((s) => s.type === "Place");
-}
-
 export async function reillustrateCards(limit = 3, scope: "cards" | "all" = "cards"): Promise<ReillustrateReport> {
   const supabase = createAdminClient();
   const report: ReillustrateReport = { considered: 0, replaced: 0, titles: [] };
@@ -643,10 +633,7 @@ export async function reillustrateCards(limit = 3, scope: "cards" | "all" = "car
     const subjects = all.filter((s) => s.relation === "about");
     const related = all.filter((s) => s.relation !== "about");
 
-    // In the wider scope, only stories whose picture can only have been a
-    // stand-in are redone; a real portrait of the subject is left alone.
     const isCard = article.hero_image_credit === "The Federal Post" || !article.hero_image_credit;
-    if (scope === "all" && !isCard && !onlyPlaces(all)) continue;
     report.considered += 1;
 
     let brief = article.image_brief;
@@ -656,8 +643,18 @@ export async function reillustrateCards(limit = 3, scope: "cards" | "all" = "car
     }
     if (!subjects.length && !related.length && !brief) continue;
 
+    // A story that already has a picture is only redone when a relevant one
+    // exists — the subject itself or the writer's scene. A card or an empty
+    // slot takes anything the full cascade can find.
     const section = (article.categories as unknown as { name: string } | null)?.name ?? "News";
-    const illustration = await illustrateArticle({ headline: article.headline, section, subjects, related, brief });
+    const illustration = await illustrateArticle({
+      headline: article.headline,
+      section,
+      subjects,
+      related,
+      brief,
+      relevantOnly: !isCard,
+    });
     if (!illustration || illustration.kind !== "photo") continue;
 
     const { error } = await supabase
