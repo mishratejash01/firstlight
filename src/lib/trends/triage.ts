@@ -3,7 +3,7 @@ import "server-only";
 import { Output, generateText } from "ai";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { aiIsConfigured, assistModel } from "@/lib/ai/config";
+import { aiIsConfigured, runWithChain } from "@/lib/ai/config";
 import { trendTriageSchema, type TrendTriage } from "@/lib/ai/schemas";
 import type { TrendNewsItem } from "./google-trends";
 
@@ -70,8 +70,10 @@ export async function triageTrend(input: {
       .map((item) => `- ${item.source}: ${item.title}`)
       .join("\n");
 
-    const { output } = await generateText({
-      model: assistModel(),
+    const output = await runWithChain("assist", async (model) => {
+      const { output } = await generateText({
+      model,
+      maxRetries: 0,
       system: TRIAGE_SYSTEM,
       prompt: [
         `Trending search term: ${input.term}`,
@@ -97,6 +99,8 @@ export async function triageTrend(input: {
         .filter(Boolean)
         .join("\n"),
       output: Output.object({ schema: trendTriageSchema }),
+      });
+      return output;
     });
 
     return { ok: true, triage: output };
