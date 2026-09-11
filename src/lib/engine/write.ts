@@ -561,8 +561,8 @@ export type ReillustrateReport = { considered: number; replaced: number; titles:
  * Gives a photograph to stories that went out with a card.
  *
  * Runs from the stored entities, so it costs no model call: the drafter
- * already said what each story was about. Looks at the last two days of
- * card-illustrated stories and tries the illustrator again; the tiers are
+ * already said what each story was about. Looks at the last two weeks of
+ * card-illustrated or unillustrated stories and tries the illustrator again; the tiers are
  * wider than they were when the story was written, and the card is what
  * readers see until this succeeds.
  */
@@ -575,7 +575,7 @@ export async function reillustrateCards(limit = 3): Promise<ReillustrateReport> 
     .select("id, headline, hero_image_credit, categories ( name )")
     .eq("ai_assisted", true)
     .in("status", ["scheduled", "published", "draft"])
-    .gte("created_at", new Date(Date.now() - 48 * 3600_000).toISOString())
+    .gte("created_at", new Date(Date.now() - 14 * 24 * 3600_000).toISOString())
     .or("hero_image_credit.eq.The Federal Post,hero_image_url.is.null")
     .order("created_at", { ascending: false })
     .limit(limit);
