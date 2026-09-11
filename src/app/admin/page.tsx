@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { AdminNav } from "@/components/dashboard/admin-nav";
 import { AttentionCard } from "@/components/dashboard/attention-card";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { AiKeyHealth } from "@/components/dashboard/ai-key-health";
 import { IntegrationStatus } from "@/components/dashboard/integration-status";
 import { requireAdmin } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
@@ -158,6 +159,16 @@ export default async function AdminOverviewPage() {
           nothing is worse than one that says it is not configured.
         </p>
         <IntegrationStatus />
+      </section>
+
+      <section className="mt-12 border-t border-hairline pt-6">
+        <h2 className="text-section text-ink">Model keys</h2>
+        <p className="mt-1 max-w-measure text-meta text-muted">
+          Every key in the pool, with how much it has carried and whether a
+          provider is currently refusing it. Add keys in the project&apos;s
+          environment settings; they appear here after their first call.
+        </p>
+        <AiKeyHealth />
       </section>
 
       <section className="mt-12 border-t border-hairline pt-6">
