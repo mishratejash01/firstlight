@@ -157,14 +157,20 @@ function usableBrief(
   return lower;
 }
 
+/** Crude stem: "orangutans" and "orangutan" are the same word for this purpose. */
+function stem(word: string): string {
+  return word.toLowerCase().replace(/(ies|es|s)$/, (m) => (m === "ies" ? "y" : ""));
+}
+
 /** At least one distinctive word of the brief appears in the picture's own title. */
 function sharesKeyword(title: string | null, scene: string): boolean {
   if (!title) return false;
-  const haystack = title.toLowerCase();
+  const titleWords = title.toLowerCase().split(/[^a-z0-9]+/).map(stem);
   return scene
     .split(/\s+/)
     .filter((word) => word.length > 3)
-    .some((word) => haystack.includes(word));
+    .map(stem)
+    .some((word) => titleWords.some((t) => t === word || (t.length > 4 && word.startsWith(t)) || (word.length > 4 && t.startsWith(word))));
 }
 
 /** Subject types with a specific identity that a name search can confirm. */
@@ -217,6 +223,7 @@ export async function illustrateArticle({
   subjects,
   related = [],
   brief = null,
+  relevantOnly = false,
   uploadedBy,
 }: {
   headline: string;
@@ -227,6 +234,8 @@ export async function illustrateArticle({
   related?: { name: string; type: string }[];
   /** The scene the writer asked for: generic, nameless, e.g. "hospital consultation room". */
   brief?: string | null;
+  /** Stop after the relevant tiers — subject identity and the brief — rather than falling back. */
+  relevantOnly?: boolean;
   uploadedBy?: string | null;
 }): Promise<Illustration | null> {
   if (!configureCloudinary()) return null;
@@ -311,6 +320,11 @@ export async function illustrateArticle({
         if (published) return published;
       }
     }
+
+    // Everything below is a stand-in: a place, a mention, a card. A caller
+    // redoing pictures keeps what it has rather than swap one stand-in for
+    // another.
+    if (relevantOnly) return null;
 
     for (const subject of placesLater) {
       const found = await findSubjectImage(subject.name, subject.type);
