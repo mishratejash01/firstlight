@@ -93,6 +93,7 @@ async function publishDraft(
     related: draft.entities
       .filter((entity) => entity.relation !== "about")
       .map((entity) => ({ name: entity.name, type: entity.type })),
+    brief: draft.imageBrief,
   });
 
   const { data: article, error } = await supabase
@@ -107,6 +108,7 @@ async function publishDraft(
       hero_image_url: illustration?.url ?? null,
       hero_image_alt: illustration?.alt ?? null,
       hero_image_credit: illustration?.credit ?? null,
+      image_brief: draft.imageBrief,
       origin: "original",
       // A delay above zero means the row is live in the database but not yet
       // visible: the public read policy admits it only once published_at has
