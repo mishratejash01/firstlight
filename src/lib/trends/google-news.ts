@@ -16,6 +16,8 @@ import { XMLParser } from "fast-xml-parser";
 export type NewsHit = {
   title: string;
   source: string;
+  /** The outlet's own site, from the feed's <source url="…"> attribute. */
+  sourceUrl: string | null;
   url: string;
   publishedAt: string | null;
 };
@@ -85,12 +87,17 @@ export async function searchGoogleNews(
       if (!rawTitle || !link) continue;
 
       const source = text(item.source);
+      const sourceUrl =
+        item.source && typeof item.source === "object"
+          ? text((item.source as Record<string, unknown>)["@_url"])
+          : null;
       const pubDate = text(item.pubDate);
       const published = pubDate ? new Date(pubDate) : null;
 
       hits.push({
         title: splitTitle(rawTitle, source),
         source: source ?? "Unknown",
+        sourceUrl,
         url: link,
         publishedAt:
           published && !Number.isNaN(published.getTime())
