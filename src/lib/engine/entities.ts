@@ -23,6 +23,30 @@ const STOP = new Set([
   "has", "have", "had", "not", "no", "yes", "may", "can", "could", "should",
   "would", "than", "then", "there", "their", "they", "them", "his", "her",
   "our", "your", "about", "against", "between", "during", "without",
+  // Headline furniture. Capitalised, recurring, and never the subject.
+  "watch", "video", "photos", "photo", "opinion", "exclusive", "breaking",
+  "explained", "explainer", "highlights", "recap", "review", "preview",
+  "week", "weekend", "tonight", "morning", "evening", "here", "read",
+  // Dates. "September" is in forty events a day and identifies none of them.
+  "january", "february", "march", "april", "june", "july", "august",
+  "september", "october", "november", "december", "jan", "feb", "mar", "apr",
+  "jun", "jul", "aug", "sept", "sep", "oct", "nov", "dec", "monday",
+  "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+]);
+
+/**
+ * Outlets whose names turn up in headlines as bylines and suffixes —
+ * "| Hindustan Times", "Reuters:" — and are not what the story is about.
+ */
+const OUTLETS = new Set([
+  "hindustan-times", "times-india", "hindu", "ndtv", "bbc", "bbc-news", "cnn",
+  "reuters", "guardian", "indian-express", "express", "news18", "mint",
+  "livemint", "economic-times", "financial-express", "india-today", "zee-news",
+  "abp-news", "abp", "firstpost", "scroll", "print", "theprint", "wire",
+  "yahoo", "msn", "ap", "afp", "pti", "ani", "nyt", "york-times",
+  "washington-post", "bloomberg", "al-jazeera", "sky-news", "fox-news", "npr",
+  "cnbc", "moneycontrol", "deccan-herald", "telegraph", "independent", "mirror",
+  "sun", "daily-mail", "et", "toi", "dna", "jagran", "aaj-tak", "republic",
 ]);
 
 /** Lower-case, diacritics stripped, punctuation collapsed to single spaces. */
@@ -38,13 +62,19 @@ export function normaliseText(text: string): string {
 
 /** A canonical key for an entity name: 'Strait of Hormuz' -> 'strait-hormuz'. */
 export function entityKey(name: string): string {
-  return normaliseText(
+  const words = normaliseText(
     // Possessives are grammar, not identity: "McTominay's" is McTominay.
     name.replace(/['’]s\b/g, "").replace(/['’]/g, ""),
   )
     .split(" ")
-    .filter((word) => word && !STOP.has(word))
-    .join("-");
+    .filter((word) => word && !STOP.has(word));
+
+  // Dotted abbreviations lose their dots to normalisation: "U.S." arrives as
+  // "u s" and would key as "u-s", a different entity from "US". Letters on
+  // their own are an abbreviation; join them.
+  if (words.length > 1 && words.every((word) => word.length === 1)) return words.join("");
+
+  return words.join("-");
 }
 
 /**
@@ -117,6 +147,8 @@ export function extractEntityKeys(text: string, extra: string[] = []): string[] 
 
     if (capitalised && !STOP.has(token.toLowerCase())) {
       run.push({ token, index: i });
+      // A possessive ends a name: "McTominay's Napoli" is McTominay and Napoli.
+      if (/['\u2019]s$/.test(token)) flush();
     } else if (connective && run.length) {
       run.push({ token, index: i });
     } else {
@@ -125,6 +157,7 @@ export function extractEntityKeys(text: string, extra: string[] = []): string[] 
   }
   flush();
 
+  for (const key of keys) if (OUTLETS.has(key)) keys.delete(key);
   return [...keys];
 }
 
