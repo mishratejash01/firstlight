@@ -7,6 +7,7 @@ import { draftingModelId } from "@/lib/ai/config";
 import { attachStructuredData } from "@/lib/ai/attach-structure";
 import { draftFromTrend } from "@/lib/ai/draft";
 import { getSourceDocuments } from "@/lib/fetch/extract";
+import { resolveGoogleNewsUrl } from "@/lib/fetch/google-redirect";
 import { illustrateArticle } from "@/lib/media/illustrate";
 import { verifyEvent } from "./verify";
 import { recordSameAs } from "./wikidata";
@@ -124,21 +125,26 @@ async function gatherDocuments(
     .order("observed_at", { ascending: true })
     .limit(60);
 
-  const byHost = new Map<string, NewsItem>();
+  // One item per outlet, keyed by the outlet rather than the link's host:
+  // Google News links all share one host and say nothing about who wrote it.
+  const byOutlet = new Map<string, NewsItem>();
   for (const mention of mentions ?? []) {
     if (!mention.url) continue;
-    const host = hostOf(mention.url);
-    if (!host || host.includes("news.google.")) continue;
-    if (!byHost.has(host)) byHost.set(host, { title: mention.title, url: mention.url, source: mention.source_key });
+    const outlet = mention.source_key || hostOf(mention.url);
+    if (!outlet || outlet === "unknown") continue;
+    if (!byOutlet.has(outlet)) byOutlet.set(outlet, { title: mention.title, url: mention.url, source: mention.source_key });
   }
 
-  const newsItems = [...byHost.entries()]
+  const newsItems = [...byOutlet.entries()]
     .sort((a, b) => (authority.get(b[0]) ?? 0.8) - (authority.get(a[0]) ?? 0.8))
     .map(([, item]) => item);
 
   let documents: SourceDoc[] = [];
   if (maxDocuments > 0 && newsItems.length) {
     const targets = newsItems.slice(0, maxDocuments);
+    // Google redirects become the real article URLs here, so the reader has
+    // something it can actually open.
+    for (const target of targets) target.url = await resolveGoogleNewsUrl(target.url);
     const fetched = await getSourceDocuments(targets.map((item) => item.url));
     documents = fetched
       .filter((doc) => doc.status === "ok" && doc.content)
