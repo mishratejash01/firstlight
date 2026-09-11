@@ -191,6 +191,22 @@ function usableBrief(
  * best candidate wins only if it clears 0.82; otherwise there is no scene.
  */
 const SCENE_SIMILARITY = 0.82;
+/** Stock titles are noisier than Commons file names, so they must match more closely. */
+const STOCK_SCENE_SIMILARITY = 0.86;
+
+/**
+ * A title that is a list of tags rather than a description: five or more
+ * capitalised words with nothing joining them. Such titles match anything
+ * that shares one word and describe nothing.
+ */
+function looksLikeTagSoup(title: string | null): boolean {
+  if (!title) return true;
+  const words = title.trim().split(/\s+/);
+  if (words.length < 5) return false;
+  const joiners = words.filter((w) => /^(a|an|the|of|in|on|at|and|with|for|to|from|by)$/i.test(w)).length;
+  const capitalised = words.filter((w) => /^[A-Z]/.test(w)).length;
+  return joiners === 0 && capitalised >= words.length - 1;
+}
 
 /**
  * A scene must be nameless, so a candidate whose title names a person is
@@ -260,17 +276,19 @@ async function sceneImage(
   const mentionsPlace = (title: string) =>
     placeTokens.some((token) => title.toLowerCase().includes(token)) ? 1 : 0;
 
+  // Commons titles describe the frame; stock titles are often a heap of
+  // tags ("Wall Wire Minimalism Simplicity Eyeem Russia Interior Design"),
+  // so stock has to clear a higher bar, tag-soup titles are refused, and a
+  // place in the title is a small bonus rather than a trump card.
   const ranked = candidates
     .map((candidate, index) => ({
       candidate,
       similarity: vectors[index + 1] ? cosine(targetVector, vectors[index + 1] as number[]) : 0,
     }))
-    .filter((entry) => entry.similarity >= SCENE_SIMILARITY)
-    .sort(
-      (a, b) =>
-        mentionsPlace(b.candidate.title) - mentionsPlace(a.candidate.title) ||
-        b.similarity - a.similarity,
-    );
+    .filter((entry) => !(entry.candidate.stock && looksLikeTagSoup(entry.candidate.title)))
+    .filter((entry) => entry.similarity >= (entry.candidate.stock ? STOCK_SCENE_SIMILARITY : SCENE_SIMILARITY))
+    .map((entry) => ({ ...entry, ranked: entry.similarity + 0.02 * mentionsPlace(entry.candidate.title) }))
+    .sort((a, b) => b.ranked - a.ranked);
 
   for (const { candidate } of ranked.slice(0, 4)) {
     if (candidate.stock) return candidate.stock;
@@ -416,9 +434,16 @@ export async function illustrateArticle({
     // institution did: OpenAI's model launch got its San Francisco office.
     // So people first, then the scene, then institutions and works, then
     // places — each correctly identified, each further from the story.
-    const peopleFirst = named.filter((subject) => subject.type === "Person");
+    // People, and public institutions: a central bank, a court, a ministry
+    // is its building in every newspaper, and that building outranks any
+    // stock scene. Companies are different — their building says nothing
+    // about their model launch — so they wait for the scene below.
+    const peopleFirst = named.filter(
+      (subject) => subject.type === "Person" || subject.type === "GovernmentOrganization",
+    );
     const institutionsLater = named.filter(
-      (subject) => subject.type !== "Person" && !isPlace(subject.type),
+      (subject) =>
+        subject.type !== "Person" && subject.type !== "GovernmentOrganization" && !isPlace(subject.type),
     );
     const placesLater = named.filter((subject) => isPlace(subject.type));
 
@@ -428,6 +453,15 @@ export async function illustrateArticle({
       sameAs.push({ name: subject.name, url: wikidataUrl(found.match.qid) });
       if (!found.image) continue;
       const published = await publish(found.image, found.match.label);
+      if (published) return published;
+    }
+
+    // A government body without a Wikidata picture still has a Wikipedia
+    // article, whose lead image is usually its building.
+    for (const subject of peopleFirst.filter((s) => s.type === "GovernmentOrganization")) {
+      const image = await wikipediaPageImage(subject.name);
+      if (!image) continue;
+      const published = await publish(image, subject.name);
       if (published) return published;
     }
 
