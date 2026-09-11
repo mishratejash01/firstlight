@@ -173,9 +173,37 @@ function usableBrief(
  * hotels" once produced a Grand Canyon hotel on one shared word. Two words
  * must match, and on stock one of them must be in the title itself.
  */
-async function sceneImage(scene: string): Promise<LicensedImage | null> {
+async function sceneImage(scene: string, places: string[] = []): Promise<LicensedImage | null> {
   const content = scene.split(/\s+/).filter((word) => word.length > 3);
   if (content.length < 2) return null;
+
+  // Where the story has a place, the place goes into the frame. Measured:
+  // "Delhi flooded street heavy rain" returns nothing from either library,
+  // "Delhi rain" returns Delhi in the rain from both. So the query is the
+  // place plus one scene word at a time, and a candidate must carry the
+  // place's name as well as a scene word.
+  for (const place of places) {
+    const placeToken = [...place.split(/\s+/)].sort((a, b) => b.length - a.length)[0].toLowerCase();
+    if (placeToken.length < 4) continue;
+    for (const word of content.slice(0, 3)) {
+      const query = `${place} ${word}`;
+      const fromCommons = await commonsSearchImage(query);
+      if (
+        fromCommons &&
+        countMatches(fromCommons.title, [], placeToken) >= 1 &&
+        countMatches(fromCommons.title, [], scene) >= 1
+      ) {
+        return fromCommons;
+      }
+      const candidates = await searchLicensedImages(query, 10);
+      for (const candidate of candidates) {
+        if (looksLikeSymbol(candidate.title ?? "")) continue;
+        if (countMatches(candidate.title, candidate.tags, placeToken) < 1) continue;
+        if (countMatches(candidate.title, candidate.tags, scene) >= 1) return candidate;
+      }
+    }
+  }
+
   const shortened = [...content].sort((a, b) => b.length - a.length).slice(0, 2).join(" ");
   const queries = [...new Set([scene, shortened])];
 
@@ -362,7 +390,14 @@ export async function illustrateArticle({
     // writer described the story rather than a name in it.
     const scene = usableBrief(brief, named);
     if (scene) {
-      const candidate = await sceneImage(scene);
+      // The story's places, subjects first. "Delhi rain" finds Delhi in the
+      // rain; "heavy rain flooded city street" found a lane in Somerset.
+      const places = [...named, ...related]
+        .filter((subject) => isPlace(subject.type))
+        .map((subject) => subject.name.trim())
+        .filter((name, index, all) => name.length > 2 && all.indexOf(name) === index)
+        .slice(0, 2);
+      const candidate = await sceneImage(scene, places);
       if (candidate) {
         const published = await publish(candidate, `${scene} (file image)`);
         if (published) return published;
