@@ -1916,6 +1916,20 @@ export type Database = {
           sessions: number
         }[]
       }
+      engine_unread_wire_items: {
+        Args: { p_limit?: number }
+        Returns: {
+          id: string
+          title: string
+          summary: string | null
+          link: string
+          published_at: string | null
+          ingested_at: string
+          source_slug: string
+          source_homepage_url: string | null
+          source_expanded: boolean
+        }[]
+      }
       engine_feed_stats: {
         Args: { p_hours?: number }
         Returns: {
