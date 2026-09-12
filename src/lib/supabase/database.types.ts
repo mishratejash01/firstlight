@@ -1987,7 +1987,6 @@ export type Database = {
           window_hours?: number
         }
         Returns: {
-          centroid: string
           entities: string[]
           id: string
           mention_count: number
