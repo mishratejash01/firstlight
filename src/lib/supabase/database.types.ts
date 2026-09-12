@@ -1408,6 +1408,7 @@ export type Database = {
       sources: {
         Row: {
           created_at: string
+          expanded: boolean
           homepage_url: string | null
           id: string
           is_active: boolean
@@ -1418,6 +1419,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          expanded?: boolean
           homepage_url?: string | null
           id?: string
           is_active?: boolean
@@ -1428,6 +1430,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          expanded?: boolean
           homepage_url?: string | null
           id?: string
           is_active?: boolean
@@ -1911,6 +1914,16 @@ export type Database = {
           completion_rate_pct: number
           completions: number
           sessions: number
+        }[]
+      }
+      engine_feed_stats: {
+        Args: { p_hours?: number }
+        Returns: {
+          source_id: string
+          items: number
+          events_touched: number
+          events_started: number
+          stories_written: number
         }[]
       }
       engine_entity_baselines: {
