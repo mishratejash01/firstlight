@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchTrends } from "@/lib/trends/google-trends";
 import { searchGoogleNews } from "@/lib/trends/google-news";
 import type { IncomingMention } from "../cluster";
+import { hostOfUrl } from "../hosts";
 
 /**
  * The sources the previous engine ran on, re-expressed as mention streams.
@@ -17,11 +18,7 @@ import type { IncomingMention } from "../cluster";
  */
 
 function hostOf(url: string): string {
-  try {
-    return new URL(url).host.replace(/^www\./, "");
-  } catch {
-    return "unknown";
-  }
+  return hostOfUrl(url) ?? "unknown";
 }
 
 /** A stable key for an outlet: its host where the feed gives one, else its name. */
@@ -137,22 +134,47 @@ const BEAT_FEEDS: Record<string, string> = {
   "the-verge-ai": "ai",
   "mit-technology-review-ai": "ai",
   "wired-ai": "ai",
+  "openai-news": "ai",
+  "deepmind-blog": "ai",
+  "hugging-face-blog": "ai",
   "techcrunch-startups": "startups",
 };
 
-/** Wire items already ingested by the RSS worker, as mentions. */
+type WireSource = {
+  slug: string;
+  homepage_url: string | null;
+  is_active: boolean;
+  expanded: boolean;
+};
+
+/**
+ * Wire items already ingested by the RSS worker, as mentions.
+ *
+ * The switches are honoured here as well as in the poller. A feed switched off
+ * stops being fetched on the next run, but items it fetched in the minutes
+ * before would otherwise keep flowing into the engine for up to six hours;
+ * dropping them here makes "off" mean off within a minute.
+ */
 export async function fetchWireMentions(): Promise<IncomingMention[]> {
   const supabase = createAdminClient();
+  const expandedEnabled = await readSetting<boolean>("engine_expanded_feeds_enabled", false);
 
   const { data } = await supabase
     .from("wire_items")
-    .select("id, title, summary, link, published_at, ingested_at, sources ( slug, homepage_url )")
+    .select("id, title, summary, link, published_at, ingested_at, sources ( slug, homepage_url, is_active, expanded )")
     .gte("ingested_at", new Date(Date.now() - 6 * 3600_000).toISOString())
     .order("ingested_at", { ascending: false })
-    .limit(200);
+    .limit(400);
 
-  return (data ?? []).map((item) => {
-    const source = item.sources as unknown as { slug: string; homepage_url: string | null } | null;
+  const live = (data ?? []).filter((item) => {
+    const source = item.sources as unknown as WireSource | null;
+    if (!source) return true;
+    if (!source.is_active) return false;
+    return !source.expanded || expandedEnabled;
+  });
+
+  return live.map((item) => {
+    const source = item.sources as unknown as WireSource | null;
     return {
       sourceKind: "rss",
       sourceKey: source?.homepage_url ? hostOf(source.homepage_url) : (source?.slug ?? "wire"),
