@@ -14,11 +14,13 @@ import { ReadingInstrumentation } from "@/components/analytics/reading-instrumen
 import { getArticle, getRelatedArticles } from "@/lib/queries/article-detail";
 import { getRecentArticles } from "@/lib/queries/articles";
 import { HeadlineRail } from "@/components/article/headline-rail";
+import { ListenButton } from "@/components/article/listen-button";
 import {
   captureRequestContext,
   logPageView,
 } from "@/lib/analytics/server-events";
 import { renderMarkdown } from "@/lib/format/markdown";
+import { listeningMinutes, markdownToSpeech } from "@/lib/format/speech-text";
 import { cloudinaryImage } from "@/lib/media/transform";
 import { formatDateTime } from "@/lib/format/datetime";
 import {
@@ -87,6 +89,9 @@ export default async function ArticlePage(
   // The story being read is not "latest" to the person reading it.
   const latest = recent.filter((item) => item.id !== article.id).slice(0, 6);
   const url = `${SITE_URL}/${article.categories.slug}/${article.slug}`;
+  // What the listen button will read: the body with its markup stripped,
+  // computed here so the client is sent words rather than Markdown.
+  const speechBlocks = article.body ? markdownToSpeech(article.body) : [];
 
   // Request context must be read here, during render: cookies() and headers()
   // are unavailable inside an after() callback. The write itself is deferred so
@@ -163,6 +168,16 @@ export default async function ArticlePage(
                     {formatDateTime(article.published_at)}
                   </time>
                 </p>
+              ) : null}
+              {article.origin !== "curated" && speechBlocks.length ? (
+                <div className="basis-full sm:ml-auto sm:basis-auto">
+                  <ListenButton
+                    headline={article.headline}
+                    standfirst={article.standfirst}
+                    blocks={speechBlocks}
+                    minutes={listeningMinutes(speechBlocks)}
+                  />
+                </div>
               ) : null}
             </div>
 
