@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
+import { AmbientPad } from "@/lib/audio/ambient-pad";
+
 /**
  * Read the story aloud, in the paper's one voice.
  *
@@ -18,6 +20,10 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
  * The text is spoken one sentence at a time. That is what makes the pauses
  * land where a newsreader's would, and it also sidesteps a long-standing
  * Chrome habit of falling silent partway through a single long utterance.
+ *
+ * Under the voice, a quiet synthesised bed (see ambient-pad.ts) fades in
+ * while reading and out when it pauses or stops. It sits far below speech and
+ * is there to make listening feel settled, not to be listened to.
  *
  * Rendered only when the engine exists. A button that does nothing is worse
  * than no button, so on a browser without speech it is not there.
@@ -134,6 +140,7 @@ export function ListenButton({
 
   const positionRef = useRef(0);
   const statusRef = useRef<Status>("idle");
+  const padRef = useRef<AmbientPad | null>(null);
 
   const pieces = useMemo(
     () => toUtterances([headline, ...(standfirst ? [standfirst] : []), ...blocks]),
@@ -142,12 +149,20 @@ export function ListenButton({
 
   const voice = useMemo(() => pickVoice(voices), [voices]);
 
-  // Leaving the page must not leave the voice talking.
+  // Leaving the page must not leave the voice talking or the bed playing.
   useEffect(() => {
     return () => {
       if (hasSpeech()) window.speechSynthesis.cancel();
+      padRef.current?.dispose();
+      padRef.current = null;
     };
   }, []);
+
+  const bedOn = () => {
+    if (!padRef.current) padRef.current = new AmbientPad();
+    void padRef.current.start();
+  };
+  const bedOff = () => padRef.current?.stop();
 
   function speakFrom(index: number, withVoice: SpeechSynthesisVoice | null) {
     const synth = window.speechSynthesis;
@@ -157,6 +172,7 @@ export function ListenButton({
       setStatus("idle");
       positionRef.current = 0;
       setPosition(0);
+      bedOff();
       return;
     }
     const utterance = new SpeechSynthesisUtterance(pieces[index]);
@@ -177,6 +193,7 @@ export function ListenButton({
       if (event.error === "interrupted" || event.error === "canceled") return;
       statusRef.current = "idle";
       setStatus("idle");
+      bedOff();
     };
     synth.speak(utterance);
   }
@@ -184,6 +201,7 @@ export function ListenButton({
   const play = () => {
     statusRef.current = "playing";
     setStatus("playing");
+    bedOn();
     speakFrom(positionRef.current, voice);
   };
 
@@ -193,6 +211,7 @@ export function ListenButton({
     statusRef.current = "paused";
     setStatus("paused");
     window.speechSynthesis.cancel();
+    bedOff();
   };
 
   const stop = () => {
@@ -201,6 +220,7 @@ export function ListenButton({
     positionRef.current = 0;
     setPosition(0);
     window.speechSynthesis.cancel();
+    bedOff();
   };
 
   if (!supported || !pieces.length) return null;
