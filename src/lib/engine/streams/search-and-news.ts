@@ -140,53 +140,33 @@ const BEAT_FEEDS: Record<string, string> = {
   "techcrunch-startups": "startups",
 };
 
-type WireSource = {
-  slug: string;
-  homepage_url: string | null;
-  is_active: boolean;
-  expanded: boolean;
-};
-
 /**
- * Wire items already ingested by the RSS worker, as mentions.
+ * Wire items the engine has not read yet, as mentions.
  *
- * The switches are honoured here as well as in the poller. A feed switched off
- * stops being fetched on the next run, but items it fetched in the minutes
- * before would otherwise keep flowing into the engine for up to six hours;
- * dropping them here makes "off" mean off within a minute.
+ * The database answers "which items have no mention" directly
+ * (engine_unread_wire_items), rather than this side taking the newest few
+ * hundred and letting the unique key discard repeats — that starved older
+ * items whenever a burst arrived. The same function applies both feed
+ * switches, so a feed switched off stops entering the engine at the next
+ * pulse even if the poller fetched from it a minute earlier: "off" means off
+ * within a minute, not five.
  */
 export async function fetchWireMentions(): Promise<IncomingMention[]> {
   const supabase = createAdminClient();
-  const expandedEnabled = await readSetting<boolean>("engine_expanded_feeds_enabled", false);
 
-  const { data } = await supabase
-    .from("wire_items")
-    .select("id, title, summary, link, published_at, ingested_at, sources ( slug, homepage_url, is_active, expanded )")
-    .gte("ingested_at", new Date(Date.now() - 6 * 3600_000).toISOString())
-    .order("ingested_at", { ascending: false })
-    .limit(400);
+  const { data } = await supabase.rpc("engine_unread_wire_items", { p_limit: 300 });
 
-  const live = (data ?? []).filter((item) => {
-    const source = item.sources as unknown as WireSource | null;
-    if (!source) return true;
-    if (!source.is_active) return false;
-    return !source.expanded || expandedEnabled;
-  });
-
-  return live.map((item) => {
-    const source = item.sources as unknown as WireSource | null;
-    return {
-      sourceKind: "rss",
-      sourceKey: source?.homepage_url ? hostOf(source.homepage_url) : (source?.slug ?? "wire"),
-      externalId: `wire:${item.id}`,
-      title: item.title,
-      body: item.summary,
-      url: item.link,
-      observedAt: item.published_at ?? item.ingested_at,
-      raw: {
-        wireItemId: item.id,
-        ...(source?.slug && BEAT_FEEDS[source.slug] ? { beat: BEAT_FEEDS[source.slug] } : {}),
-      },
-    };
-  });
+  return (data ?? []).map((item) => ({
+    sourceKind: "rss",
+    sourceKey: item.source_homepage_url ? hostOf(item.source_homepage_url) : item.source_slug,
+    externalId: `wire:${item.id}`,
+    title: item.title,
+    body: item.summary,
+    url: item.link,
+    observedAt: item.published_at ?? item.ingested_at,
+    raw: {
+      wireItemId: item.id,
+      ...(BEAT_FEEDS[item.source_slug] ? { beat: BEAT_FEEDS[item.source_slug] } : {}),
+    },
+  }));
 }
