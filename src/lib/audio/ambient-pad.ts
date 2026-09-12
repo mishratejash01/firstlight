@@ -9,20 +9,28 @@
  * download and nothing that could ever clash with a word.
  *
  * The level is the whole point. The voice comes out of the speech engine at
- * the device's full volume; this sits at three per cent of that, felt more
- * than heard. Fades in over three seconds so it never pops, out over one and
- * a half so it never cuts.
+ * the device's full volume; this sits about twenty decibels under it, the
+ * gap a broadcast mix keeps between narration and music. Quieter than that
+ * and phone speakers, which reproduce little below 300 Hz, lose it entirely.
+ * Fades in over three seconds so it never pops, out over one and a half so
+ * it never cuts.
  */
 
-const LEVEL = 0.03;
+const LEVEL = 0.1;
 const FADE_IN_S = 3;
 const FADE_OUT_S = 1.5;
 
-/** D3, A3, F sharp 4: a warm open chord that does not resolve anywhere. */
+/**
+ * A D major chord spread over two octaves, so it does not resolve anywhere
+ * and has something for small speakers to carry: the bottom for warmth on
+ * headphones, the octave and fifth above for presence on a phone.
+ */
 const TONES: { hz: number; gain: number }[] = [
-  { hz: 146.83, gain: 0.5 },
-  { hz: 220.0, gain: 0.32 },
-  { hz: 369.99, gain: 0.2 },
+  { hz: 146.83, gain: 0.3 },
+  { hz: 220.0, gain: 0.25 },
+  { hz: 293.66, gain: 0.3 },
+  { hz: 369.99, gain: 0.22 },
+  { hz: 440.0, gain: 0.14 },
 ];
 
 export class AmbientPad {
@@ -55,14 +63,14 @@ export class AmbientPad {
     // Everything passes through a low-pass so the bed stays below speech.
     const filter = ctx.createBiquadFilter();
     filter.type = "lowpass";
-    filter.frequency.value = 520;
+    filter.frequency.value = 1000;
     filter.Q.value = 0.7;
     filter.connect(swell);
 
     const filterLfo = ctx.createOscillator();
     filterLfo.frequency.value = 0.06;
     const filterDepth = ctx.createGain();
-    filterDepth.gain.value = 90;
+    filterDepth.gain.value = 150;
     filterLfo.connect(filterDepth).connect(filter.frequency);
 
     // A short delay with feedback, mixed low, for a sense of a room.
@@ -72,7 +80,7 @@ export class AmbientPad {
     feedback.gain.value = 0.32;
     const delayTone = ctx.createBiquadFilter();
     delayTone.type = "lowpass";
-    delayTone.frequency.value = 400;
+    delayTone.frequency.value = 700;
     const wet = ctx.createGain();
     wet.gain.value = 0.3;
     delay.connect(delayTone).connect(feedback).connect(delay);
