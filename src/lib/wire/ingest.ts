@@ -173,21 +173,42 @@ async function ingestSource(
   return report;
 }
 
-/** Polls every active wire source that has a feed configured. */
+/** How many feeds are fetched at once. Different publishers, so parallel is
+ * polite enough; the cap keeps the worst case inside the route's time limit. */
+const CONCURRENCY = 6;
+
+/**
+ * Polls every wire source that is switched on.
+ *
+ * Two switches govern a feed. Its own is_active flag, and — for feeds in the
+ * expanded wave — the engine_expanded_feeds_enabled setting, which stops the
+ * whole wave at once. The founding feeds carry expanded = false and answer
+ * only to their own flag.
+ */
 export async function ingestAllWireSources(): Promise<IngestReport[]> {
   const supabase = createAdminClient();
 
-  const { data: licences } = await supabase
-    .from("source_licences")
-    .select("feed_url, sources!inner ( id, slug, name, origin, is_active )")
-    .not("feed_url", "is", null);
+  const [{ data: licences }, { data: setting }] = await Promise.all([
+    supabase
+      .from("source_licences")
+      .select("feed_url, sources!inner ( id, slug, name, origin, is_active, expanded )")
+      .not("feed_url", "is", null),
+    supabase
+      .from("site_settings")
+      .select("value")
+      .eq("key", "engine_expanded_feeds_enabled")
+      .maybeSingle(),
+  ]);
+  const expandedEnabled = setting?.value === true;
 
   const active = (licences ?? []).filter((row) => {
     const source = row.sources as unknown as {
       origin: string;
       is_active: boolean;
+      expanded: boolean;
     };
-    return source?.is_active && source.origin === "wire";
+    if (!source?.is_active || source.origin !== "wire") return false;
+    return !source.expanded || expandedEnabled;
   });
 
   if (!active.length) return [];
@@ -199,15 +220,16 @@ export async function ingestAllWireSources(): Promise<IngestReport[]> {
 
   const reports: IngestReport[] = [];
 
-  // Sequential rather than parallel. A handful of feeds is not worth the risk
-  // of hammering several publishers at once from one IP.
-  for (const row of active) {
-    const source = row.sources as unknown as {
-      id: string;
-      slug: string;
-      name: string;
-    };
-    reports.push(await ingestSource(source, row.feed_url as string, categories ?? []));
+  for (let i = 0; i < active.length; i += CONCURRENCY) {
+    const batch = active.slice(i, i + CONCURRENCY).map((row) => {
+      const source = row.sources as unknown as {
+        id: string;
+        slug: string;
+        name: string;
+      };
+      return ingestSource(source, row.feed_url as string, categories ?? []);
+    });
+    reports.push(...(await Promise.all(batch)));
   }
 
   return reports;
