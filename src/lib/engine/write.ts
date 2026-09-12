@@ -16,6 +16,7 @@ import { Output, generateText } from "ai";
 import { z } from "zod";
 import { aiIsConfigured, runWithChain } from "@/lib/ai/config";
 import { recordSameAs } from "./wikidata";
+import { canonicalHost } from "./hosts";
 
 /**
  * From a newsworthy event to a published article.
@@ -76,7 +77,7 @@ async function readSetting<T>(key: string, fallback: T): Promise<T> {
 
 function hostOf(url: string): string {
   try {
-    return new URL(url).hostname.replace(/^www\./, "");
+    return canonicalHost(new URL(url).hostname);
   } catch {
     return "";
   }
