@@ -3,16 +3,17 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 /**
- * Read the story aloud, with the best voice the reader's device has.
+ * Read the story aloud, in the paper's one voice.
  *
  * Uses the browser's own speech engine, so it costs nothing and sends nothing
- * anywhere: the words already on the page are spoken by the device. Quality
- * therefore depends on the device, and the one thing this component can do
- * about that is choose well. Every voice is scored: English first, Indian
- * then British then American; the neural and network voices that Edge,
- * Chrome, Apple and Android ship are ranked above the older compact ones by
- * name and by the fact that they are not local. The reader can override the
- * choice, and the override is remembered on that device.
+ * anywhere: the words already on the page are spoken by the device. The voice
+ * is fixed: Google UK English Male, the British voice Chrome ships. There is
+ * no picker and nothing to remember; a paper reads in one voice.
+ *
+ * Not every device has that voice — no iPhone does, and Firefox and Edge use
+ * their own engines — so where it is missing the nearest British male voice
+ * stands in, chosen silently. Hiding the button on every phone would serve
+ * nobody.
  *
  * The text is spoken one sentence at a time. That is what makes the pauses
  * land where a newsreader's would, and it also sidesteps a long-standing
@@ -24,30 +25,37 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 
 type Status = "idle" | "playing" | "paused";
 
-const STORAGE_KEY = "india-front:voice";
+const WANTED_VOICE = "Google UK English Male";
 
-/** Language preference, most wanted first. */
-const LANGUAGE_ORDER = ["en-IN", "en-GB", "en-US", "en-AU", "en-IE", "en-NZ", "en-ZA", "en"];
+/**
+ * The stand-ins, in order, for devices without the wanted voice. Each is a
+ * British male voice from that platform's own engine: Edge's neural Ryan,
+ * Apple's Daniel, and Android's Google voices whose ids mark the male
+ * variants. Then any British voice, then any English one.
+ */
+const FALLBACK_ORDER: ((v: SpeechSynthesisVoice) => boolean)[] = [
+  (v) => v.name === WANTED_VOICE,
+  (v) => /Ryan/i.test(v.name) && isBritish(v),
+  (v) => /^Daniel/i.test(v.name) && isBritish(v),
+  (v) => isBritish(v) && /gbb|gbd|rjs/i.test(v.voiceURI),
+  (v) => isBritish(v) && /male/i.test(v.name) && !/female/i.test(v.name),
+  (v) => isBritish(v),
+  (v) => v.lang.toLowerCase().startsWith("en"),
+];
 
-/** Names that mark the higher-quality engines each vendor ships. */
-const QUALITY_MARKS = [/natural/i, /neural/i, /online/i, /premium/i, /enhanced/i, /google/i, /siri/i];
-/** Names that mark the low-quality fallbacks. */
-const POOR_MARKS = [/compact/i, /espeak/i, /novelty/i, /whisper/i, /bad news/i, /bells/i, /zarvox/i];
+function isBritish(voice: SpeechSynthesisVoice): boolean {
+  return voice.lang.replace("_", "-").toLowerCase() === "en-gb";
+}
 
-function scoreVoice(voice: SpeechSynthesisVoice): number {
-  const lang = voice.lang.replace("_", "-");
-  const langIndex = LANGUAGE_ORDER.findIndex(
-    (wanted) => lang === wanted || (wanted === "en" && lang.startsWith("en")),
-  );
-  if (langIndex === -1) return -1;
-
-  let score = (LANGUAGE_ORDER.length - langIndex) * 10;
-  if (QUALITY_MARKS.some((mark) => mark.test(voice.name))) score += 25;
-  if (POOR_MARKS.some((mark) => mark.test(voice.name))) score -= 40;
-  // Network voices are the vendors' better ones on every platform that has them.
-  if (!voice.localService) score += 8;
-  if (voice.default) score += 2;
-  return score;
+/** The wanted voice, else the first stand-in the device has; network voices before local. */
+function pickVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
+  for (const matches of FALLBACK_ORDER) {
+    const candidates = voices.filter(matches);
+    if (candidates.length) {
+      return candidates.find((v) => !v.localService) ?? candidates[0];
+    }
+  }
+  return null;
 }
 
 /* The engine as an external store. Chrome delivers its voice list after a
@@ -74,9 +82,7 @@ function readVoices(): SpeechSynthesisVoice[] {
   const key = list.map((v) => v.voiceURI).join("|");
   if (key !== cachedKey) {
     cachedKey = key;
-    cachedVoices = list
-      .filter((v) => scoreVoice(v) >= 0)
-      .sort((a, b) => scoreVoice(b) - scoreVoice(a));
+    cachedVoices = list;
   }
   return cachedVoices;
 }
@@ -109,14 +115,6 @@ function toUtterances(blocks: string[]): string[] {
   return pieces;
 }
 
-function rememberedVoice(): string | null {
-  try {
-    return window.localStorage.getItem(STORAGE_KEY);
-  } catch {
-    return null;
-  }
-}
-
 export function ListenButton({
   headline,
   standfirst,
@@ -132,7 +130,6 @@ export function ListenButton({
   const voices = useSyncExternalStore(subscribeVoices, readVoices, () => NO_VOICES);
 
   const [status, setStatus] = useState<Status>("idle");
-  const [chosenName, setChosenName] = useState<string | null>(null);
   const [position, setPosition] = useState(0);
 
   const positionRef = useRef(0);
@@ -143,11 +140,7 @@ export function ListenButton({
     [headline, standfirst, blocks],
   );
 
-  const voice = useMemo(() => {
-    if (!voices.length) return null;
-    const wanted = chosenName ?? rememberedVoice();
-    return voices.find((v) => v.name === wanted) ?? voices[0];
-  }, [voices, chosenName]);
+  const voice = useMemo(() => pickVoice(voices), [voices]);
 
   // Leaving the page must not leave the voice talking.
   useEffect(() => {
@@ -210,19 +203,6 @@ export function ListenButton({
     window.speechSynthesis.cancel();
   };
 
-  const changeVoice = (name: string) => {
-    setChosenName(name);
-    try {
-      window.localStorage.setItem(STORAGE_KEY, name);
-    } catch {
-      // Remembering the choice is a convenience, not a requirement.
-    }
-    if (statusRef.current === "playing") {
-      const next = voices.find((v) => v.name === name) ?? null;
-      speakFrom(positionRef.current, next);
-    }
-  };
-
   if (!supported || !pieces.length) return null;
 
   const progress = pieces.length ? Math.round((position / pieces.length) * 100) : 0;
@@ -259,22 +239,6 @@ export function ListenButton({
         </>
       ) : null}
 
-      {voices.length > 1 ? (
-        <label className="text-muted">
-          <span className="sr-only">Voice</span>
-          <select
-            value={voice?.name ?? ""}
-            onChange={(event) => changeVoice(event.target.value)}
-            className="max-w-[14rem] rounded-control border border-hairline bg-paper px-2 py-1 text-meta text-muted"
-          >
-            {voices.map((v) => (
-              <option key={v.name} value={v.name}>
-                {v.name.replace(/^Microsoft\s+/, "").replace(/\s+Online\s*\(Natural\)/i, "")} ({v.lang})
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
     </div>
   );
 }
