@@ -12,6 +12,7 @@ import { getAllSections, getNavCategories } from "@/lib/queries/navigation";
 import {
   getRecentArticles,
   type ArticleCardData,
+  type BreakingArticle,
 } from "@/lib/queries/articles";
 import { cloudinaryImage } from "@/lib/media/transform";
 
@@ -56,7 +57,8 @@ export async function SiteHeader({
   breaking,
 }: {
   activeSlug?: string;
-  breaking?: ArticleCardData;
+  /** Every live alert, already ranked. The strip shows them in turn. */
+  breaking?: BreakingArticle[];
 }) {
   // One query feeds every section's hover panel. Asking per section would mean
   // a round trip per item in the navigation, on every page of the site.
@@ -340,7 +342,7 @@ export async function SiteHeader({
           </div>
         </nav>
 
-        {breaking ? <BreakingStrip article={breaking} /> : null}
+        {breaking?.length ? <BreakingStrip articles={breaking} /> : null}
       </StickyNav>
     </>
   );
