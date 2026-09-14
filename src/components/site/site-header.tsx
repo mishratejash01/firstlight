@@ -103,16 +103,18 @@ export async function SiteHeader({
       <div className="sticky top-0 z-40 border-b border-hairline bg-paper">
         <nav aria-label="Sections">
           <div className="mx-auto flex max-w-wide items-center gap-4 px-4 sm:px-6">
-            {/* Two equal spacers either side keep the section strip optically
-              centred whether or not the social icons are configured, instead of
-              letting the strip shift left the day an account is added. */}
-            <div className="hidden flex-1 sm:block" aria-hidden="true" />
+            {/* Fixed-width spacers either side, not flexible ones: they keep
+              the strip optically centred while leaving it free to take the rest
+              of the row and wrap. Flexible spacers plus a strip sized to its
+              own content pushed the whole page wider than the window once a
+              newsroom ran more than a dozen sections. */}
+            <div className="hidden w-24 shrink-0 sm:block" aria-hidden="true" />
 
             {/* One line on a phone, scrolling edge to edge: the negative margin
               lets the first and last sections sit flush with the page gutter.
               Nothing shares this row below the sm breakpoint — the social marks
               move up into the dateline so the sections keep the full width. */}
-            <ul className="-mx-4 flex min-w-0 flex-1 gap-6 overflow-x-auto px-4 pb-3 sm:mx-0 sm:flex-none sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <ul className="-mx-4 flex min-w-0 flex-1 gap-6 overflow-x-auto px-4 pb-3 sm:mx-0 sm:flex-wrap sm:justify-center sm:gap-y-2 sm:overflow-visible sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {categories.map((category) => {
                 const active = category.slug === activeSlug;
                 return (
@@ -213,7 +215,7 @@ export async function SiteHeader({
               })}
             </ul>
 
-            <div className="hidden pb-3 sm:flex sm:flex-1 sm:justify-end">
+            <div className="hidden w-24 shrink-0 pb-3 sm:flex sm:justify-end">
               <SocialLinks />
             </div>
           </div>
