@@ -40,10 +40,17 @@ function Glyph() {
 export function SearchField({
   variant = "compact",
   defaultValue = "",
+  autoFocus = false,
 }: {
   /** compact: the flag; full: the search page. */
   variant?: "compact" | "full";
   defaultValue?: string;
+  /**
+   * Take the caret on mount. Set when the field is revealed by a control the
+   * reader just clicked — having asked for search, they should be able to type
+   * without a second click at the field itself.
+   */
+  autoFocus?: boolean;
 }) {
   const router = useRouter();
   const listId = useId();
@@ -127,6 +134,9 @@ export function SearchField({
           id={`${listId}-input`}
           type="search"
           name="q"
+          // eslint-disable-next-line jsx-a11y/no-autofocus -- only ever set by
+          // a control the reader clicked to open this field.
+          autoFocus={autoFocus}
           value={value}
           onChange={(event) => setValue(event.target.value)}
           onFocus={() => suggestions.length && setOpen(true)}
