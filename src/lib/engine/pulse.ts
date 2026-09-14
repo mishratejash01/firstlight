@@ -47,7 +47,7 @@ export type PulseReport = {
   scoring: ScoreReport;
   corroborated?: number;
   sourceStatsUpdated?: number;
-  learning?: { harvested: { outlet: number; reader: number }; applied: number };
+  learning?: { harvested: { outlet: number }; applied: number };
 };
 
 type Stream = { name: string; fetch: () => Promise<IncomingMention[]> };
