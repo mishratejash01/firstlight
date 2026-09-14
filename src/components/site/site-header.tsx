@@ -56,11 +56,11 @@ export async function SiteHeader({
     getRecentArticles(60),
   ]);
 
-  // The bar carries the sections the editors ranked highest; past this it wraps
-  // into a second row and stops reading as a masthead. The number is a design
-  // constant, like a type size — which sections fill it is still the running
-  // order held in the database.
-  const BAR_LIMIT = 8;
+  // The bar carries the sections the editors ranked highest, as many as fill
+  // the strip's width on a desktop without wrapping into a second row. The
+  // number is a design constant, like a type size — which sections fill it is
+  // still the running order held in the database.
+  const BAR_LIMIT = 11;
   const categories = navCategories.slice(0, BAR_LIMIT);
 
   // Everything the bar could not take, by name. Includes sections held out of
@@ -124,7 +124,7 @@ export async function SiteHeader({
               of the row and wrap. Flexible spacers plus a strip sized to its
               own content pushed the whole page wider than the window once a
               newsroom ran more than a dozen sections. */}
-            <div className="hidden w-24 shrink-0 sm:block" aria-hidden="true" />
+            <div className="hidden w-16 shrink-0 sm:block" aria-hidden="true" />
 
             {/* One line on a phone, scrolling edge to edge: the negative margin
               lets the first and last sections sit flush with the page gutter.
@@ -236,7 +236,7 @@ export async function SiteHeader({
               ) : null}
             </ul>
 
-            <div className="hidden w-24 shrink-0 pb-3 sm:flex sm:justify-end">
+            <div className="hidden w-16 shrink-0 pb-3 sm:flex sm:justify-end">
               <SocialLinks />
             </div>
           </div>
