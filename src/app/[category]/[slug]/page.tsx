@@ -137,7 +137,7 @@ export default async function ArticlePage(
             </h1>
 
             {article.standfirst ? (
-              <p className="mt-4 text-[1.1875rem] leading-[1.5] text-muted">
+              <p className="mt-4 text-[1.1875rem] leading-[1.5] text-ink">
                 {article.standfirst}
               </p>
             ) : null}
@@ -217,7 +217,9 @@ export default async function ArticlePage(
  silently reproduce someone else's article. */}
             {article.origin === "curated" ? (
               <div className="mt-6">
-                <p className="text-prose text-ink">{article.summary}</p>
+                <p className="font-label text-prose text-ink">
+                  {article.summary}
+                </p>
                 {article.attribution_url ? (
                   <p className="mt-5 border-l-2 border-accent pl-4 text-body">
                     <a
@@ -234,7 +236,9 @@ export default async function ArticlePage(
                 ) : null}
               </div>
             ) : (
-              <div className="mt-7">{renderMarkdown(article.body)}</div>
+              <div className="font-label mt-7">
+                {renderMarkdown(article.body)}
+              </div>
             )}
 
             {keyFacts.length ? (
@@ -377,6 +381,8 @@ export default async function ArticlePage(
                         ? {
                             slug: item.author_slug,
                             display_name: item.author_name,
+                            title: null,
+                            avatar_url: null,
                           }
                         : null,
                   }}
