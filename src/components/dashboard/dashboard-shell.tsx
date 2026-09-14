@@ -32,6 +32,13 @@ export function DashboardShell({
     links.push({ href: "/desk", label: "Desk" });
   }
   if (
+    user.roles.includes("reviewer") ||
+    user.roles.includes("editor") ||
+    user.roles.includes("admin")
+  ) {
+    links.push({ href: "/review", label: "Review" });
+  }
+  if (
     user.roles.includes("author") ||
     user.roles.includes("editor") ||
     user.roles.includes("admin")
