@@ -15,6 +15,11 @@
   --color-hairline: #e4e5e8; /* dividers only, never a full card border      */
   --color-accent: #1b3b6f;   /* links, active nav, buttons — never a big fill */
   --color-signal: #cc0000;   /* breaking news tag only, used sparingly       */
+  --color-signal-deep: #8c1d24; /* the bulletin board's ground. Deliberately
+     not the signal red: that one is a small hot mark on white, and a whole
+     panel of it shouts. This is the oxblood the paper was specified in, dark
+     enough to carry white type at full contrast and to sit beside the
+     breaking bar without the two competing.                                 */
   --color-wash: #eff1f5;     /* tinted panel behind section tile media        */
   --color-quote: #fdeee8;    /* warm panel behind an opinion pull quote       */
   --color-signal-soft: #fdeaea; /* the breaking bar's ground; the label sits
