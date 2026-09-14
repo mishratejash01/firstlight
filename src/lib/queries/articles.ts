@@ -44,8 +44,99 @@ export type ArticleCardData = {
   } | null;
 };
 
+/**
+ * A breaking story, carrying the running order of its section.
+ *
+ * Only this query asks for `sort_order`, so only this type has it. The column
+ * is the editors' own ranking of the sections — Politics at 10, Weather at 240
+ * — which makes it the paper's existing answer to "which desk matters most",
+ * and the right thing to rank breaking coverage by rather than inventing a
+ * second list of important categories in a file somewhere.
+ */
+export type BreakingArticle = Omit<ArticleCardData, "categories"> & {
+  categories: { slug: string; name: string; sort_order: number };
+};
+
+const BREAKING_FIELDS = CARD_FIELDS.replace(
+  "categories!inner ( slug, name )",
+  "categories!inner ( slug, name, sort_order )",
+);
+
 function nowIso() {
   return new Date().toISOString();
+}
+
+/**
+ * Everything an editor has flagged as breaking, newest first.
+ *
+ * Queried directly rather than filtered out of the front page's recent slice.
+ * A story flagged breaking is not necessarily among the ninety most recent —
+ * a quiet news day pushes it past the window and the strip would go dark while
+ * the flag was still set.
+ */
+export async function getBreakingArticles(
+  limit = 60,
+): Promise<BreakingArticle[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("articles")
+    .select(BREAKING_FIELDS)
+    .eq("is_breaking", true)
+    .in("status", VISIBLE_STATUSES)
+    .lte("published_at", nowIso())
+    .order("published_at", { ascending: false })
+    .limit(limit);
+
+  if (error) return [];
+  return (data ?? []) as unknown as BreakingArticle[];
+}
+
+/**
+ * How many hours of staleness the least important section is worth.
+ *
+ * The strip has to answer two questions at once: what just happened, and what
+ * matters. Ranking on recency alone puts a weather alert above a government
+ * collapsing because it landed four minutes later; ranking on section alone
+ * pins Politics to the bar all day after the story has stopped being news.
+ *
+ * So age in hours is the base score and the section adds a handicap on top:
+ * nothing for the leading section, this many hours for the last one. At twelve,
+ * a story from the bottom of the running order has to be roughly half a day
+ * fresher than one from the top to outrank it — which is about right for a
+ * bulletin that is supposed to lead on consequence, not on timestamp.
+ */
+const SECTION_HANDICAP_HOURS = 12;
+
+/**
+ * Order breaking stories for the bar: most worth leading on, first.
+ *
+ * The handicap is scaled against the sections actually present rather than
+ * against raw sort_order values, which are arbitrary — a newsroom numbering its
+ * desks 100, 200, 300 means the same thing as one numbering them 1, 2, 3, and
+ * neither should change how hard recency is weighted.
+ */
+export function rankBreaking(
+  articles: BreakingArticle[],
+  now: number = Date.now(),
+): BreakingArticle[] {
+  if (articles.length < 2) return [...articles];
+
+  const orders = articles.map((article) => article.categories?.sort_order ?? 0);
+  const lowest = Math.min(...orders);
+  const span = Math.max(...orders) - lowest;
+
+  const score = (article: BreakingArticle) => {
+    // A story with no timestamp cannot be ranked on recency and should never
+    // lead the bar; it sorts last rather than first.
+    if (!article.published_at) return Number.POSITIVE_INFINITY;
+
+    const ageHours = (now - Date.parse(article.published_at)) / 3_600_000;
+    const order = article.categories?.sort_order ?? 0;
+    const handicap = span === 0 ? 0 : ((order - lowest) / span) * SECTION_HANDICAP_HOURS;
+    return ageHours + handicap;
+  };
+
+  return [...articles].sort((a, b) => score(a) - score(b));
 }
 
 /**
