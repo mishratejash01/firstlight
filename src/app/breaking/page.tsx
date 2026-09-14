@@ -7,7 +7,7 @@ import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import {
   getBreakingArticles,
-  type BreakingArticle,
+  type RankedArticle,
 } from "@/lib/queries/articles";
 import { formatClockTime, formatDate } from "@/lib/format/datetime";
 import { cloudinaryImage } from "@/lib/media/transform";
@@ -42,7 +42,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * — but they are not what a reader means by "what is breaking", so they sit
  * under their own heading rather than padding the top of the page.
  */
-function BreakingItem({ article }: { article: BreakingArticle }) {
+function BreakingItem({ article }: { article: RankedArticle }) {
   const href = `/${article.categories.slug}/${article.slug}`;
   const dek = article.standfirst ?? article.summary;
 
@@ -103,7 +103,7 @@ export default async function BreakingPage() {
   const all = await getBreakingArticles();
 
   const cutoff = Date.now() - DAY_MS;
-  const isToday = (article: BreakingArticle) =>
+  const isToday = (article: RankedArticle) =>
     article.published_at ? Date.parse(article.published_at) >= cutoff : false;
 
   const today = all.filter(isToday);
