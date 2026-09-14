@@ -51,6 +51,14 @@ type Example = {
 
 type Params = { weights: Record<keyof Features, number>; a: number; b: number };
 
+type OutcomeRow = {
+  label: number;
+  label_source: string;
+  features: Record<string, unknown> | null;
+  weight: number | null;
+  created_at: string;
+};
+
 export type FitReport = {
   status: "promoted" | "held" | "insufficient" | "disabled";
   examples: number;
@@ -193,12 +201,9 @@ export async function fitSelectionWeights(): Promise<FitReport> {
   const [{ data: weightRows }, { data: setting }, { data: outcomeRows }] = await Promise.all([
     supabase.from("signal_weights").select("feature, mean, variance, observations, anchor"),
     supabase.from("site_settings").select("value").eq("key", "engine_learning_enabled").maybeSingle(),
-    supabase
-      .from("event_outcomes")
-      .select("label, label_source, features, weight, created_at")
-      .in("label_source", ["reviewer", "missed", "outlet_4h", "outlet_24h", "editor"])
-      .gte("created_at", new Date(now - WINDOW_DAYS * 24 * 3600_000).toISOString())
-      .limit(20000),
+    // One JSON document rather than rows: PostgREST caps a query at a
+    // thousand rows, and a fit on the wrong thousand is worse than none.
+    supabase.rpc("engine_training_outcomes_json", { p_days: WINDOW_DAYS }),
   ]);
   const enabled = setting?.value === true;
 
@@ -212,8 +217,8 @@ export async function fitSelectionWeights(): Promise<FitReport> {
   const current = Object.fromEntries(FEATURE_NAMES.map((n) => [n, live[n]]));
 
   const all: Example[] = [];
-  for (const row of outcomeRows ?? []) {
-    const features = toFeatures(row.features as Record<string, unknown> | null);
+  for (const row of ((outcomeRows ?? []) as unknown as OutcomeRow[])) {
+    const features = toFeatures(row.features);
     if (!features) continue;
     all.push({
       features,
