@@ -73,7 +73,7 @@ export function ArticleCard({
       {/* A list entry carries no dek. Its whole reason for existing is that a
  reader can take in six of them in the time one card takes. */}
       {dek && variant !== "list" ? (
-        <p className="mt-1.5 text-meta leading-relaxed text-muted">{dek}</p>
+        <p className="mt-1.5 text-meta leading-relaxed text-ink">{dek}</p>
       ) : null}
 
       <Byline
