@@ -9,28 +9,24 @@ import { cloudinaryImage } from "@/lib/media/transform";
 /**
  * The splash. One per front page.
  *
- * Headline first, picture second. Every serious front page in the world is
- * built that way: the reader is told what has happened before they are shown
- * it. Leading with a full-width photograph pushed the words below the fold and
- * made the page open on an image with no caption and no claim — handsome, and
- * silent about the news.
+ * Picture first, then the headline under it. This is the picture-led front:
+ * the page opens on the photograph and the words follow, which is how most
+ * modern papers lead — the image is what stops a reader scrolling, and the
+ * headline is what holds them once it has.
  *
- * The picture is 16:9 for the same reason: at this column width a 3:2 crop is
- * some seventy pixels deeper, which is a headline's worth of fold spent on the
- * same photograph. The splash still carries a picture; it just does not spend
- * the page on it.
+ * The trade-off is real and worth naming: the headline starts lower, so less
+ * of it clears the fold on a short screen. That is the cost of leading with the
+ * picture, and it is the reason the crop below matters so much.
+ *
+ * The picture is 16:9 for exactly that reason. At this column width a 3:2 crop
+ * is some seventy pixels deeper, and every one of those pixels now sits between
+ * the top of the page and the headline. The splash leads with a picture; it
+ * still does not spend the whole fold on one.
+ *
+ * The image carries `priority`: it is the largest thing above the fold and the
+ * page's LCP element, so it must not wait behind lazy loading.
  */
-export function HeroStory({
-  article,
-  fillHeight = false,
-}: {
-  article: ArticleCardData;
-  /** On the front page the splash shares a row with a taller column of
-   *  stories. Rather than leave the gap under it, or pad the column with
-   *  filler, the picture takes the slack and the two sides finish level — which
-   *  is what a lead photograph does on a printed front. */
-  fillHeight?: boolean;
-}) {
+export function HeroStory({ article }: { article: ArticleCardData }) {
   const href = `/${article.categories.slug}/${article.slug}`;
   const dek = article.standfirst ?? article.summary;
   // Where a story carries both a standfirst and a summary, the splash runs the
@@ -38,12 +34,32 @@ export function HeroStory({
   // line, and the extra paragraph is also what brings the column down level
   // with the briefs beside it.
   const more =
-    article.standfirst && article.summary && article.summary !== article.standfirst
+    article.standfirst &&
+    article.summary &&
+    article.summary !== article.standfirst
       ? article.summary
       : null;
 
   return (
-    <article className={`group ${fillHeight ? "flex h-full flex-col" : ""}`}>
+    <article className="group">
+      {article.hero_image_url ? (
+        <Link href={href} tabIndex={-1} aria-hidden="true">
+          <div className="relative mb-5 aspect-[16/9] w-full overflow-hidden rounded-media bg-hairline">
+            <Image
+              src={
+                cloudinaryImage(article.hero_image_url, "hero") ??
+                article.hero_image_url
+              }
+              alt={article.hero_image_alt ?? ""}
+              fill
+              priority
+              sizes="(max-width: 1024px) 100vw, 50vw"
+              className="object-cover"
+            />
+          </div>
+        </Link>
+      ) : null}
+
       <Eyebrow article={article} className="mb-2" />
 
       <h2 className="headline-lg text-hero leading-[1.03] text-ink sm:text-hero-lg lg:text-display">
@@ -68,33 +84,6 @@ export function HeroStory({
         attributionLabel={article.attribution_label}
         className="mt-2.5"
       />
-
-      {article.hero_image_url ? (
-        <Link
-          href={href}
-          tabIndex={-1}
-          aria-hidden="true"
-          className={fillHeight ? "mt-5 min-h-[18rem] flex-1" : ""}
-        >
-          <div
-            className={`relative w-full overflow-hidden rounded-media bg-hairline ${
-              fillHeight ? "h-full" : "mt-5 aspect-[16/9]"
-            }`}
-          >
-            <Image
-              src={
-                cloudinaryImage(article.hero_image_url, "hero") ??
-                article.hero_image_url
-              }
-              alt={article.hero_image_alt ?? ""}
-              fill
-              priority
-              sizes="(max-width: 1024px) 100vw, 50vw"
-              className="object-cover"
-            />
-          </div>
-        </Link>
-      ) : null}
     </article>
   );
 }
