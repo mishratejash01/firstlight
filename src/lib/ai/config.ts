@@ -192,7 +192,13 @@ function classify(error: unknown): { cooldownSeconds: number; message: string } 
   const message = (error instanceof Error ? error.message : String(error)).slice(0, 300);
   const text = message.toLowerCase();
 
-  if (/api key not valid|invalid api key|permission_denied|unauthorized|\b401\b|\b403\b/.test(text)) {
+  if (
+    /api key not valid|invalid api key|invalid authentication|credentials|permission_denied|unauthorized|\b401\b|\b403\b/.test(text) ||
+    /credit card|payment required|billing account|\b402\b/.test(text)
+  ) {
+    // A key the provider rejects, or an account that cannot pay, is dead
+    // until someone looks at it. Trying it on every call cost a round trip
+    // each time and never once succeeded.
     return { cooldownSeconds: 6 * 3600, message };
   }
   if (/per day|daily|requests per day|rpd|exceeded your current quota/.test(text)) {
