@@ -2,8 +2,9 @@ import { SITE_NAME } from "@/lib/site";
 import type { Metadata } from "next";
 
 import { HeroStory } from "@/components/article/hero-story";
-import { HeadlineRail } from "@/components/article/headline-rail";
 import { ArticleCard } from "@/components/article/article-card";
+import { BriefGrid } from "@/components/article/brief-grid";
+import { SectionDigest } from "@/components/article/section-digest";
 import { SectionShelf } from "@/components/article/section-shelf";
 import { OpinionShelf } from "@/components/article/opinion-shelf";
 import { SiteFooter } from "@/components/site/site-footer";
@@ -75,16 +76,13 @@ export default async function HomePage() {
     .map((p) => take(byId.get(p.article_id)))
     .filter((a): a is ArticleCardData => Boolean(a));
 
-  const rail = [...pinnedRail, ...nextUnused(7 - pinnedRail.length)].slice(
+  // The briefs beside the splash. Ten short entries in two columns come out
+  // level with a lead of this depth; a handful of full cards did not.
+  const briefs = [...pinnedRail, ...nextUnused(10 - pinnedRail.length)].slice(
     0,
-    7,
+    10,
   );
-  rail.forEach((a) => used.add(a.id));
-
-  // The column of stories beside the splash. Three is what fits beside a lead
-  // of this depth without the page needing to scroll to finish the row.
-  const secondary = nextUnused(3);
-  secondary.forEach((a) => used.add(a.id));
+  briefs.forEach((a) => used.add(a.id));
 
   // Shelves are built from what is left, so no story appears twice on the page.
   // Seven per section fills a lead plus two columns of three rows, which is
@@ -99,6 +97,13 @@ export default async function HomePage() {
     }))
     .filter((shelf) => shelf.articles.length > 0);
 
+  // Only the leading sections get a picture block of their own; the rest are
+  // listed at the foot. Twenty full blocks is not a front page, it is twenty
+  // front pages stacked.
+  const FULL_BLOCKS = 5;
+  const featured = shelves.slice(0, FULL_BLOCKS);
+  const remaining = shelves.slice(FULL_BLOCKS);
+
   // The strip is a pointer to a breaking story the reader might otherwise
   // scroll past. If the breaking story is already the splash, there is nothing
   // to point at and the row does not render at all.
@@ -109,48 +114,51 @@ export default async function HomePage() {
       <SiteHeader breaking={breaking} />
 
       <main className="route-enter mx-auto max-w-page px-4 sm:px-6">
-        {/* Three columns, the shape of a newspaper front: the splash takes
-            half the width, a column of secondary stories runs beside it, and
-            the digest holds the far rail. Five or six headlines are readable
-            before the reader scrolls, which is the whole job of a front page.
-            They stack in that order on a phone. */}
-        <div className="grid grid-cols-1 gap-x-10 gap-y-10 pt-8 lg:grid-cols-12">
-          <div className="lg:col-span-6">
+        {/* The splash on the left; the right side stacked in rows of differing
+            width rather than a second and third column of equal weight. Two
+            stories side by side, then one across the full width, then the
+            digest — which descends in size the way a front page should, and
+            lets the right side finish level with the splash instead of running
+            past it. They stack in reading order on a phone. */}
+        <div className="grid grid-cols-1 gap-x-10 gap-y-10 border-b border-hairline pt-8 pb-12 lg:grid-cols-12">
+          <div className="lg:col-span-7">
             <HeroStory article={hero} />
           </div>
 
-          {secondary.length ? (
-            <div className="divide-y divide-hairline lg:col-span-3">
-              {secondary.map((article) => (
-                <div key={article.id} className="py-6 first:pt-0 last:pb-0">
-                  <ArticleCard article={article} variant="card" />
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          <div className="lg:col-span-3">
-            <HeadlineRail articles={rail} title="Latest" />
+          {/* Many stories, each given a little, against the one story given a
+              lot. Two columns of briefs finish level with the splash where a
+              single column of full cards ran a screen past it. */}
+          <div className="lg:col-span-5">
+            <BriefGrid articles={briefs} />
           </div>
         </div>
 
-        <div className="space-y-12 pt-14 pb-4">
-          {shelves.map(({ category, articles: shelfArticles }) => {
+        {/* A rule closes each section rather than separating it from the next:
+            the blue bar and the section's own mark open it, and a block that
+            opens with a marker and ends with a line reads as finished. */}
+        <div className="pt-14 pb-4">
+          {featured.map(({ category, articles: shelfArticles }) => {
             // Which block a section gets is a property of the section, read
             // from the database — not a component asking whether the slug
             // happens to be "opinion".
             const Shelf =
               category.layout === "opinion" ? OpinionShelf : SectionShelf;
             return (
-              <Shelf
+              <div
                 key={category.slug}
-                title={category.name}
-                href={`/${category.slug}`}
-                articles={shelfArticles}
-                iconUrl={category.icon_url}
-              />
+                className="border-b border-muted/35 pb-12 not-first:pt-12"
+              >
+                <Shelf
+                  title={category.name}
+                  href={`/${category.slug}`}
+                  articles={shelfArticles}
+                  iconUrl={category.icon_url}
+                />
+              </div>
             );
           })}
+
+          <SectionDigest sections={remaining} />
         </div>
       </main>
 
