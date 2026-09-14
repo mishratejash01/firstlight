@@ -2211,6 +2211,10 @@ export type Database = {
         }[]
       }
       engine_build_missed_sample: { Args: { p_date?: string }; Returns: number }
+      engine_apply_earliness: {
+        Args: { p_rows: Json }
+        Returns: number
+      }
       engine_earliness_json: {
         Args: { p_from: string; p_to: string; p_with_label?: boolean }
         Returns: Json
