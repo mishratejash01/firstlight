@@ -298,6 +298,56 @@
 }
 
 /* ---------------------------------------------------------------------------
+   Breaking bar — one continuous run, right to left.
+
+   Every live alert on one line, travelling steadily rather than one headline
+   replacing another in place. A rota makes a reader wait to find out what else
+   there is; a run shows them it is coming.
+
+   Two copies of the list sit in the track and it travels exactly half its own
+   width, which puts copy two where copy one began and makes the loop seamless.
+   The duration is set per render from how much copy there is, so ten short
+   headlines and ten long ones move at the same speed rather than taking the
+   same time.
+
+   It pauses under the pointer and when anything inside it takes focus: these
+   are links, and a link that is moving is a link that is hard to click.
+--------------------------------------------------------------------------- */
+.marquee {
+  overflow: hidden;
+}
+
+.marquee-track {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  animation: marquee var(--marquee-duration, 60s) linear infinite;
+}
+
+.marquee:hover .marquee-track,
+.marquee:focus-within .marquee-track {
+  animation-play-state: paused;
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Motion is the whole mechanism here, so with it switched off the bar simply
+   stops, showing the alerts from the top of the run. They stay reachable —
+   nothing is hidden, the line just does not travel. */
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
    Bulletin board — the change between headlines.
 
    A fade in only, with no fade out. The board is a large block carrying a
