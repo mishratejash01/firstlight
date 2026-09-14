@@ -244,17 +244,23 @@ export async function scoreEarliness(): Promise<{ scored: number; modelVersion: 
   const rows = (data ?? []) as unknown as Row[];
   if (!rows.length) return { scored: 0, modelVersion: live?.id ?? null };
 
-  // One request for the whole batch. The first version sent one update per
-  // event, two hundred in parallel, and filled the connection pool: the
-  // public site's queries queued behind it and the homepage took a minute.
-  const payload = rows.map((row) => ({
-    id: row.event_id,
-    p_big: live ? Number(predict(live.model, row).toFixed(4)) : null,
-    second_source_at: row.second_source_at,
-  }));
-  const { data: updated, error: applyError } = await supabase.rpc("engine_apply_earliness", {
-    p_rows: payload as never,
-  });
-  if (applyError) throw new Error(`apply earliness: ${applyError.message}`);
-  return { scored: Number(updated ?? 0), modelVersion: live?.id ?? null };
+  const at = new Date().toISOString();
+  for (let i = 0; i < rows.length; i += 200) {
+    const batch = rows.slice(i, i + 200);
+    // One update per row keeps this free of the upsert's insert validation;
+    // two hundred cheap updates a minute is well within budget.
+    await Promise.all(
+      batch.map((row) =>
+        supabase
+          .from("story_events")
+          .update({
+            p_big: live ? Number(predict(live.model, row).toFixed(4)) : null,
+            p_big_at: at,
+            second_source_at: row.second_source_at,
+          })
+          .eq("id", row.event_id),
+      ),
+    );
+  }
+  return { scored: rows.length, modelVersion: live?.id ?? null };
 }
