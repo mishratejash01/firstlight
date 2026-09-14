@@ -126,8 +126,12 @@ export default async function HomePage() {
     .map((article) => ({
       id: article.id,
       headline: article.headline,
+      // The standfirst is the sentence that says where and to whom; the
+      // summary stands in where a story was filed without one.
+      gist: article.standfirst ?? article.summary,
       href: `/${article.categories.slug}/${article.slug}`,
-      category: article.categories.name,
+      imageUrl: article.hero_image_url,
+      imageAlt: article.hero_image_alt,
     }));
 
   return (
@@ -158,7 +162,7 @@ export default async function HomePage() {
 
         {boardItems.length ? (
           <div className="pt-10">
-            <BulletinBoard items={boardItems} brand={SITE_NAME} />
+            <BulletinBoard items={boardItems} />
           </div>
         ) : null}
 
