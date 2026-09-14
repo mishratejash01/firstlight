@@ -100,8 +100,7 @@ export async function SiteHeader({
             </p>
             <div className="flex items-center gap-4">
               <SearchBox />
-              <SocialLinks className="sm:hidden" />
-              <AccountMenu />
+              <SocialLinks />
             </div>
           </div>
         </div>
@@ -124,7 +123,7 @@ export async function SiteHeader({
               of the row and wrap. Flexible spacers plus a strip sized to its
               own content pushed the whole page wider than the window once a
               newsroom ran more than a dozen sections. */}
-            <div className="hidden w-16 shrink-0 sm:block" aria-hidden="true" />
+            <div className="hidden w-20 shrink-0 sm:block" aria-hidden="true" />
 
             {/* One line on a phone, scrolling edge to edge: the negative margin
               lets the first and last sections sit flush with the page gutter.
@@ -236,8 +235,8 @@ export async function SiteHeader({
               ) : null}
             </ul>
 
-            <div className="hidden w-16 shrink-0 pb-3 sm:flex sm:justify-end">
-              <SocialLinks />
+            <div className="hidden w-20 shrink-0 pb-3 sm:flex sm:justify-end">
+              <AccountMenu />
             </div>
           </div>
         </nav>
