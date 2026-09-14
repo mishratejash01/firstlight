@@ -383,36 +383,10 @@ export const EVIDENCE_FEATURES: (keyof Features)[] = [
 ];
 export const GATE_FEATURES: (keyof Features)[] = ["novelty", "freshness"];
 
-/**
- * A small seeded generator (mulberry32), so every server instance draws the
- * same weights for the same ten-minute window. With Math.random each
- * instance drew its own hypothesis, scores flipped between instances from
- * one pass to the next, and the "unchanged" check saved nothing.
- */
-function seeded(seed: number): () => number {
-  let t = seed >>> 0;
-  return () => {
-    t = (t + 0x6d2b79f5) >>> 0;
-    let x = t;
-    x = Math.imul(x ^ (x >>> 15), x | 1);
-    x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
-    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function hashString(text: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < text.length; i++) {
-    h ^= text.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-
-/** Box–Muller over the seeded generator. */
-function gaussian(random: () => number): number {
-  const u = 1 - random();
-  const v = random();
+/** Box–Muller. Fine for this; nobody is cryptographically ranking news. */
+function gaussian(): number {
+  const u = 1 - Math.random();
+  const v = Math.random();
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
 
@@ -438,15 +412,14 @@ export function sampleWeights(
   weights: Map<string, Weight>,
   exploration: number,
 ): Record<keyof Features, number> {
-  const window = Math.floor(Date.now() / SAMPLE_HOLD_MS);
-  const key = [...weights].map(([k, w]) => `${k}:${w.mean}:${w.variance}`).join("|") + `|${exploration}|${window}`;
-  if (sampledCache && sampledCache.key === key) return sampledCache.sampled;
-
-  const random = seeded(hashString(key));
+  const key = [...weights].map(([k, w]) => `${k}:${w.mean}:${w.variance}`).join("|") + `|${exploration}`;
+  if (sampledCache && sampledCache.key === key && Date.now() - sampledCache.at < SAMPLE_HOLD_MS) {
+    return sampledCache.sampled;
+  }
   const sampled = {} as Record<keyof Features, number>;
   for (const name of FEATURE_NAMES) {
     const w = weights.get(name) ?? { mean: 1, variance: 0.5 };
-    sampled[name] = Number((w.mean + gaussian(random) * Math.sqrt(w.variance) * exploration).toFixed(3));
+    sampled[name] = Number((w.mean + gaussian() * Math.sqrt(w.variance) * exploration).toFixed(3));
   }
   sampledCache = { key, at: Date.now(), sampled };
   return sampled;
