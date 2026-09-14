@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { HeroStory } from "@/components/article/hero-story";
 import { ArticleCard } from "@/components/article/article-card";
 import { BriefGrid } from "@/components/article/brief-grid";
+import { BulletinBoard } from "@/components/article/bulletin-board";
 import { SectionDigest } from "@/components/article/section-digest";
 import { SectionShelf } from "@/components/article/section-shelf";
 import { OpinionShelf } from "@/components/article/opinion-shelf";
@@ -13,6 +14,8 @@ import { getNavCategories } from "@/lib/queries/navigation";
 import {
   getLivePlacements,
   getRecentArticles,
+  getTopOfDay,
+  rankByConsequence,
   type ArticleCardData,
 } from "@/lib/queries/articles";
 
@@ -27,10 +30,11 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const [articles, placements, categories] = await Promise.all([
+  const [articles, placements, categories, dayTop] = await Promise.all([
     getRecentArticles(90),
     getLivePlacements(),
     getNavCategories(),
+    getTopOfDay(50),
   ]);
 
   if (!articles.length) {
@@ -108,6 +112,24 @@ export default async function HomePage() {
   const featured = shelves.slice(0, FULL_BLOCKS);
   const remaining = shelves.slice(FULL_BLOCKS);
 
+  // The day's fifty, ordered the way the breaking bar orders its alerts: how
+  // recent against how much the desk matters. The board is a round of the whole
+  // day's news rather than a second front page, so nothing is excluded from it
+  // — a reader who has just read the splash still expects it to come round.
+  //
+  // Capped here as well as in the query. The limit belongs in the SQL so the
+  // rows are never fetched, but the board's own promise is "the day's fifty"
+  // and that number should not depend on a backend honouring a limit clause.
+  const BOARD_SIZE = 50;
+  const boardItems = rankByConsequence(dayTop)
+    .slice(0, BOARD_SIZE)
+    .map((article) => ({
+      id: article.id,
+      headline: article.headline,
+      href: `/${article.categories.slug}/${article.slug}`,
+      category: article.categories.name,
+    }));
+
   return (
     <>
       {/* The splash is named so the bar does not point at the story
@@ -133,6 +155,12 @@ export default async function HomePage() {
             <BriefGrid articles={briefs} iconBySlug={iconBySlug} />
           </div>
         </div>
+
+        {boardItems.length ? (
+          <div className="pt-10">
+            <BulletinBoard items={boardItems} brand={SITE_NAME} />
+          </div>
+        ) : null}
 
         {/* A rule closes each section rather than separating it from the next:
             the blue bar and the section's own mark open it, and a block that
