@@ -143,6 +143,10 @@
      it at 500, which is what stops a page of forty of them reading as bold. */
   font-weight: 600;
   letter-spacing: -0.012em;
+  /* Not balanced. Balancing evens the line lengths by pulling the whole block
+     in from the column edge, which on a five-line splash reads as a narrow
+     headline floating in a wide column. It fills its measure instead. */
+  text-wrap: pretty;
 }
 
 /* The category eyebrow above a headline. Uppercase and letterspaced, which is
