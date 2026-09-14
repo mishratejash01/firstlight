@@ -3,6 +3,16 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { AmbientPad } from "@/lib/audio/ambient-pad";
+import {
+  NO_VOICES,
+  hasSpeech,
+  pickVoice,
+  readSupported,
+  readVoices,
+  subscribeNothing,
+  subscribeVoices,
+  toUtterances,
+} from "@/lib/audio/speech";
 
 /**
  * Read the story aloud, in the paper's one voice.
@@ -21,6 +31,10 @@ import { AmbientPad } from "@/lib/audio/ambient-pad";
  * land where a newsreader's would, and it also sidesteps a long-standing
  * Chrome habit of falling silent partway through a single long utterance.
  *
+ * The voice, the engine and the sentence splitter live in lib/audio/speech so
+ * the bulletin reads in the same voice as the article page; the reasoning
+ * behind the fallback order is recorded there.
+ *
  * Under the voice, a quiet synthesised bed (see ambient-pad.ts) fades in
  * while reading and out when it pauses or stops. It sits far below speech and
  * is there to make listening feel settled, not to be listened to.
@@ -30,96 +44,6 @@ import { AmbientPad } from "@/lib/audio/ambient-pad";
  */
 
 type Status = "idle" | "playing" | "paused";
-
-const WANTED_VOICE = "Google UK English Male";
-
-/**
- * The stand-ins, in order, for devices without the wanted voice. Each is a
- * British male voice from that platform's own engine: Edge's neural Ryan,
- * Apple's Daniel, and Android's Google voices whose ids mark the male
- * variants. Then any British voice, then any English one.
- */
-const FALLBACK_ORDER: ((v: SpeechSynthesisVoice) => boolean)[] = [
-  (v) => v.name === WANTED_VOICE,
-  (v) => /Ryan/i.test(v.name) && isBritish(v),
-  (v) => /^Daniel/i.test(v.name) && isBritish(v),
-  (v) => isBritish(v) && /gbb|gbd|rjs/i.test(v.voiceURI),
-  (v) => isBritish(v) && /male/i.test(v.name) && !/female/i.test(v.name),
-  (v) => isBritish(v),
-  (v) => v.lang.toLowerCase().startsWith("en"),
-];
-
-function isBritish(voice: SpeechSynthesisVoice): boolean {
-  return voice.lang.replace("_", "-").toLowerCase() === "en-gb";
-}
-
-/** The wanted voice, else the first stand-in the device has; network voices before local. */
-function pickVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
-  for (const matches of FALLBACK_ORDER) {
-    const candidates = voices.filter(matches);
-    if (candidates.length) {
-      return candidates.find((v) => !v.localService) ?? candidates[0];
-    }
-  }
-  return null;
-}
-
-/* The engine as an external store. Chrome delivers its voice list after a
-   voiceschanged event rather than on first ask, so the component subscribes
-   to that and re-reads. The snapshot is cached by content so React sees the
-   same array until the list actually changes. */
-const NO_VOICES: SpeechSynthesisVoice[] = [];
-let cachedKey = "";
-let cachedVoices: SpeechSynthesisVoice[] = NO_VOICES;
-
-function hasSpeech(): boolean {
-  return typeof window !== "undefined" && "speechSynthesis" in window;
-}
-
-function subscribeVoices(onChange: () => void): () => void {
-  if (!hasSpeech()) return () => {};
-  window.speechSynthesis.addEventListener("voiceschanged", onChange);
-  return () => window.speechSynthesis.removeEventListener("voiceschanged", onChange);
-}
-
-function readVoices(): SpeechSynthesisVoice[] {
-  if (!hasSpeech()) return NO_VOICES;
-  const list = window.speechSynthesis.getVoices();
-  const key = list.map((v) => v.voiceURI).join("|");
-  if (key !== cachedKey) {
-    cachedKey = key;
-    cachedVoices = list;
-  }
-  return cachedVoices;
-}
-
-function readSupported(): boolean {
-  return hasSpeech();
-}
-
-function subscribeNothing(): () => void {
-  return () => {};
-}
-
-/** Sentence-sized pieces, so pauses fall at full stops and no piece runs long. */
-function toUtterances(blocks: string[]): string[] {
-  const pieces: string[] = [];
-  for (const block of blocks) {
-    const sentences = block.match(/[^.!?]+[.!?]+["')\]]*|[^.!?]+$/g) ?? [block];
-    let current = "";
-    for (const sentence of sentences) {
-      const next = `${current} ${sentence}`.trim();
-      if (current && next.length > 220) {
-        pieces.push(current);
-        current = sentence.trim();
-      } else {
-        current = next;
-      }
-    }
-    if (current) pieces.push(current);
-  }
-  return pieces;
-}
 
 export function ListenButton({
   headline,
