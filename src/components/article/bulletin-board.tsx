@@ -67,27 +67,23 @@ export function BulletinBoard({ items }: { items: BoardItem[] }) {
       aria-label="Today's stories"
       className="rounded-panel bg-signal px-6 py-7 text-paper sm:px-10 sm:py-9"
     >
-      {/* The segment's own mark rather than type, on a white plate.
-
-          The plate is not decoration. A sixth of the artwork is red — the map
-          of India behind the lettering, and the rule under it — at very nearly
-          the red of this panel, so laid straight onto the ground the map
-          disappeared and left the words floating. On white the mark reads as
-          drawn.
+      {/* The segment's own mark rather than type, laid straight on the ground.
+          The white lettering and its dark outline carry it; the map of India
+          behind them is drawn in very nearly this panel's own red, so it reads
+          as a tonal shape rather than as artwork. Replacing the mark with a
+          version whose map is white would bring it back.
 
           Given a real height rather than a token one: it carries two stacked
           lines of lettering, and below about fifty pixels the lower one stops
           being legible. The alt text carries the words in the artwork, so the
           segment is named for a reader who cannot see it. */}
-      <span className="inline-block rounded-media bg-paper px-4 py-2.5">
-        <Image
-          src="/brand/top-50-bulletin.png"
-          alt="Top 50 Bulletin"
-          width={900}
-          height={426}
-          className="h-14 w-auto sm:h-[4.75rem]"
-        />
-      </span>
+      <Image
+        src="/brand/top-50-bulletin.png"
+        alt="Top 50 Bulletin"
+        width={900}
+        height={426}
+        className="h-14 w-auto sm:h-[4.75rem]"
+      />
 
       {/* Keyed on the story, so React replaces the block and the fade replays.
           The grid, the frame and the rule outside it stay put; only what is in
