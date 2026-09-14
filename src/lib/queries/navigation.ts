@@ -25,6 +25,49 @@ export type NavCategory = {
  * their marks and with the standard block. The site degrades instead of
  * emptying, in whichever order the two land.
  */
+/**
+ * Every section in circulation, in running order.
+ *
+ * The header shows the first handful of these and puts the remainder behind a
+ * drawer, so this returns the lot and lets the caller decide where the line
+ * falls. Sections kept out of the header entirely (show_in_nav = false) are
+ * included: out of the bar is not the same as out of the paper, and the drawer
+ * is exactly where a reader goes looking for them.
+ */
+export async function getAllSections(): Promise<NavCategory[]> {
+  const supabase = await createClient();
+
+  const withPresentation = await supabase
+    .from("categories")
+    .select("slug, name, layout, icon_url")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+
+  if (!withPresentation.error) {
+    return (withPresentation.data ?? []).map((row) => ({
+      slug: row.slug,
+      name: row.name,
+      layout:
+        row.layout === "opinion" ? ("opinion" as const) : ("standard" as const),
+      icon_url: row.icon_url,
+    }));
+  }
+
+  const base = await supabase
+    .from("categories")
+    .select("slug, name")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+
+  if (base.error) return [];
+  return (base.data ?? []).map((row) => ({
+    slug: row.slug,
+    name: row.name,
+    layout: "standard" as const,
+    icon_url: null,
+  }));
+}
+
 export async function getNavCategories(): Promise<NavCategory[]> {
   const supabase = await createClient();
 
