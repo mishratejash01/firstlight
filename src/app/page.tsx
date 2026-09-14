@@ -5,6 +5,7 @@ import { HeroStory } from "@/components/article/hero-story";
 import { HeadlineRail } from "@/components/article/headline-rail";
 import { ArticleCard } from "@/components/article/article-card";
 import { SectionShelf } from "@/components/article/section-shelf";
+import { OpinionShelf } from "@/components/article/opinion-shelf";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { getNavCategories } from "@/lib/queries/navigation";
@@ -80,8 +81,9 @@ export default async function HomePage() {
   );
   rail.forEach((a) => used.add(a.id));
 
-  // The two stories that sit under the splash, sharing the well with it.
-  const secondary = nextUnused(2);
+  // The column of stories beside the splash. Three is what fits beside a lead
+  // of this depth without the page needing to scroll to finish the row.
+  const secondary = nextUnused(3);
   secondary.forEach((a) => used.add(a.id));
 
   // Shelves are built from what is left, so no story appears twice on the page.
@@ -107,39 +109,48 @@ export default async function HomePage() {
       <SiteHeader breaking={breaking} />
 
       <main className="route-enter mx-auto max-w-page px-4 sm:px-6">
-        {/* The well and the rail. Stacked on a phone, eight columns to four
- above it, held apart by space rather than by a rule. */}
-        <div className="grid grid-cols-1 gap-x-12 gap-y-10 pt-8 lg:grid-cols-12">
-          <div className="lg:col-span-8">
+        {/* Three columns, the shape of a newspaper front: the splash takes
+            half the width, a column of secondary stories runs beside it, and
+            the digest holds the far rail. Five or six headlines are readable
+            before the reader scrolls, which is the whole job of a front page.
+            They stack in that order on a phone. */}
+        <div className="grid grid-cols-1 gap-x-10 gap-y-10 pt-8 lg:grid-cols-12">
+          <div className="lg:col-span-6">
             <HeroStory article={hero} />
-
-            {secondary.length ? (
-              <div className="mt-10 grid grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2">
-                {secondary.map((article) => (
-                  <ArticleCard
-                    key={article.id}
-                    article={article}
-                    variant="lead"
-                  />
-                ))}
-              </div>
-            ) : null}
           </div>
 
-          <div className="lg:col-span-4">
+          {secondary.length ? (
+            <div className="divide-y divide-hairline lg:col-span-3">
+              {secondary.map((article) => (
+                <div key={article.id} className="py-6 first:pt-0 last:pb-0">
+                  <ArticleCard article={article} variant="card" />
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="lg:col-span-3">
             <HeadlineRail articles={rail} title="Latest" />
           </div>
         </div>
 
         <div className="space-y-12 pt-14 pb-4">
-          {shelves.map(({ category, articles: shelfArticles }) => (
-            <SectionShelf
-              key={category.slug}
-              title={category.name}
-              href={`/${category.slug}`}
-              articles={shelfArticles}
-            />
-          ))}
+          {shelves.map(({ category, articles: shelfArticles }) => {
+            // Which block a section gets is a property of the section, read
+            // from the database — not a component asking whether the slug
+            // happens to be "opinion".
+            const Shelf =
+              category.layout === "opinion" ? OpinionShelf : SectionShelf;
+            return (
+              <Shelf
+                key={category.slug}
+                title={category.name}
+                href={`/${category.slug}`}
+                articles={shelfArticles}
+                iconUrl={category.icon_url}
+              />
+            );
+          })}
         </div>
       </main>
 
