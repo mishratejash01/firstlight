@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import type { BreakingArticle } from "@/lib/queries/articles";
+import type { RankedArticle } from "@/lib/queries/articles";
 
 /**
  * The band under the flag that a newsroom uses when something is happening.
@@ -16,7 +16,7 @@ import type { BreakingArticle } from "@/lib/queries/articles";
  * them in turn. A newsroom running six alerts at once has six things it wants
  * read, and picking one to display and silently dropping the other five is the
  * bar failing at its job. The order is not the order they were filed — see
- * rankBreaking, which weighs how recent a story is against how much the desk it
+ * rankByConsequence, which weighs how recent a story is against how much the desk it
  * came from matters.
  *
  * The clock stops on hover and on keyboard focus. Rotating links are a genuine
@@ -37,7 +37,7 @@ import type { BreakingArticle } from "@/lib/queries/articles";
 /** How long each bulletin holds the bar. Matches --breaking-cycle below. */
 const CYCLE_MS = 5000;
 
-export function BreakingStrip({ articles }: { articles: BreakingArticle[] }) {
+export function BreakingStrip({ articles }: { articles: RankedArticle[] }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
 
