@@ -32,6 +32,13 @@ export async function requireAdmin(returnTo: string): Promise<SessionUser> {
   return user;
 }
 
+/** Reviewers, and the editorial roles, which can always review. */
+export async function requireReviewer(returnTo: string): Promise<SessionUser> {
+  const user = await requireUser(returnTo);
+  if (!user.roles.includes("reviewer") && !isEditorial(user)) redirect("/account");
+  return user;
+}
+
 export async function requireAuthor(returnTo: string): Promise<SessionUser> {
   const user = await requireUser(returnTo);
   // Editors file copy too, so editorial roles reach the contributor surface.
