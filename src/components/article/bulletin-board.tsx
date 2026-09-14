@@ -15,12 +15,12 @@ import { cloudinaryImage } from "@/lib/media/transform";
  * it happened to, which is a strap line rather than a bulletin. The standfirst
  * under it is the difference between noticing a story and understanding it.
  *
- * No controls and no progress bar. It runs on its own and the picture and
- * headline are links to the story being shown; arrows on a rota that comes
- * round every few minutes were furniture nobody needed, and the count in the
- * corner says how far through it is without drawing a rule to say so. Nothing
- * is spoken here either — the voice lives on /bulletin, where a reader has
- * gone looking for it.
+ * Nothing around it: no arrows, no progress bar, no position counter. It runs
+ * on its own and the picture and headline are links to the story being shown.
+ * All of that was furniture telling a reader about the mechanism rather than
+ * about the news, on a panel whose whole job is to carry one story at a time.
+ * Nothing is spoken here either — the voice lives on /bulletin, where a reader
+ * has gone looking for it.
  *
  * The picture is a true 16:9 frame, drawn whether or not the story has art, so
  * the panel is the same height on every story and the page below it never
@@ -65,19 +65,14 @@ export function BulletinBoard({ items }: { items: BoardItem[] }) {
   return (
     <section
       aria-label="Today's stories"
-      className="rounded-panel bg-signal-deep px-6 py-7 text-paper sm:px-10 sm:py-9"
+      className="rounded-panel bg-signal px-6 py-7 text-paper sm:px-10 sm:py-9"
     >
-      <div className="flex items-center justify-between gap-4">
-        {/* The count is the real one, not the number fifty written down. On a
-            thin day the board says what it actually has rather than promising
-            fifty stories it cannot show. */}
-        <p className="eyebrow font-label font-semibold text-paper">
-          Top {count} bulletin
-        </p>
-        <span className="text-meta tabular-nums text-paper/70">
-          {safeIndex + 1} of {count}
-        </span>
-      </div>
+      {/* The count is the real one, not the number fifty written down. On a
+          thin day the board says what it actually has rather than promising
+          fifty stories it cannot show. */}
+      <p className="eyebrow font-label font-semibold text-paper">
+        Top {count} bulletin
+      </p>
 
       {/* Keyed on the story, so React replaces the block and the fade replays.
           The grid, the frame and the rule outside it stay put; only what is in
@@ -115,7 +110,7 @@ export function BulletinBoard({ items }: { items: BoardItem[] }) {
             // the top of an article. Clamped rather than trimmed server-side so
             // a short standfirst is never padded and a long one never reflows
             // the panel.
-            <p className="mt-3 line-clamp-3 text-body leading-relaxed text-paper/85">
+            <p className="mt-3 line-clamp-3 text-body leading-relaxed text-paper/90">
               {item.gist}
             </p>
           ) : null}
