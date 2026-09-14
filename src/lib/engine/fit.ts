@@ -21,6 +21,9 @@ import { FEATURE_NAMES, combine, type Features } from "./score";
  *   gated      the new weights are scored against the live ones on the most
  *              recent day, which was held out of the fit, and go live only if
  *              they win on ranking quality and on precision at the top
+ *   stepped    a promotion moves each weight at most 35 per cent from its live
+ *              value, so the model walks towards the data over nights rather
+ *              than jumping on one
  *   monitored  a label source whose day's mean drifts far from its own week is
  *              left out of the fit, and the Learning page says so
  *
@@ -35,6 +38,8 @@ const PRIOR_VARIANCE = 0.15;
 const PRIOR_STRENGTH = 0.05;
 const CLAMP_LOW = 0.25;
 const CLAMP_HIGH = 4;
+/** How far one night's promotion may move a weight from the live value. */
+const MAX_STEP = 0.35;
 const MIN_TRAIN = 60;
 const MIN_CLASS = 15;
 const MIN_HOLDOUT = 20;
@@ -277,6 +282,13 @@ export async function fitSelectionWeights(): Promise<FitReport> {
   // Start from the live weights; the link's scale and offset start where a
   // score at the triage line is a coin toss.
   const fitted = fit(train, anchors, { weights: { ...live }, a: 1 / 8, b: -12 / 8 });
+
+  // One night, one step. What is evaluated is what would go live.
+  for (const name of FEATURE_NAMES) {
+    const floor = live[name] * (1 - MAX_STEP);
+    const ceiling = live[name] * (1 + MAX_STEP);
+    fitted.weights[name] = Math.max(floor, Math.min(ceiling, fitted.weights[name]));
+  }
 
   const holdLabels = holdout.map((e) => e.label);
   const liveScores = holdout.map((e) => combine(e.features, live));
