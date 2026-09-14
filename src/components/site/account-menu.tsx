@@ -75,7 +75,7 @@ export function AccountMenu() {
     return (
       <Link
         href="/login"
-        className="text-meta text-accent underline-offset-4 hover:underline"
+        className="rounded-control bg-signal px-3 py-1.5 text-meta font-semibold whitespace-nowrap text-paper transition-opacity hover:opacity-90"
       >
         Sign in
       </Link>
