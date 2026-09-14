@@ -11,9 +11,10 @@ import { cloudinaryImage } from "@/lib/media/transform";
  *
  * First every remaining section as a named block — a reader looking for their
  * subject finds it here by name and mark, without reading a single headline.
- * Then each of those sections gets its own compact grid of headlines, so the
- * page ends on news rather than on a menu, and a reader following one subject
- * finds its stories together instead of scattered through a mixed run.
+ * Then two of them — the two with the most to show — get a grid of six stories
+ * each, so the page ends on news rather than on a menu. Only two: a grid for
+ * every section would rebuild the wall of blocks the browse row exists to
+ * replace.
  *
  * A front page that gives twenty sections a full picture block of their own is
  * not a front page, it is twenty front pages stacked. The sections that lead
@@ -26,10 +27,17 @@ export function SectionDigest({
 }) {
   if (!sections.length) return null;
 
-  // Each section keeps its own grid rather than being poured into one mixed
-  // run. A reader following a subject wants that subject's stories together;
-  // shuffled by timestamp they would have to read every label to find them.
-  const withStories = sections.filter(({ articles }) => articles.length > 0);
+  // Two sections get a grid, not all of them. Giving every remaining section
+  // its own run of stories rebuilt the same wall of blocks the browse row was
+  // meant to replace. Two, shown six stories deep, reads as a closing feature;
+  // eleven shown four deep reads as an index nobody finishes.
+  //
+  // The two with the most to show are chosen, so the grids are never half
+  // empty — the rest stay reachable through the blocks above.
+  const withStories = sections
+    .filter(({ articles }) => articles.length >= 3)
+    .sort((a, b) => b.articles.length - a.articles.length)
+    .slice(0, 2);
 
   return (
     <section className="pt-12">
@@ -100,8 +108,8 @@ export function SectionDigest({
             </Link>
           </h3>
 
-          <div className="mt-5 grid grid-cols-1 gap-x-7 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
-            {articles.slice(0, 4).map((article) => (
+          <div className="mt-5 grid grid-cols-1 gap-x-7 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+            {articles.slice(0, 6).map((article) => (
               <article key={article.id} className="group">
                 {/* The picture well is drawn whether or not there is art, so a
                     story filed without one keeps its place in the row instead
@@ -127,7 +135,11 @@ export function SectionDigest({
                   </div>
                 </Link>
 
-                <h4 className="text-[1rem] leading-[1.28] text-ink group-hover:text-accent">
+                {/* Clamped so every cell in the row is the same depth. Left
+                    free, a three-line headline beside a one-line headline
+                    leaves the copy and timestamps under them stepping up and
+                    down across the grid. */}
+                <h4 className="line-clamp-2 text-[1rem] leading-[1.28] text-ink group-hover:text-accent">
                   <Link href={`/${article.categories.slug}/${article.slug}`}>
                     {article.headline}
                   </Link>
@@ -136,11 +148,9 @@ export function SectionDigest({
                 {/* Two lines of the story itself. A headline says what
                     happened; a line of the copy underneath is what tells a
                     reader whether it is the kind of thing they want to read. */}
-                {article.standfirst ?? article.summary ? (
-                  <p className="mt-1.5 line-clamp-2 text-meta leading-relaxed text-ink">
-                    {article.standfirst ?? article.summary}
-                  </p>
-                ) : null}
+                <p className="mt-1.5 line-clamp-2 min-h-[2.6em] text-meta leading-relaxed text-ink">
+                  {article.standfirst ?? article.summary}
+                </p>
 
                 {article.published_at ? (
                   <p className="mt-1.5 text-meta text-muted">
