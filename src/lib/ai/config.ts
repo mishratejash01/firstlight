@@ -85,11 +85,7 @@ const TIERS: Record<Kind, { provider: Provider; modelId: string }[]> = {
     // demand" on two of three attempts while 3.5 answered every time.
     { provider: "google", modelId: process.env.AI_DRAFTING_MODEL ?? "gemini-3.5-flash" },
     { provider: "groq", modelId: process.env.GROQ_DRAFTING_MODEL ?? "openai/gpt-oss-120b" },
-    ...list("OPENROUTER_DRAFTING_MODELS").map((modelId) => ({ provider: "openrouter" as const, modelId })),
-    { provider: "openrouter", modelId: "google/gemma-4-31b-it:free" },
-    { provider: "openrouter", modelId: "nvidia/nemotron-3-super-120b-a12b:free" },
     { provider: "google", modelId: "gemini-3.8-flash" },
-    { provider: "google", modelId: "gemini-2.5-flash" },
     { provider: "anthropic", modelId: "claude-sonnet-5" },
     { provider: "gateway", modelId: "anthropic/claude-sonnet-5" },
   ],
