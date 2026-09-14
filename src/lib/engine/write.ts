@@ -17,6 +17,7 @@ import { z } from "zod";
 import { aiIsConfigured, runWithChain } from "@/lib/ai/config";
 import { recordSameAs } from "./wikidata";
 import { canonicalHost } from "./hosts";
+import { recordDecision, snapshotEvent } from "./decisions";
 
 /**
  * From a newsworthy event to a published article.
@@ -379,6 +380,13 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
       continue;
     }
 
+    await snapshotEvent(event.id, "write");
+    await recordDecision(event.id, "write_start", {
+      score: Number(event.score ?? 0),
+      rank: candidates.indexOf(event) + 1,
+      details: { attempts, urgency: event.urgency, section: event.triage_section },
+    });
+
     // Already on the site? The event's own words against everything live.
     const { data: topMentions } = await supabase
       .from("signal_mentions")
@@ -393,6 +401,11 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
         .from("story_events")
         .update({ status: "rejected", triage_reason: `Duplicate of "${already.headline}" (${already.slug}).`, last_error: null })
         .eq("id", event.id);
+      await recordDecision(event.id, "duplicate", {
+        score: Number(event.score ?? 0),
+        reason: `Duplicate of "${already.headline}"`,
+        details: { slug: already.slug, stage: "event" },
+      });
       report.outcomes.push({
         eventId: event.id,
         title: event.title,
@@ -410,6 +423,7 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
 
     if (!newsItems.length) {
       await release(event.id, "No linked coverage to write from.", attempts);
+      await recordDecision(event.id, "held", { score: Number(event.score ?? 0), reason: "No linked coverage to write from." });
       report.outcomes.push({
         eventId: event.id,
         title: event.title,
@@ -425,6 +439,11 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
         `Only ${documents.length} of ${Math.min(newsItems.length, maxDocuments)} linked articles could be read.`,
         attempts,
       );
+      await recordDecision(event.id, "held", {
+        score: Number(event.score ?? 0),
+        reason: `Only ${documents.length} linked articles could be read.`,
+        details: { stage: "sources", readable: documents.length },
+      });
       report.outcomes.push({
         eventId: event.id,
         title: event.title,
@@ -448,6 +467,11 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
           .from("story_events")
           .update({ status: "rejected", triage_reason: `Stale: newest source was published ${Math.round(ageHours)} hours ago.`, last_error: null })
           .eq("id", event.id);
+        await recordDecision(event.id, "stale", {
+          score: Number(event.score ?? 0),
+          reason: `Newest source was published ${Math.round(ageHours)} hours ago.`,
+          details: { ageHours: Math.round(ageHours * 10) / 10 },
+        });
         report.outcomes.push({
           eventId: event.id,
           title: event.title,
@@ -468,6 +492,16 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
     });
 
     if (!verification.passed) {
+      await recordDecision(event.id, "held", {
+        score: Number(event.score ?? 0),
+        reason: verification.reason,
+        details: {
+          stage: "verification",
+          severity: verification.severity,
+          required: verification.requiredSources,
+          independent: verification.independentSources,
+        },
+      });
       await release(event.id, verification.reason, attempts);
       report.outcomes.push({
         eventId: event.id,
@@ -497,6 +531,7 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
 
     if (!result.ok) {
       await release(event.id, result.error, attempts);
+      await recordDecision(event.id, "write_failed", { score: Number(event.score ?? 0), reason: result.error, details: { stage: "draft" } });
       report.outcomes.push({ eventId: event.id, title: event.title, status: "failed", reason: result.error });
       continue;
     }
@@ -506,6 +541,7 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
     const body = draft.bodyMarkdown.trimEnd();
     if (!/[.!?"'\)\]]$/.test(body)) {
       await release(event.id, "Draft ended mid-sentence.", attempts);
+      await recordDecision(event.id, "write_failed", { score: Number(event.score ?? 0), reason: "Draft ended mid-sentence.", details: { stage: "draft" } });
       report.outcomes.push({
         eventId: event.id,
         title: event.title,
@@ -522,6 +558,11 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
         .from("story_events")
         .update({ status: "rejected", triage_reason: `Drafted a duplicate of "${repeat.headline}" (${repeat.slug}); discarded.`, last_error: null })
         .eq("id", event.id);
+      await recordDecision(event.id, "duplicate", {
+        score: Number(event.score ?? 0),
+        reason: `Drafted a duplicate of "${repeat.headline}"`,
+        details: { slug: repeat.slug, stage: "draft" },
+      });
       report.outcomes.push({
         eventId: event.id,
         title: event.title,
@@ -593,6 +634,7 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
 
     if (error) {
       await release(event.id, error.message, attempts);
+      await recordDecision(event.id, "write_failed", { score: Number(event.score ?? 0), reason: error.message, details: { stage: "insert" } });
       report.outcomes.push({ eventId: event.id, title: event.title, status: "failed", reason: error.message });
       continue;
     }
@@ -606,6 +648,16 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
         last_error: null,
       })
       .eq("id", event.id);
+    await recordDecision(event.id, "written", {
+      score: Number(event.score ?? 0),
+      details: {
+        slug: article.slug,
+        article_id: article.id,
+        severity: verification.severity,
+        sources_read: documents.length,
+        minutes_since_first_seen: Math.round((Date.now() - new Date(event.first_seen_at).getTime()) / 60_000),
+      },
+    });
 
     await attachStructuredData(supabase, article.id, draft);
     if (illustration?.sameAs.length) await recordSameAs(supabase, illustration.sameAs);
