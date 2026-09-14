@@ -17,14 +17,29 @@ import { EVIDENCE_FEATURES, FEATURE_NAMES, GATE_FEATURES, combine, type Features
  * features, a few hundred labels a week: the full Bayesian regression would be
  * more exact and no more useful, and this one can be read out of a table.
  *
- * Labels come from three places, deliberately independent of each other:
+ * Labels come from two places, deliberately independent of each other:
  *   editor  — accepted or sent back on the desk (1 / 0)
- *   reader  — completion rate once published (0..1)
- *   outlet  — did authoritative outlets carry it after we did (1 / 0)
- * An engine that only learned from editors would learn the editors' habits;
- * one that only learned from readers would learn to chase clicks. Three
- * signals that can disagree keep it honest.
+ *   outlet  — did other outlets carry it after we did (1 / 0)
+ * A reader label (completion rate) existed and was retired: with no audience
+ * yet, twenty sessions on a story is noise dressed as a verdict, and a label
+ * that can be wrong quietly is worse than none.
+ *
+ * The whole loop sits behind the engine_learning_enabled setting. Off, the
+ * weights hold still: labels are neither harvested nor applied. It is off
+ * while the label itself is being redesigned, because the outlet label as
+ * written scored well-covered Indian stories as misses and dragged every
+ * evidence weight to its floor, twice.
  */
+
+async function learningEnabled(): Promise<boolean> {
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("site_settings")
+    .select("value")
+    .eq("key", "engine_learning_enabled")
+    .maybeSingle();
+  return data?.value === true;
+}
 
 /**
  * Observation noise. Labels are noisy and, worse, can be systematically wrong
@@ -120,6 +135,7 @@ export type LearnReport = { outcomes: number; weights: Record<string, { mean: nu
  */
 export async function applyOutcomes(): Promise<LearnReport> {
   const supabase = createAdminClient();
+  const enabled = await learningEnabled();
 
   const { data: weightRows } = await supabase
     .from("signal_weights")
@@ -150,7 +166,7 @@ export async function applyOutcomes(): Promise<LearnReport> {
   const summary = () =>
     Object.fromEntries([...weights].map(([k, w]) => [k, { mean: w.mean, variance: w.variance }]));
 
-  if (!outcomes?.length) return { outcomes: 0, weights: summary() };
+  if (!enabled || !outcomes?.length) return { outcomes: 0, weights: summary() };
 
   // A batch of identical labels carries no information about which features
   // matter — only that the desk was right or wrong about everything — and
@@ -223,12 +239,11 @@ export async function applyOutcomes(): Promise<LearnReport> {
  *   outlet — an event we wrote that authoritative outlets subsequently joined
  *            is a hit; one nobody else ever covered is a miss. Both are
  *            decided a few hours after writing, once the press has had time.
- *   reader — completion rate from the analytics rollup, once there is enough
- *            traffic for the figure to mean anything.
  */
-export async function harvestLabels(): Promise<{ outlet: number; reader: number }> {
+export async function harvestLabels(): Promise<{ outlet: number }> {
   const supabase = createAdminClient();
-  const counts = { outlet: 0, reader: 0 };
+  const counts = { outlet: 0 };
+  if (!(await learningEnabled())) return counts;
 
   // Judged four hours after the article existed, from everything on the
   // event by then — not only what arrived after our write. A story eight
@@ -262,19 +277,6 @@ export async function harvestLabels(): Promise<{ outlet: number; reader: number 
       const strong = [...outlets].filter((host) => (authority.get(host) ?? 0) >= 1.5).length;
 
       if (await recordOutcome(event.id, "outlet", strong >= 2 ? 1 : 0)) counts.outlet += 1;
-    }
-
-    if (!have.has("reader") && event.article_id) {
-      const { data: perf } = await supabase.rpc("engine_article_performance", {
-        p_article_ids: [event.article_id],
-      });
-      const row = (perf ?? [])[0];
-      // Below twenty readers the completion rate is noise.
-      if (row && Number(row.sessions) >= 20 && row.completion_rate_pct !== null) {
-        if (await recordOutcome(event.id, "reader", Number(row.completion_rate_pct) / 100)) {
-          counts.reader += 1;
-        }
-      }
     }
   }
 
