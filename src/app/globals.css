@@ -15,12 +15,18 @@
   --color-hairline: #e4e5e8; /* dividers only, never a full card border      */
   --color-accent: #1b3b6f;   /* links, active nav, buttons — never a big fill */
   --color-signal: #cc0000;   /* breaking news tag only, used sparingly       */
+  --color-wash: #eff1f5;     /* tinted panel behind section tile media        */
+  --color-quote: #fdeee8;    /* warm panel behind an opinion pull quote       */
+  --color-signal-soft: #fdeaea; /* the breaking bar's ground; the label sits
+                                   on full signal red against it            */
 
   /* Typography. One family throughout, as the wire services set themselves:
      Libre Franklin, a Franklin Gothic descendant. Hierarchy comes from size and
      weight, not from switching face — which is what keeps a page holding forty
      headlines from looking like forty different decisions. */
   --font-sans: var(--font-sans-src), "Libre Franklin", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-serif: var(--font-serif-src), Newsreader, Georgia, "Times New Roman", serif;
+  --font-label: var(--font-label-src), Inter, -apple-system, "Segoe UI", sans-serif;
 
   /* Type scale. Emphasis comes from size, weight and whitespace — never from
      color or italics on isolated words. */
@@ -62,12 +68,18 @@
      usable width. Reading measure is controlled separately, per column — this
      governs the grid, never a line of text. */
   --container-page: 96rem;
+  /* The masthead and the breaking bar run wider than the news columns. Furniture
+     that spans the top of the page looks pinched when it is held to the reading
+     width, and widening it costs the columns nothing. */
+  --container-wide: 96rem;
 
-  /* Radius: 3px on inputs, buttons and media. Text blocks stay square — the
-     softening is there to stop a photograph reading as a hole cut in the page,
-     and text needs no such help. */
+  /* Radius. Controls stay tight; pictures and the panels around them are
+     rounded enough to read as deliberate rather than as a rendering artefact.
+     The panel is a shade rounder than the picture inside it, which is what
+     stops the two curves fighting where they sit a few pixels apart. */
   --radius-control: 3px;
-  --radius-media: 3px;
+  --radius-media: 0.625rem;  /* 10px — photographs, video, thumbnails */
+  --radius-panel: 0.875rem;  /* 14px — the tinted block around them    */
 }
 
 /* ---------------------------------------------------------------------------
@@ -82,6 +94,18 @@
    @layer utilities. Inside the layer these are defaults again, which is all
    they were ever meant to be.
 --------------------------------------------------------------------------- */
+/* The page shell narrows to three quarters of the window once there is room
+   for it. Below that it stays full width — three quarters of a phone is a
+   column too narrow to set a headline in, and the gutters below do the work
+   instead. Redefining the token rather than the utility keeps every container
+   on the site in step, since they all read this one variable. */
+@media (min-width: 1024px) {
+  :root {
+    --container-page: 75%;
+    --container-wide: 85%;
+  }
+}
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
@@ -100,18 +124,25 @@
     text-rendering: optimizeLegibility;
   }
 
-  /* Headlines are the same face as everything else, separated by weight and by
-     the tighter tracking a grotesque needs once it is set large. */
+  /* Headlines are set in the serif; everything else — labels, bylines,
+     timestamps, navigation, body copy — stays in the grotesque. A serif needs
+     far less negative tracking than a grotesque does at the same size, so the
+     values here are close to zero rather than the -0.019em a sans wanted. */
   h1, h2, h3, h4 {
-    font-weight: 700;
-    letter-spacing: -0.019em;
+    font-family: var(--font-serif);
+    font-weight: 500;
+    letter-spacing: -0.003em;
     text-wrap: balance;
   }
 
-/* Big headlines need tighter tracking than small ones; a single value set for
-   a 52px splash leaves an 17px list headline looking cramped. */
+/* Big headlines still want a little more tracking taken out than small ones,
+   even in the serif: a single value set for a 54px splash leaves a 17px rail
+   headline looking cramped. */
 .headline-lg {
-  letter-spacing: -0.028em;
+  /* The splash keeps the heavier cut. Card and rail headlines sit a step below
+     it at 500, which is what stops a page of forty of them reading as bold. */
+  font-weight: 600;
+  letter-spacing: -0.012em;
 }
 
 /* The category eyebrow above a headline. Uppercase and letterspaced, which is
@@ -227,6 +258,39 @@
   .ticker-track {
     animation: none;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Notched corner — the story tile's picture.
+
+   The bottom-right corner is genuinely cut away, not covered over. A disc laid
+   on top of a square corner still shows the square behind it wherever the disc
+   does not reach; this removes the pixels, so the picture's edge curves inward
+   around the arrow and the panel colour shows through the gap.
+
+   Done with a mask rather than a clip-path so the rounded corners set by
+   border-radius survive — a clip-path would replace them with the polygon and
+   square off the other three. The 1px step is what keeps the arc from
+   aliasing into a staircase.
+--------------------------------------------------------------------------- */
+.notch-br {
+  /* Radius of the bite, and how far its centre sits in from the right edge.
+     The inset matches the arrow's own radius, so the hole is centred on the
+     arrow wherever the arrow sits along the bottom edge. */
+  --notch: 2rem;
+  --notch-x: 1.5rem;
+  -webkit-mask-image: radial-gradient(
+    circle var(--notch) at calc(100% - var(--notch-x)) 100%,
+    transparent calc(var(--notch) - 1px),
+    #000 var(--notch)
+  );
+  mask-image: radial-gradient(
+    circle var(--notch) at calc(100% - var(--notch-x)) 100%,
+    transparent calc(var(--notch) - 1px),
+    #000 var(--notch)
+  );
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
 }
 
 /* ---------------------------------------------------------------------------
