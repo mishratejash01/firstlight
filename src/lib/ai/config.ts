@@ -211,15 +211,26 @@ function classify(error: unknown): { cooldownSeconds: number; message: string } 
 // The chain
 // ---------------------------------------------------------------------------
 
+/** Advances on every call, so consecutive calls start on consecutive keys. */
+let rotationCounter = 0;
+
 /**
  * Every (model, key) pair for a job, in order: tier by tier, and within a
- * tier every key of that provider, starting from a different key each
- * minute so the load spreads instead of draining key one first. Cooling
- * keys are left out unless nothing else is left.
+ * tier every key of that provider, starting one key further along on each
+ * call. The previous version moved the start once a minute, so a desk run
+ * that made six calls in that minute put all six on one key and hit its
+ * per-minute limit while twelve others sat idle; one key ended the day with
+ * twice the calls of any other. Per-call rotation spreads a minute's calls
+ * across the pool. It cannot create quota — keys that share a Google
+ * project share one daily allowance whatever the order — but it stops a
+ * single key being the one that always breaks first.
+ *
+ * Cooling keys are left out unless nothing else is left.
  */
 export async function chainFor(kind: Kind): Promise<ChainEntry[]> {
   const cooling = await loadCooling();
-  const rotation = Math.floor(Date.now() / 60_000);
+  rotationCounter = (rotationCounter + 1) % 1_000_000;
+  const rotation = Math.floor(Date.now() / 60_000) + rotationCounter;
   const entries: ChainEntry[] = [];
   const seen = new Set<string>();
 
