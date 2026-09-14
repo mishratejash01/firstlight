@@ -110,7 +110,9 @@ export default async function ArticlePage(
 
   return (
     <>
-      <SiteHeader activeSlug={article.categories.slug} />
+      {/* The bar skips the story being read: an alert pointing at the page the
+          reader is already on is a dead end. */}
+      <SiteHeader activeSlug={article.categories.slug} excludeId={article.id} />
 
       <JsonLd data={newsArticleJsonLd({ article, url, entities, keyFacts })} />
       {faqSchema ? <JsonLd data={faqSchema} /> : null}
