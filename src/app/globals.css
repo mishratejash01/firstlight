@@ -265,6 +265,64 @@
 }
 
 /* ---------------------------------------------------------------------------
+   Breaking bar — one bulletin at a time.
+
+   The bar carries several breaking stories and shows them in turn: each rises
+   in, holds for most of the cycle, and falls out before the next takes its
+   place. The hold is the great majority of it — 88% of the cycle is fully
+   opaque — because this is a bulletin to be read, not a transition to be
+   admired.
+
+   One animation covers both ends of a story's turn, so the component needs a
+   single timer to advance the index rather than one timer to start a fade-out
+   and a second to swap. The element is keyed on the article id, so React
+   remounts it on every change and the animation replays from the top.
+
+   It is a separate element from .ticker-track, which runs its own horizontal
+   animation on phones. Two animations on one element means the second wins.
+--------------------------------------------------------------------------- */
+.breaking-item {
+  animation: breaking-cycle var(--breaking-cycle, 5s) ease both;
+}
+
+/* Hovering or tabbing into the bar stops the clock, so a headline cannot
+   change under a reader who is on their way to clicking it. The component
+   clears its timer at the same moment; this only freezes the paint. */
+.breaking-item[data-paused="true"] {
+  animation-play-state: paused;
+}
+
+@keyframes breaking-cycle {
+  0% {
+    opacity: 0;
+    transform: translateY(0.35rem);
+  }
+  6% {
+    opacity: 1;
+    transform: none;
+  }
+  94% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-0.35rem);
+  }
+}
+
+/* Rotation itself is content, not decoration — a reader who has asked for less
+   motion still needs to see every bulletin. The stories keep changing on the
+   same clock; they simply cut rather than travel. */
+@media (prefers-reduced-motion: reduce) {
+  .breaking-item {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
    Notched corner — the story tile's picture.
 
    The bottom-right corner is genuinely cut away, not covered over. A disc laid
