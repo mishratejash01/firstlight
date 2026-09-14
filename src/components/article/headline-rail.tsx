@@ -1,16 +1,21 @@
-import { ArticleRow } from "./article-row";
+import Image from "next/image";
+import Link from "next/link";
+
 import type { ArticleCardData } from "@/lib/queries/articles";
+import { cloudinaryImage } from "@/lib/media/transform";
 
 /**
  * The latest column beside the lead.
  *
- * Rows rather than plain headlines: this column's job is to show that a lot is
- * happening, and a thumbnail identifies a story faster than its first four
- * words do. They stay small on purpose — big enough to recognise, too small to
- * compete with the picture on the splash, because a front page with two focal
- * points has none.
+ * No panel and no rule over the heading: the column sits on the page and the
+ * hairlines between its entries are all the structure it needs.
  *
- * On a phone it simply follows the lead.
+ * The column is text first. The top story gets a picture under its
+ * headline and the rest carry none — a thumbnail on every row spends most of
+ * the column's height on photographs an inch wide, and at this width the
+ * section label above each headline does the identifying that a thumbnail was
+ * doing badly. Hairlines separate them, which is all the separation a labelled
+ * list needs.
  */
 export function HeadlineRail({
   articles,
@@ -21,19 +26,57 @@ export function HeadlineRail({
 }) {
   if (!articles.length) return null;
 
+  const [lead, ...rest] = articles;
+  const leadHref = `/${lead.categories.slug}/${lead.slug}`;
+
   return (
     <aside aria-label={title}>
-      <h2 className="eyebrow border-t-2 border-ink pt-2.5 text-ink">{title}</h2>
-      <ul className="mt-3 divide-y divide-hairline">
-        {articles.map((article) => (
-          <li key={article.id} className="py-4 first:pt-3">
-            {/* No eyebrow on these rows: the column is already one labelled
-                group, and a category tag on every line would out-shout the
-                headlines it is meant to introduce. */}
-            <ArticleRow article={article} showEyebrow={false} />
-          </li>
-        ))}
-      </ul>
+      <h2 className="eyebrow font-label font-semibold text-signal">{title}</h2>
+
+      <div className="mt-4">
+        <article className="group">
+          <Link href={leadHref}>
+            <h3 className="text-[1.0625rem] leading-[1.28] text-ink group-hover:text-accent">
+              {lead.headline}
+            </h3>
+
+            {/* Headline above the picture, not below it: the top story is
+                  the only one here with room for both, and the words are what
+                  the reader came down this column for. */}
+            {lead.hero_image_url ? (
+              <div className="relative mt-3 aspect-[16/10] w-full overflow-hidden rounded-media bg-hairline">
+                <Image
+                  src={
+                    cloudinaryImage(lead.hero_image_url, "card") ??
+                    lead.hero_image_url
+                  }
+                  alt={lead.hero_image_alt ?? ""}
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 22rem"
+                  className="object-cover"
+                />
+              </div>
+            ) : null}
+          </Link>
+        </article>
+
+        {rest.length ? (
+          <ul className="mt-4 divide-y divide-hairline border-t border-hairline">
+            {rest.map((article) => (
+              <li key={article.id} className="group py-3.5">
+                <Link href={`/${article.categories.slug}/${article.slug}`}>
+                  <p className="eyebrow font-label font-semibold text-accent">
+                    {article.categories.name}
+                  </p>
+                  <h3 className="mt-1.5 text-[1.0625rem] leading-[1.28] text-ink group-hover:text-accent">
+                    {article.headline}
+                  </h3>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
     </aside>
   );
 }
