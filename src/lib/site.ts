@@ -10,6 +10,17 @@
 export const SITE_NAME = "The India Front";
 
 /**
+ * What the paper covers, in one line.
+ *
+ * Sits under the nameplate in the footer and closes the home page title. Here
+ * rather than written out at each of those, for the same reason the name is: a
+ * paper whose description in a search result disagrees with the one under its
+ * own nameplate looks like two different papers.
+ */
+export const SITE_TAGLINE =
+  "reporting on politics, business, science and culture";
+
+/**
  * Where the paper's social accounts live.
  *
  * Fill in a URL and that icon appears in the masthead; leave it empty and the
