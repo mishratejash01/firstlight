@@ -22,6 +22,11 @@ const ROLES = [
     can: "Write and submit drafts. Cannot publish.",
   },
   {
+    role: "reviewer" as const,
+    label: "Reviewer",
+    can: "Read published stories and rate them for the engine to learn from. Cannot edit or publish.",
+  },
+  {
     role: "editor" as const,
     label: "Editor",
     can: "Review, edit, publish, schedule and pin stories.",
