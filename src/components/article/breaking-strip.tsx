@@ -105,15 +105,6 @@ export function BreakingStrip({ articles }: { articles: RankedArticle[] }) {
             </div>
           </div>
         </div>
-
-        {/* Says there is more than this one, and roughly how far through. A bar
-            that silently swaps its headline looks like a page glitching;
-            the same swap with a count beside it reads as a rota. */}
-        {articles.length > 1 ? (
-          <span className="hidden shrink-0 text-meta tabular-nums text-muted sm:block">
-            {safeIndex + 1}/{articles.length}
-          </span>
-        ) : null}
       </div>
     </div>
   );
