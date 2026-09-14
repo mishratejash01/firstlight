@@ -62,20 +62,9 @@ export function SectionsDrawer({ sections }: { sections: NavCategory[] }) {
         aria-haspopup="dialog"
         className="flex flex-col items-center gap-1.5"
       >
-        <span className="flex h-6 items-end">
-          <svg
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            focusable="false"
-            className="h-5 w-5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          >
-            <path d="M4 7h16M4 12h16M4 17h16" />
-          </svg>
-        </span>
+        {/* The slot stays even though nothing sits in it, so "More" lines up
+            on the same baseline as the section names beside it. */}
+        <span aria-hidden="true" className="flex h-6 items-end" />
         <span className="eyebrow font-label text-ink hover:text-accent">
           More
         </span>
