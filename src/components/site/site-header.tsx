@@ -12,7 +12,7 @@ import { getAllSections, getNavCategories } from "@/lib/queries/navigation";
 import {
   getBreakingArticles,
   getRecentArticles,
-  rankBreaking,
+  rankByConsequence,
   type ArticleCardData,
 } from "@/lib/queries/articles";
 import { cloudinaryImage } from "@/lib/media/transform";
@@ -85,7 +85,7 @@ export async function SiteHeader({
   // that the rota stops being a bulletin and becomes a section front that
   // happens to move.
   const BREAKING_IN_BAR = 10;
-  const breaking = rankBreaking(breakingAll)
+  const breaking = rankByConsequence(breakingAll)
     .filter((article) => article.id !== excludeId)
     .slice(0, BREAKING_IN_BAR);
 
