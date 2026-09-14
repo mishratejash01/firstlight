@@ -1,93 +1,94 @@
+import Image from "next/image";
 import Link from "next/link";
 
-import { ArticleCard } from "./article-card";
-import { ArticleRow } from "./article-row";
+import { StoryTile } from "./story-tile";
 import type { ArticleCardData } from "@/lib/queries/articles";
 
 /**
- * One section's block on the front page: a lead with a picture, then the rest
- * of the section as rows beside it.
+ * One section's block on the front page: a row of equal story tiles.
  *
  * The heavy rule above the label is the only mark separating one section from
- * the next — no card, no panel, no tint, no column rules. Rows rather than a
- * second and third card because the lead is the section's story of the day and
- * three equal pictures say the opposite.
+ * the next — no card, no panel, no tint, no column rules. Every story in the
+ * row carries the same weight, so the section reads as a shelf of what is
+ * there rather than as an argument about which of them matters most; the
+ * splash above has already made that argument for the page.
  */
 export function SectionShelf({
   title,
   href,
   articles,
+  iconUrl,
 }: {
   title: string;
   href: string;
   articles: ArticleCardData[];
+  iconUrl?: string | null;
 }) {
   if (!articles.length) return null;
 
-  // The lead-and-rows layout needs enough stories to fill the space beside the
-  // lead; below that it leaves a third of the row empty, which reads as a hole
-  // rather than as space. A thin section gets even cards instead.
-  if (articles.length < 5) {
-    return (
-      <section className="border-t-2 border-ink pt-3">
-        <SectionHeader title={title} href={href} />
-        <div className="story-grid mt-6">
-          {articles.map((article) => (
-            <ArticleCard
-              key={article.id}
-              article={article}
-              variant="card"
-              showEyebrow={false}
-            />
-          ))}
-        </div>
-      </section>
-    );
-  }
-
-  const [lead, ...others] = articles;
-  // Six rows fill two columns of three, roughly the depth of the lead's
-  // picture and headline beside them. Anything past that belongs on the
-  // section front, not here.
-  const rest = others.slice(0, 6);
-  const half = Math.ceil(rest.length / 2);
-  const columns = [rest.slice(0, half), rest.slice(half)];
+  // Three across on a wide screen. Four made each picture too small to carry a
+  // photograph once the page shell narrowed to three quarters of the window.
+  const tiles = articles.slice(0, 3);
 
   return (
-    <section className="border-t-2 border-ink pt-3">
-      <SectionHeader title={title} href={href} />
+    <section>
+      <SectionHeader title={title} href={href} iconUrl={iconUrl} />
 
-      <div className="mt-6 grid grid-cols-1 gap-x-10 gap-y-8 lg:grid-cols-3">
-        <ArticleCard article={lead} variant="lead" showEyebrow={false} />
-
-        {columns.map((column, index) => (
-          <div key={index} className="divide-y divide-hairline">
-            {column.map((article) => (
-              <div key={article.id} className="py-5 first:pt-0">
-                {/* The block is already labelled with its section, so the rows
-                    inside it carry no eyebrow of their own. */}
-                <ArticleRow article={article} showEyebrow={false} />
-              </div>
-            ))}
-          </div>
+      <div className="mt-6 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+        {tiles.map((article) => (
+          <StoryTile key={article.id} article={article} />
         ))}
       </div>
     </section>
   );
 }
 
-/** The section label and its "more" link — the same row in both layouts. */
-function SectionHeader({ title, href }: { title: string; href: string }) {
+/**
+ * The section label: a vertical bar in the house blue with the name beside it.
+ *
+ * The bar replaces the heavy rule that used to run above each block. A rule
+ * spans the page and reads as a divider between two things; a bar sits against
+ * the words and reads as a marker belonging to them, which is what a section
+ * label is. Sentence case, not capitals — the name is a word, not a tag.
+ */
+function SectionHeader({
+  title,
+  href,
+  iconUrl,
+}: {
+  title: string;
+  href: string;
+  iconUrl?: string | null;
+}) {
   return (
     <div className="flex items-baseline justify-between gap-4">
-      <h2 className="text-section text-ink">
+      <h2 className="font-label flex items-center gap-2.5 text-section font-semibold text-ink">
+        {/* The mark is the marker. Where a section has one it stands in for the
+            bar rather than queueing up behind it — a bar, a picture and a name
+            in a row is three things introducing one section. Hidden from screen
+            readers, since the name is written out beside it. */}
+        {iconUrl ? (
+          <Image
+            src={iconUrl}
+            alt=""
+            aria-hidden="true"
+            width={40}
+            height={40}
+            className="h-[1.5em] w-[1.5em] shrink-0 object-contain"
+          />
+        ) : (
+          <span
+            aria-hidden="true"
+            className="inline-block h-[1.15em] w-[5px] shrink-0 rounded-[2px] bg-accent"
+          />
+        )}
         <Link href={href} className="hover:text-accent">
           {title}
         </Link>
       </h2>
       <Link
         href={href}
-        className="shrink-0 text-meta text-accent hover:underline underline-offset-4"
+        className="shrink-0 text-meta text-accent underline-offset-4 hover:underline"
       >
         More {title.toLowerCase()}
       </Link>
