@@ -1,4 +1,4 @@
-import { SITE_NAME } from "@/lib/site";
+import { SITE_NAME, SITE_TAGLINE } from "@/lib/site";
 import type { Metadata } from "next";
 
 import { HeroStory } from "@/components/article/hero-story";
@@ -17,7 +17,7 @@ import {
 } from "@/lib/queries/articles";
 
 export const metadata: Metadata = {
-  title: `${SITE_NAME} — reporting on politics, business, science and culture`,
+  title: `${SITE_NAME} — ${SITE_TAGLINE}`,
   description:
     "Independent reporting across politics, business, technology, science, health, sport and culture.",
 };
