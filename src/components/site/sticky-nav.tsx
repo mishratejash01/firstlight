@@ -44,11 +44,6 @@ export function StickyNav({ children }: { children: ReactNode }) {
   return (
     <div
       data-shrunk={shrunk ? "true" : "false"}
-      // Named so the sections panel can find the bottom edge of the bar and
-      // open underneath it rather than across it. A class would do the same
-      // job until someone restyled the bar; the attribute says the element is
-      // being measured by something else.
-      data-sticky-nav=""
       className="group/nav sticky top-0 z-40 border-b border-hairline bg-paper"
     >
       {children}
