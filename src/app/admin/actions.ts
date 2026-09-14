@@ -22,7 +22,7 @@ import type { AppRole } from "@/lib/auth/roles";
 
 type ActionResult = { error: string } | { ok: true };
 
-const ROLES: AppRole[] = ["admin", "editor", "author"];
+const ROLES: AppRole[] = ["admin", "editor", "author", "reviewer"];
 
 async function requireAdminUser() {
   const user = await getSessionUser();
