@@ -20,9 +20,13 @@ import { cloudinaryImage } from "@/lib/media/transform";
 export function HeadlineRail({
   articles,
   title,
+  showLeadImage = true,
 }: {
   articles: ArticleCardData[];
   title: string;
+  /** Off where the column already carries pictures above it — a third one here
+   *  would make the block a gallery rather than a list of what has happened. */
+  showLeadImage?: boolean;
 }) {
   if (!articles.length) return null;
 
@@ -43,7 +47,7 @@ export function HeadlineRail({
             {/* Headline above the picture, not below it: the top story is
                   the only one here with room for both, and the words are what
                   the reader came down this column for. */}
-            {lead.hero_image_url ? (
+            {showLeadImage && lead.hero_image_url ? (
               <div className="relative mt-3 aspect-[16/10] w-full overflow-hidden rounded-media bg-hairline">
                 <Image
                   src={
