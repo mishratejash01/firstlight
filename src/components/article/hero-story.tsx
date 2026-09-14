@@ -9,11 +9,16 @@ import { cloudinaryImage } from "@/lib/media/transform";
 /**
  * The splash. One per front page.
  *
- * On a phone the image leads and the headline follows at 34px. On a wide screen
- * the same markup gets a 54px headline across two thirds of the grid. A lead
- * story on a newspaper front is recognisable from across a room, and size is
- * the only thing doing that work here — there is no coloured label, no badge
- * and no rule around it.
+ * Headline first, picture second. Every serious front page in the world is
+ * built that way: the reader is told what has happened before they are shown
+ * it. Leading with a full-width photograph pushed the words below the fold and
+ * made the page open on an image with no caption and no claim — handsome, and
+ * silent about the news.
+ *
+ * The picture is 16:9 for the same reason: at this column width a 3:2 crop is
+ * some seventy pixels deeper, which is a headline's worth of fold spent on the
+ * same photograph. The splash still carries a picture; it just does not spend
+ * the page on it.
  */
 export function HeroStory({ article }: { article: ArticleCardData }) {
   const href = `/${article.categories.slug}/${article.slug}`;
@@ -21,9 +26,28 @@ export function HeroStory({ article }: { article: ArticleCardData }) {
 
   return (
     <article className="group">
+      <Eyebrow article={article} className="mb-2" />
+
+      <h2 className="headline-lg text-hero leading-[1.03] text-ink sm:text-hero-lg lg:text-display">
+        <Link href={href} className="group-hover:text-accent">
+          {article.headline}
+        </Link>
+      </h2>
+
+      {dek ? (
+        <p className="mt-3 max-w-[42rem] text-lead text-ink">{dek}</p>
+      ) : null}
+
+      <Byline
+        author={article.authors}
+        publishedAt={article.published_at}
+        attributionLabel={article.attribution_label}
+        className="mt-2.5"
+      />
+
       {article.hero_image_url ? (
         <Link href={href} tabIndex={-1} aria-hidden="true">
-          <div className="relative mb-4 aspect-[16/9] w-full overflow-hidden rounded-media bg-hairline">
+          <div className="relative mt-5 aspect-[16/9] w-full overflow-hidden rounded-media bg-hairline">
             <Image
               src={
                 cloudinaryImage(article.hero_image_url, "hero") ??
@@ -32,31 +56,12 @@ export function HeroStory({ article }: { article: ArticleCardData }) {
               alt={article.hero_image_alt ?? ""}
               fill
               priority
-              sizes="(max-width: 1024px) 100vw, 66vw"
+              sizes="(max-width: 1024px) 100vw, 50vw"
               className="object-cover"
             />
           </div>
         </Link>
       ) : null}
-
-      <Eyebrow article={article} className="mb-2" />
-
-      <h2 className="headline-lg text-hero leading-[1.04] text-ink sm:text-hero-lg lg:text-display">
-        <Link href={href} className="group-hover:text-accent">
-          {article.headline}
-        </Link>
-      </h2>
-
-      {dek ? (
-        <p className="mt-3 max-w-[44rem] text-lead text-muted">{dek}</p>
-      ) : null}
-
-      <Byline
-        author={article.authors}
-        publishedAt={article.published_at}
-        attributionLabel={article.attribution_label}
-        className="mt-3"
-      />
     </article>
   );
 }
