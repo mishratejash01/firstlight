@@ -10,9 +10,10 @@ import { SectionsDrawer } from "@/components/site/sections-drawer";
 import { StickyNav } from "@/components/site/sticky-nav";
 import { getAllSections, getNavCategories } from "@/lib/queries/navigation";
 import {
+  getBreakingArticles,
   getRecentArticles,
+  rankBreaking,
   type ArticleCardData,
-  type BreakingArticle,
 } from "@/lib/queries/articles";
 import { cloudinaryImage } from "@/lib/media/transform";
 
@@ -54,19 +55,39 @@ import { cloudinaryImage } from "@/lib/media/transform";
  */
 export async function SiteHeader({
   activeSlug,
-  breaking,
+  excludeId,
 }: {
   activeSlug?: string;
-  /** Every live alert, already ranked. The strip shows them in turn. */
-  breaking?: BreakingArticle[];
+  /**
+   * A story this page is already leading on — the front page's splash, or the
+   * article being read. The bar exists to point at things a reader would
+   * otherwise miss, and it has nothing to point at when the story is already
+   * the thing on screen.
+   */
+  excludeId?: string;
 }) {
   // One query feeds every section's hover panel. Asking per section would mean
   // a round trip per item in the navigation, on every page of the site.
-  const [navCategories, allSections, recent] = await Promise.all([
+  //
+  // Alerts are fetched here rather than handed down by each page. Breaking news
+  // is breaking everywhere, and requiring twelve callers to remember to pass it
+  // is how eleven of them quietly end up without it. The extra query costs no
+  // wall time: it runs alongside the three already here.
+  const [navCategories, allSections, recent, breakingAll] = await Promise.all([
     getNavCategories(),
     getAllSections(),
     getRecentArticles(60),
+    getBreakingArticles(),
   ]);
+
+  // Capped at ten. The bar shows one at a time and holds each for five seconds,
+  // so ten is already most of a minute before the first comes round again; past
+  // that the rota stops being a bulletin and becomes a section front that
+  // happens to move.
+  const BREAKING_IN_BAR = 10;
+  const breaking = rankBreaking(breakingAll)
+    .filter((article) => article.id !== excludeId)
+    .slice(0, BREAKING_IN_BAR);
 
   // The bar carries the sections the editors ranked highest, as many as fill
   // the strip's width on a desktop without wrapping into a second row. The
