@@ -10,8 +10,10 @@ import { SocialLinks } from "@/components/site/social-links";
  *
  * A page has to end somewhere, and a footer set on the same white as the
  * reporting above it does not end anything — it reads as more page that has run
- * out of content. This one sits on the wash with a heavy rule above it, so the
- * document closes rather than simply stopping.
+ * out of content. This one sits on the pale red with a heavy rule above it, so
+ * the document closes rather than simply stopping. The same ground carries the
+ * sections panel and the breaking strip: the three places the paper speaks in
+ * its own voice rather than reporting.
  *
  * The section index runs the full width rather than sitting in a column. Twenty
  * sections stacked two-across in one third of the page made a tall thin list
@@ -50,7 +52,7 @@ export async function SiteFooter() {
   const sections = await getAllSections();
 
   return (
-    <footer className="mt-20 border-t-2 border-ink bg-wash">
+    <footer className="mt-20 border-t-2 border-ink bg-signal-soft">
       <div className="mx-auto max-w-page px-4 py-12 sm:px-6">
         {sections.length ? (
           <>
