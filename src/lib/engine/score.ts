@@ -21,6 +21,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
  *   relevance      home-market share and reader demand
  *   novelty        distance from what we have already published
  *   freshness      time decay
+ *   momentum       the earliness model's probability that this becomes a
+ *                  big story, from its first half hour, scaled to 0..10
  */
 
 export type Features = {
@@ -33,6 +35,7 @@ export type Features = {
   relevance: number;
   novelty: number;
   freshness: number;
+  momentum: number;
 };
 
 export const FEATURE_NAMES: (keyof Features)[] = [
@@ -45,6 +48,7 @@ export const FEATURE_NAMES: (keyof Features)[] = [
   "relevance",
   "novelty",
   "freshness",
+  "momentum",
 ];
 
 // ---------------------------------------------------------------------------
@@ -122,6 +126,7 @@ type Aggregate = {
   bucket_60_90: number;
   sources: { key: string; kind: string; first_at: string }[];
   magnitudes: { kind: string; magnitude: number }[];
+  p_big: number | null;
 };
 
 type Baseline = { entity: string; source_kind: string; hourly_mean: number; hourly_var: number };
@@ -374,6 +379,7 @@ export const EVIDENCE_FEATURES: (keyof Features)[] = [
   "acceleration",
   "magnitude",
   "relevance",
+  "momentum",
 ];
 export const GATE_FEATURES: (keyof Features)[] = ["novelty", "freshness"];
 
@@ -585,6 +591,7 @@ export async function scoreLiveEvents(): Promise<ScoreReport> {
       relevance: relevanceFeature(agg, demand, beatEvents.has(agg.event_id)),
       novelty: noveltyFeature(agg, recentSets),
       freshness: freshnessFeature(agg),
+      momentum: clamp(Number(agg.p_big ?? 0) * 10, 0, 10),
     };
 
     const score = combine(features, sampled);
