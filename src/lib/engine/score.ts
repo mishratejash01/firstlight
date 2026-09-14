@@ -390,10 +390,6 @@ function gaussian(): number {
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
 
-/** One draw is kept for a while, so passes a minute apart agree. */
-let sampledCache: { key: string; at: number; sampled: Record<keyof Features, number> } | null = null;
-const SAMPLE_HOLD_MS = 10 * 60_000;
-
 /**
  * One draw from the weight posterior for the whole pass.
  *
@@ -401,27 +397,16 @@ const SAMPLE_HOLD_MS = 10 * 60_000;
  * be the same for every event in the pass or the ranking is noise rather than
  * exploration. With exploration 0 this is the posterior mean, which turns
  * sampling into plain ranking.
- *
- * The draw is held for ten minutes. A fresh draw every minute meant every
- * live event's score changed every minute, so every row was rewritten every
- * minute — a thousand rewrites of rows that carry an embedding, each adding
- * to the vector index, sixty times an hour. Ten minutes of the same
- * hypothesis is still exploration; it is just not churn.
  */
 export function sampleWeights(
   weights: Map<string, Weight>,
   exploration: number,
 ): Record<keyof Features, number> {
-  const key = [...weights].map(([k, w]) => `${k}:${w.mean}:${w.variance}`).join("|") + `|${exploration}`;
-  if (sampledCache && sampledCache.key === key && Date.now() - sampledCache.at < SAMPLE_HOLD_MS) {
-    return sampledCache.sampled;
-  }
   const sampled = {} as Record<keyof Features, number>;
   for (const name of FEATURE_NAMES) {
     const w = weights.get(name) ?? { mean: 1, variance: 0.5 };
     sampled[name] = Number((w.mean + gaussian() * Math.sqrt(w.variance) * exploration).toFixed(3));
   }
-  sampledCache = { key, at: Date.now(), sampled };
   return sampled;
 }
 
@@ -545,12 +530,7 @@ function demandFor(entities: string[], searches: SearchRow[]): number {
   return score;
 }
 
-export type ScoreReport = {
-  scored: number;
-  written?: number;
-  unchanged?: number;
-  top: { title: string; score: number }[];
-};
+export type ScoreReport = { scored: number; top: { title: string; score: number }[] };
 
 /**
  * Recomputes every live event's features and score.
@@ -596,20 +576,6 @@ export async function scoreLiveEvents(): Promise<ScoreReport> {
 
   const sampled = sampleWeights(weights, exploration);
 
-  // What each live event scored last time, so a row is rewritten only when
-  // its score or its evidence actually moved. Freshness decays a little every
-  // minute; below a tenth of a point that is not worth copying an embedding.
-  const previous = new Map<string, { score: number; mentions: number }>();
-  for (let i = 0; i < aggregates.length; i += 500) {
-    const ids = aggregates.slice(i, i + 500).map((a) => a.event_id);
-    const { data: rows } = await supabase
-      .from("story_events")
-      .select("id, score, mention_count")
-      .in("id", ids);
-    for (const row of rows ?? []) previous.set(row.id, { score: Number(row.score ?? 0), mentions: row.mention_count });
-  }
-  let unchanged = 0;
-
   for (const agg of aggregates) {
     const entityBaselines = baselines.filter((b) => agg.entities.includes(b.entity));
     const effective = independentSources(agg, sourceInfo);
@@ -629,13 +595,6 @@ export async function scoreLiveEvents(): Promise<ScoreReport> {
     };
 
     const score = combine(features, sampled);
-
-    const before = previous.get(agg.event_id);
-    if (before && Math.abs(before.score - score) < 0.1 && before.mentions === agg.mentions_total) {
-      results.push({ title: agg.title, score: before.score });
-      unchanged += 1;
-      continue;
-    }
 
     updates.push({
       id: agg.event_id,
@@ -668,5 +627,5 @@ export async function scoreLiveEvents(): Promise<ScoreReport> {
   }
 
   results.sort((a, b) => b.score - a.score);
-  return { scored: results.length, written: updates.length, unchanged, top: results.slice(0, 5) };
+  return { scored: results.length, top: results.slice(0, 5) };
 }
