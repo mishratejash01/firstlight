@@ -6,7 +6,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * Earliness: will this become a big story?
  *
  * A logistic regression over what the engine knows in an event's first half
- * hour, trained weekly on free labels — did the event reach five independent
+ * hour, trained nightly on six days of free labels (mentions are kept for
+ * seven, so older events would look like stories nobody followed) — did the event reach five independent
  * outlets within six hours — that the mention table already holds for every
  * past event. Its output, p_big, is written back to every live event and used
  * three ways: the fast lane (an immediate corroboration search), the order of
@@ -16,8 +17,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * coefficients and a person can argue with them.
  */
 
-const TRAIN_DAYS = 14;
-const HOLDOUT_DAYS = 2;
+const TRAIN_DAYS = 6;
+const HOLDOUT_DAYS = 1;
 const L2 = 0.01;
 const MIN_TRAIN = 300;
 const MIN_POSITIVE = 30;
@@ -185,7 +186,7 @@ export async function fitEarlinessModel(): Promise<EarlinessFitReport> {
   // Labels need six hours to settle, and two hours' grace for late mentions.
   const to = new Date(now - 8 * 3600_000).toISOString();
 
-  const { data, error } = await supabase.rpc("engine_earliness_rows", {
+  const { data, error } = await supabase.rpc("engine_earliness_json", {
     p_from: from,
     p_to: to,
     p_with_label: true,
@@ -234,7 +235,7 @@ export async function scoreEarliness(): Promise<{ scored: number; modelVersion: 
   const supabase = createAdminClient();
   const live = await loadPromotedModel();
 
-  const { data, error } = await supabase.rpc("engine_earliness_rows", {
+  const { data, error } = await supabase.rpc("engine_earliness_json", {
     p_from: new Date(Date.now() - 6 * 3600_000).toISOString(),
     p_to: new Date(Date.now() + 60_000).toISOString(),
     p_with_label: false,
