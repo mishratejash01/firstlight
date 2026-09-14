@@ -35,8 +35,12 @@ function Meta({
 }) {
   return (
     <>
+      {/* text-pretty, not the inherited balance. Balancing evens the line
+          lengths by pulling the whole block in from the column edge, which on
+          the lead brief reads as a narrow headline sitting in a wide space
+          under a full-width picture. */}
       <h3
-        className={`leading-[1.25] text-ink group-hover:text-accent ${
+        className={`text-pretty leading-[1.25] text-ink group-hover:text-accent ${
           large ? "text-[1.25rem]" : "text-[1rem]"
         }`}
       >
