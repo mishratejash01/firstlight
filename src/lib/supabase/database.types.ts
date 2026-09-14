@@ -371,6 +371,76 @@ export type Database = {
           },
         ]
       }
+      article_reviews: {
+        Row: {
+          article_id: string
+          better_section_id: string | null
+          created_at: string
+          device: string | null
+          event_id: string | null
+          id: string
+          importance: number
+          issues: string[]
+          quality: number
+          reviewer_id: string
+          seconds_spent: number | null
+          timing: string
+          would_not_run: boolean
+        }
+        Insert: {
+          article_id: string
+          better_section_id?: string | null
+          created_at?: string
+          device?: string | null
+          event_id?: string | null
+          id?: string
+          importance: number
+          issues?: string[]
+          quality: number
+          reviewer_id: string
+          seconds_spent?: number | null
+          timing: string
+          would_not_run?: boolean
+        }
+        Update: {
+          article_id?: string
+          better_section_id?: string | null
+          created_at?: string
+          device?: string | null
+          event_id?: string | null
+          id?: string
+          importance?: number
+          issues?: string[]
+          quality?: number
+          reviewer_id?: string
+          seconds_spent?: number | null
+          timing?: string
+          would_not_run?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_reviews_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "article_reviews_better_section_id_fkey"
+            columns: ["better_section_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "article_reviews_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "story_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       article_tags: {
         Row: {
           ai_suggested: boolean
@@ -639,13 +709,13 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          icon_url: string | null
           id: string
           iptc_label: string | null
           iptc_qcode: string | null
           is_active: boolean
-          name: string
-          icon_url: string | null
           layout: string
+          name: string
           show_in_nav: boolean
           slug: string
           sort_order: number
@@ -654,13 +724,13 @@ export type Database = {
         Insert: {
           created_at?: string
           description?: string | null
+          icon_url?: string | null
           id?: string
           iptc_label?: string | null
           iptc_qcode?: string | null
           is_active?: boolean
-          name: string
-          icon_url?: string | null
           layout?: string
+          name: string
           show_in_nav?: boolean
           slug: string
           sort_order?: number
@@ -669,19 +739,63 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string | null
+          icon_url?: string | null
           id?: string
           iptc_label?: string | null
           iptc_qcode?: string | null
           is_active?: boolean
-          name?: string
-          icon_url?: string | null
           layout?: string
+          name?: string
           show_in_nav?: boolean
           slug?: string
           sort_order?: number
           updated_at?: string
         }
         Relationships: []
+      }
+      desk_decisions: {
+        Row: {
+          decided_at: string
+          details: Json | null
+          event_id: string
+          id: number
+          kind: string
+          model_version: number | null
+          rank: number | null
+          reason: string | null
+          score: number | null
+        }
+        Insert: {
+          decided_at?: string
+          details?: Json | null
+          event_id: string
+          id?: never
+          kind: string
+          model_version?: number | null
+          rank?: number | null
+          reason?: string | null
+          score?: number | null
+        }
+        Update: {
+          decided_at?: string
+          details?: Json | null
+          event_id?: string
+          id?: never
+          kind?: string
+          model_version?: number | null
+          rank?: number | null
+          reason?: string | null
+          score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "desk_decisions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "story_events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       engine_locks: {
         Row: {
@@ -762,33 +876,124 @@ export type Database = {
         Row: {
           applied: boolean
           created_at: string
+          details: Json | null
           event_id: string
           features: Json
           id: string
           label: number
           label_source: string
+          weight: number
         }
         Insert: {
           applied?: boolean
           created_at?: string
+          details?: Json | null
           event_id: string
           features: Json
           id?: string
           label: number
           label_source: string
+          weight?: number
         }
         Update: {
           applied?: boolean
           created_at?: string
+          details?: Json | null
           event_id?: string
           features?: Json
           id?: string
           label?: number
           label_source?: string
+          weight?: number
         }
         Relationships: [
           {
             foreignKeyName: "event_outcomes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "story_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_reviews: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          importance: number | null
+          reviewer_id: string
+          seconds_spent: number | null
+          should_have_written: boolean
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          importance?: number | null
+          reviewer_id: string
+          seconds_spent?: number | null
+          should_have_written: boolean
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          importance?: number | null
+          reviewer_id?: string
+          seconds_spent?: number | null
+          should_have_written?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_reviews_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "story_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_snapshots: {
+        Row: {
+          at: string
+          event_id: string
+          features: Json | null
+          id: number
+          independent_sources: number | null
+          mention_count: number | null
+          p_big: number | null
+          score: number | null
+          source_count: number | null
+          trigger: string
+        }
+        Insert: {
+          at?: string
+          event_id: string
+          features?: Json | null
+          id?: never
+          independent_sources?: number | null
+          mention_count?: number | null
+          p_big?: number | null
+          score?: number | null
+          source_count?: number | null
+          trigger: string
+        }
+        Update: {
+          at?: string
+          event_id?: string
+          features?: Json | null
+          id?: never
+          independent_sources?: number | null
+          mention_count?: number | null
+          p_big?: number | null
+          score?: number | null
+          source_count?: number | null
+          trigger?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_snapshots_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "story_events"
@@ -997,6 +1202,71 @@ export type Database = {
         }
         Relationships: []
       }
+      missed_samples: {
+        Row: {
+          created_at: string
+          event_id: string
+          reason: string
+          sample_date: string
+          score: number | null
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          reason: string
+          sample_date: string
+          score?: number | null
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          reason?: string
+          sample_date?: string
+          score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "missed_samples_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "story_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      model_versions: {
+        Row: {
+          created_at: string
+          examples: number | null
+          id: number
+          kind: string
+          metrics: Json
+          notes: string | null
+          promoted: boolean
+          weights: Json
+        }
+        Insert: {
+          created_at?: string
+          examples?: number | null
+          id?: never
+          kind: string
+          metrics?: Json
+          notes?: string | null
+          promoted?: boolean
+          weights: Json
+        }
+        Update: {
+          created_at?: string
+          examples?: number | null
+          id?: never
+          kind?: string
+          metrics?: Json
+          notes?: string | null
+          promoted?: boolean
+          weights?: Json
+        }
+        Relationships: []
+      }
       news_events: {
         Row: {
           category_id: string | null
@@ -1186,6 +1456,7 @@ export type Database = {
       }
       signal_weights: {
         Row: {
+          anchor: number | null
           feature: string
           mean: number
           observations: number
@@ -1193,6 +1464,7 @@ export type Database = {
           variance: number
         }
         Insert: {
+          anchor?: number | null
           feature: string
           mean: number
           observations?: number
@@ -1200,6 +1472,7 @@ export type Database = {
           variance: number
         }
         Update: {
+          anchor?: number | null
           feature?: string
           mean?: number
           observations?: number
@@ -1458,6 +1731,7 @@ export type Database = {
           corroboration: number
           created_at: string
           entities: string[]
+          fast_lane_at: string | null
           first_seen_at: string
           freshness: number
           id: string
@@ -1468,10 +1742,13 @@ export type Database = {
           magnitude: number
           mention_count: number
           novelty: number
+          p_big: number | null
+          p_big_at: string | null
           region_mix: Json
           relevance: number
           score: number
           score_breakdown: Json
+          second_source_at: string | null
           severity: string | null
           source_count: number
           source_keys: string[]
@@ -1500,6 +1777,7 @@ export type Database = {
           corroboration?: number
           created_at?: string
           entities?: string[]
+          fast_lane_at?: string | null
           first_seen_at?: string
           freshness?: number
           id?: string
@@ -1510,10 +1788,13 @@ export type Database = {
           magnitude?: number
           mention_count?: number
           novelty?: number
+          p_big?: number | null
+          p_big_at?: string | null
           region_mix?: Json
           relevance?: number
           score?: number
           score_breakdown?: Json
+          second_source_at?: string | null
           severity?: string | null
           source_count?: number
           source_keys?: string[]
@@ -1542,6 +1823,7 @@ export type Database = {
           corroboration?: number
           created_at?: string
           entities?: string[]
+          fast_lane_at?: string | null
           first_seen_at?: string
           freshness?: number
           id?: string
@@ -1552,10 +1834,13 @@ export type Database = {
           magnitude?: number
           mention_count?: number
           novelty?: number
+          p_big?: number | null
+          p_big_at?: string | null
           region_mix?: Json
           relevance?: number
           score?: number
           score_breakdown?: Json
+          second_source_at?: string | null
           severity?: string | null
           source_count?: number
           source_keys?: string[]
@@ -1922,30 +2207,7 @@ export type Database = {
           sessions: number
         }[]
       }
-      engine_unread_wire_items: {
-        Args: { p_limit?: number }
-        Returns: {
-          id: string
-          title: string
-          summary: string | null
-          link: string
-          published_at: string | null
-          ingested_at: string
-          source_slug: string
-          source_homepage_url: string | null
-          source_expanded: boolean
-        }[]
-      }
-      engine_feed_stats: {
-        Args: { p_hours?: number }
-        Returns: {
-          source_id: string
-          items: number
-          events_touched: number
-          events_started: number
-          stories_written: number
-        }[]
-      }
+      engine_build_missed_sample: { Args: { p_date?: string }; Returns: number }
       engine_entity_baselines: {
         Args: { p_entities: string[] }
         Returns: {
@@ -1976,11 +2238,107 @@ export type Database = {
           title: string
         }[]
       }
+      engine_feed_stats: {
+        Args: { p_hours?: number }
+        Returns: {
+          events_started: number
+          events_touched: number
+          items: number
+          source_id: string
+          stories_written: number
+        }[]
+      }
+      engine_harvest_outlet_outcomes: {
+        Args: { p_hours: number }
+        Returns: number
+      }
+      engine_learning_ledger: {
+        Args: { p_days?: number }
+        Returns: {
+          day: string
+          importance_high_share: number
+          late_share: number
+          median_discovery_lag_min: number
+          median_sighting_to_publish_min: number
+          missed_sampled: number
+          missed_should_have_share: number
+          outlet_4h_mean: number
+          reviewed: number
+          triage_accepted: number
+          triage_considered: number
+          would_not_run_share: number
+          written: number
+        }[]
+      }
+      engine_missed_queue: {
+        Args: { p_limit?: number }
+        Returns: {
+          event_id: string
+          first_seen_at: string
+          headlines: string[]
+          outlets: string[]
+          reason: string
+          sample_date: string
+          score: number
+          source_count: number
+          title: string
+          triage_reason: string
+        }[]
+      }
       engine_release_lock: { Args: { p_name: string }; Returns: undefined }
+      engine_review_queue: {
+        Args: { p_limit?: number }
+        Returns: {
+          article_id: string
+          category_name: string
+          category_slug: string
+          event_id: string
+          headline: string
+          needed: number
+          published_at: string
+          reviews: number
+          slug: string
+          standfirst: string
+        }[]
+      }
+      engine_reviewer_stats: {
+        Args: never
+        Returns: {
+          agreement_pairs: number
+          agreement_share: number
+          avg_importance: number
+          avg_quality: number
+          email: string
+          leniency: number
+          median_seconds: number
+          missed_reviews: number
+          reviewer_id: string
+          reviews: number
+          would_not_run_share: number
+        }[]
+      }
       engine_rollup_entity_hour: { Args: { p_hour?: string }; Returns: number }
+      engine_snapshot: {
+        Args: { p_event_id: string; p_trigger: string }
+        Returns: undefined
+      }
       engine_try_lock: {
         Args: { p_name: string; p_ttl_seconds: number }
         Returns: boolean
+      }
+      engine_unread_wire_items: {
+        Args: { p_limit?: number }
+        Returns: {
+          id: string
+          ingested_at: string
+          link: string
+          published_at: string
+          source_expanded: boolean
+          source_homepage_url: string
+          source_slug: string
+          summary: string
+          title: string
+        }[]
       }
       engine_update_source_stats: {
         Args: { p_since?: string }
@@ -2029,7 +2387,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "editor" | "author"
+      app_role: "admin" | "editor" | "author" | "reviewer"
       article_status:
         | "draft"
         | "in_review"
@@ -2165,7 +2523,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "editor", "author"],
+      app_role: ["admin", "editor", "author", "reviewer"],
       article_status: [
         "draft",
         "in_review",
