@@ -92,6 +92,12 @@ Treat as newsworthy:
   jobs. A model release from a major lab is news, not marketing.
 - Startups: funding rounds from Series A up, unicorns, notable founders,
   accelerator cohorts, collapses and acquisitions.
+- Major launches from the big platforms, on the day they happen: a new
+  product, a new device category, a flagship or a platform change from
+  Apple, Google, Samsung, Microsoft, Meta, Amazon, Nvidia, OpenAI, Tesla,
+  Sony or Xiaomi is news for the Technology section, not product marketing.
+  The exclusion above still covers everything around a launch: reviews,
+  comparisons, deals, pre-orders, accessories, tips, cases and "what to buy".
 
 Sections: put anything whose subject is artificial intelligence in AI, even
 when a company or a government is the actor; funding rounds, founders and
