@@ -29,7 +29,7 @@ export function RoleToggle({
   personLabel,
 }: {
   userId: string;
-  role: "admin" | "editor" | "author";
+  role: "admin" | "editor" | "author" | "reviewer";
   label: string;
   granted: boolean;
   personLabel: string;
