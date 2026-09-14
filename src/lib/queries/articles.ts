@@ -14,7 +14,7 @@ const CARD_FIELDS = `
   id, slug, headline, standfirst, summary, hero_image_url, hero_image_alt,
   published_at, is_breaking, origin, attribution_url, attribution_label,
   categories!inner ( slug, name ),
-  authors ( slug, display_name )
+  authors ( slug, display_name, title, avatar_url )
 `;
 
 const AUTHOR_JOINED_FIELDS = CARD_FIELDS.replace("authors (", "authors!inner (");
@@ -36,7 +36,12 @@ export type ArticleCardData = {
   attribution_url: string | null;
   attribution_label: string | null;
   categories: { slug: string; name: string };
-  authors: { slug: string; display_name: string } | null;
+  authors: {
+    slug: string;
+    display_name: string;
+    title: string | null;
+    avatar_url: string | null;
+  } | null;
 };
 
 function nowIso() {
