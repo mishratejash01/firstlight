@@ -140,58 +140,67 @@ export default async function HomePage() {
           already filling the top of this page. */}
       <SiteHeader excludeId={hero.id} />
 
-      <main className="route-enter mx-auto max-w-page px-4 sm:px-6">
-        {/* The splash on the left; the right side stacked in rows of differing
+      <main className="route-enter">
+        <div className="mx-auto max-w-page px-4 sm:px-6">
+          {/* The splash on the left; the right side stacked in rows of differing
             width rather than a second and third column of equal weight. Two
             stories side by side, then one across the full width, then the
             digest — which descends in size the way a front page should, and
             lets the right side finish level with the splash instead of running
             past it. They stack in reading order on a phone. */}
-        <div className="grid grid-cols-1 gap-x-10 gap-y-10 border-b border-hairline pt-8 pb-12 lg:grid-cols-12">
-          <div className="lg:col-span-7">
-            <HeroStory article={hero} />
-          </div>
+          <div className="grid grid-cols-1 gap-x-10 gap-y-10 pt-8 pb-12 lg:grid-cols-12">
+            <div className="lg:col-span-7">
+              <HeroStory article={hero} />
+            </div>
 
-          {/* Many stories, each given a little, against the one story given a
+            {/* Many stories, each given a little, against the one story given a
               lot. Two columns of briefs finish level with the splash where a
               single column of full cards ran a screen past it. */}
-          <div className="lg:col-span-5">
-            <BriefGrid articles={briefs} iconBySlug={iconBySlug} />
+            <div className="lg:col-span-5">
+              <BriefGrid articles={briefs} iconBySlug={iconBySlug} />
+            </div>
           </div>
         </div>
 
+        {/* The board runs to the wide measure rather than the page's, so the
+            panel reads as a band across the front rather than another column
+            in the grid. Its own wrapper rather than a negative-margin breakout
+            out of the one above: breaking out with viewport units ignores the
+            scrollbar and pushes the whole page sideways. */}
         {boardItems.length ? (
-          <div className="pt-10">
+          <div className="mx-auto max-w-wide px-4 pt-10 sm:px-6">
             <BulletinBoard items={boardItems} />
           </div>
         ) : null}
 
-        {/* A rule closes each section rather than separating it from the next:
+        <div className="mx-auto max-w-page px-4 sm:px-6">
+          {/* A rule closes each section rather than separating it from the next:
             the blue bar and the section's own mark open it, and a block that
             opens with a marker and ends with a line reads as finished. */}
-        <div className="pt-14 pb-4">
-          {featured.map(({ category, articles: shelfArticles }) => {
-            // Which block a section gets is a property of the section, read
-            // from the database — not a component asking whether the slug
-            // happens to be "opinion".
-            const Shelf =
-              category.layout === "opinion" ? OpinionShelf : SectionShelf;
-            return (
-              <div
-                key={category.slug}
-                className="border-b border-muted/35 pb-12 not-first:pt-12"
-              >
-                <Shelf
-                  title={category.name}
-                  href={`/${category.slug}`}
-                  articles={shelfArticles}
-                  iconUrl={category.icon_url}
-                />
-              </div>
-            );
-          })}
+          <div className="pt-14 pb-4">
+            {featured.map(({ category, articles: shelfArticles }) => {
+              // Which block a section gets is a property of the section, read
+              // from the database — not a component asking whether the slug
+              // happens to be "opinion".
+              const Shelf =
+                category.layout === "opinion" ? OpinionShelf : SectionShelf;
+              return (
+                <div
+                  key={category.slug}
+                  className="border-b border-muted/35 pb-12 not-first:pt-12"
+                >
+                  <Shelf
+                    title={category.name}
+                    href={`/${category.slug}`}
+                    articles={shelfArticles}
+                    iconUrl={category.icon_url}
+                  />
+                </div>
+              );
+            })}
 
-          <SectionDigest sections={remaining} />
+            <SectionDigest sections={remaining} />
+          </div>
         </div>
       </main>
 
