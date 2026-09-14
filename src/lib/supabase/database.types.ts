@@ -2211,6 +2211,10 @@ export type Database = {
         }[]
       }
       engine_build_missed_sample: { Args: { p_date?: string }; Returns: number }
+      engine_earliness_json: {
+        Args: { p_from: string; p_to: string; p_with_label?: boolean }
+        Returns: Json
+      }
       engine_earliness_rows: {
         Args: { p_from: string; p_to: string; p_with_label?: boolean }
         Returns: {
@@ -2354,6 +2358,10 @@ export type Database = {
       engine_snapshot: {
         Args: { p_event_id: string; p_trigger: string }
         Returns: undefined
+      }
+      engine_training_outcomes_json: {
+        Args: { p_days?: number }
+        Returns: Json
       }
       engine_try_lock: {
         Args: { p_name: string; p_ttl_seconds: number }
