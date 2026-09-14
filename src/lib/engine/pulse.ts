@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ingestMentions, type ClusterReport, type IncomingMention } from "./cluster";
 import { scoreLiveEvents, type ScoreReport } from "./score";
 import { applyOutcomes, harvestLabels } from "./learn";
+import { scoreEarliness } from "./earliness";
+import { recordDecision, snapshotEvent } from "./decisions";
 import { fetchBlueskyTrending, fetchHackerNews, fetchMastodonTrending } from "./streams/social";
 import { fetchWikipediaEditBursts, fetchWikipediaTopViews } from "./streams/wikipedia";
 import { fetchGoogleTopStories } from "./streams/google-top";
@@ -48,6 +50,8 @@ export type PulseReport = {
   corroborated?: number;
   sourceStatsUpdated?: number;
   learning?: { harvested: { outlet: number }; applied: number };
+  earliness?: { scored: number; modelVersion: number | null };
+  fastLane?: number;
 };
 
 type Stream = { name: string; fetch: () => Promise<IncomingMention[]> };
@@ -126,37 +130,117 @@ async function runStreams(
   }
 }
 
+type SearchTarget = { id: string; title: string; entities: string[] | null };
+
 /**
- * Widens coverage of the strongest candidates via Google News, so the
- * corroboration and authority features have something to measure. Only the
- * top of the table: one request per event, and this runs on the slow cadence.
+ * Widens coverage via Google News, so the corroboration and authority
+ * features have something to measure. One request per event, on the slow
+ * cadence, and the budget is spent where a search changes the most:
+ *
+ *   first   single-source events the earliness model rates highest, newest
+ *           first — the stories that need a second outlet to be seen at all,
+ *           which the old order (by score) put last, because a lone source
+ *           scores low
+ *   then    the strongest of the rest by score
+ *
+ * An event searched in the last ninety minutes is skipped either way, so the
+ * budget keeps reaching further down the table.
  */
 async function corroborateTopEvents(limit: number): Promise<number> {
   const supabase = createAdminClient();
-  // Not the same eight every quarter hour: an event searched recently is
-  // skipped, so the budget reaches further down the table.
   const recently = new Date(Date.now() - 90 * 60_000).toISOString();
-  const { data: top } = await supabase
-    .from("story_events")
-    .select("id, title, entities")
-    .in("status", ["candidate", "newsworthy"])
-    .gte("last_seen_at", new Date(Date.now() - 6 * 3600_000).toISOString())
-    .or(`corroborated_at.is.null,corroborated_at.lt.${recently}`)
-    .order("score", { ascending: false })
-    .limit(limit);
+  const sinceLive = new Date(Date.now() - 6 * 3600_000).toISOString();
 
-  if (!top?.length) return 0;
+  const [{ data: lone }, { data: top }] = await Promise.all([
+    supabase
+      .from("story_events")
+      .select("id, title, entities")
+      .in("status", ["candidate", "newsworthy"])
+      .lte("source_count", 1)
+      .gte("last_seen_at", sinceLive)
+      .or(`corroborated_at.is.null,corroborated_at.lt.${recently}`)
+      .order("p_big", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .limit(Math.ceil(limit / 2)),
+    supabase
+      .from("story_events")
+      .select("id, title, entities")
+      .in("status", ["candidate", "newsworthy"])
+      .gte("last_seen_at", sinceLive)
+      .or(`corroborated_at.is.null,corroborated_at.lt.${recently}`)
+      .order("score", { ascending: false })
+      .limit(limit),
+  ]);
+
+  const seen = new Set<string>();
+  const chosen: SearchTarget[] = [];
+  for (const e of [...(lone ?? []), ...(top ?? [])]) {
+    if (seen.has(e.id) || chosen.length >= limit) continue;
+    seen.add(e.id);
+    chosen.push(e);
+  }
+  if (!chosen.length) return 0;
 
   await supabase
     .from("story_events")
     .update({ corroborated_at: new Date().toISOString() })
-    .in("id", top.map((e) => e.id));
+    .in("id", chosen.map((e) => e.id));
 
   const mentions = await fetchCorroborationFor(
-    top.map((e) => ({ id: e.id, title: e.title, entities: e.entities ?? [] })),
+    chosen.map((e) => ({ id: e.id, title: e.title, entities: e.entities ?? [] })),
   );
   if (!mentions.length) return 0;
 
+  const report = await ingestMentions(mentions);
+  return report.inserted;
+}
+
+/**
+ * The fast lane. An event the earliness model rates above the threshold gets
+ * its corroboration search now, not at its turn in the quarter-hourly
+ * budget: measured before this was built, big stories had their third outlet
+ * at a median of thirty minutes, and the desk took over two hours from
+ * sighting to writing. Once per event; the decision and a snapshot are
+ * recorded so the fit can see what the lane did.
+ */
+async function fastLane(limit: number): Promise<number> {
+  const supabase = createAdminClient();
+  const { data: setting } = await supabase
+    .from("site_settings")
+    .select("value")
+    .eq("key", "engine_fast_lane_threshold")
+    .maybeSingle();
+  const threshold = Number(setting?.value ?? 0.5);
+
+  const { data: events } = await supabase
+    .from("story_events")
+    .select("id, title, entities, p_big, score")
+    .in("status", ["candidate", "newsworthy"])
+    .is("fast_lane_at", null)
+    .gte("p_big", threshold)
+    .gte("created_at", new Date(Date.now() - 6 * 3600_000).toISOString())
+    .order("p_big", { ascending: false })
+    .limit(limit);
+  if (!events?.length) return 0;
+
+  const now = new Date().toISOString();
+  await supabase
+    .from("story_events")
+    .update({ fast_lane_at: now, corroborated_at: now })
+    .in("id", events.map((e) => e.id));
+
+  for (const e of events) {
+    await snapshotEvent(e.id, "fast_lane");
+    await recordDecision(e.id, "fast_lane", {
+      score: Number(e.score ?? 0),
+      details: { p_big: e.p_big },
+    });
+  }
+
+  const mentions = await fetchCorroborationFor(
+    events.map((e) => ({ id: e.id, title: e.title, entities: e.entities ?? [] })),
+  );
+  if (!mentions.length) return 0;
   const report = await ingestMentions(mentions);
   return report.inserted;
 }
@@ -237,6 +321,25 @@ async function pulseInner(cadence: "fast" | "slow", startedAt: number): Promise<
 
   const scoring = await scoreLiveEvents();
 
+  // Earliness every three minutes; the fast lane every minute. Both on the
+  // fast cadence, since a minute is the point.
+  let earliness: PulseReport["earliness"];
+  let fastLaneCount: number | undefined;
+  if (cadence === "fast") {
+    if (new Date().getUTCMinutes() % 3 === 0) {
+      try {
+        earliness = await scoreEarliness();
+      } catch (error) {
+        console.error("[pulse] earliness failed", error instanceof Error ? error.message : error);
+      }
+    }
+    try {
+      fastLaneCount = await fastLane(5);
+    } catch (error) {
+      console.error("[pulse] fast lane failed", error instanceof Error ? error.message : error);
+    }
+  }
+
   return {
     cadence,
     durationMs: Date.now() - startedAt,
@@ -247,5 +350,7 @@ async function pulseInner(cadence: "fast" | "slow", startedAt: number): Promise<
     corroborated,
     sourceStatsUpdated,
     learning,
+    earliness,
+    fastLane: fastLaneCount,
   };
 }
