@@ -24,44 +24,81 @@ import { formatTimeAgo } from "@/lib/format/datetime";
  * uniform two-column block wastes the width on short headlines and gives the
  * lead brief no more weight than the ninth.
  */
-function Meta({ article }: { article: ArticleCardData }) {
+function Meta({
+  article,
+  iconUrl,
+  large = false,
+}: {
+  article: ArticleCardData;
+  iconUrl?: string | null;
+  large?: boolean;
+}) {
   return (
     <>
-      <p className="font-label text-kicker font-semibold text-accent">
-        {article.categories.name}
-      </p>
-      <h3 className="mt-1 text-[1rem] leading-[1.28] text-ink group-hover:text-accent">
+      <h3
+        className={`leading-[1.25] text-ink group-hover:text-accent ${
+          large ? "text-[1.25rem]" : "text-[1rem]"
+        }`}
+      >
         <Link href={`/${article.categories.slug}/${article.slug}`}>
           {article.headline}
         </Link>
       </h3>
-      {article.published_at ? (
-        <p className="mt-1.5 text-meta text-muted">
-          <time dateTime={article.published_at}>
-            {formatTimeAgo(article.published_at)}
-          </time>
-        </p>
-      ) : null}
+
+      {/* Section and time on one line under the headline, the mark beside the
+          section it belongs to. Below rather than above: the headline is what
+          the reader came for, and the label is what they check afterwards to
+          place it. */}
+      <p className="mt-2 flex items-center gap-1.5 text-meta text-muted">
+        {iconUrl ? (
+          <Image
+            src={iconUrl}
+            alt=""
+            aria-hidden="true"
+            width={24}
+            height={24}
+            className="h-4 w-4 shrink-0 object-contain"
+          />
+        ) : null}
+        <span className="text-ink">{article.categories.name}</span>
+        {article.published_at ? (
+          <>
+            <span aria-hidden="true">|</span>
+            <time dateTime={article.published_at}>
+              {formatTimeAgo(article.published_at)}
+            </time>
+          </>
+        ) : null}
+      </p>
     </>
   );
 }
 
-export function BriefGrid({ articles }: { articles: ArticleCardData[] }) {
+export function BriefGrid({
+  articles,
+  iconBySlug,
+}: {
+  articles: ArticleCardData[];
+  /** Section marks, keyed by slug; a section without one simply shows none. */
+  iconBySlug?: Map<string, string | null>;
+}) {
   if (!articles.length) return null;
 
   const [first, ...rest] = articles;
 
   return (
     <div className="grid grid-cols-2 gap-x-6 gap-y-6">
-      <article className="group col-span-2 flex gap-4">
+      {/* The lead brief takes the full width with its picture above the
+          headline — a proper second story rather than a thumbnail with a
+          caption beside it, which left a ragged hole under the picture. */}
+      <article className="group col-span-2">
         {first.hero_image_url ? (
           <Link
             href={`/${first.categories.slug}/${first.slug}`}
             tabIndex={-1}
             aria-hidden="true"
-            className="shrink-0"
           >
-            <div className="relative aspect-[4/3] w-36 overflow-hidden rounded-media bg-hairline sm:w-44">
+            <div className="relative mb-3 aspect-[16/9] w-full overflow-hidden rounded-media bg-hairline">
               <Image
                 src={
                   cloudinaryImage(first.hero_image_url, "card") ??
@@ -69,20 +106,30 @@ export function BriefGrid({ articles }: { articles: ArticleCardData[] }) {
                 }
                 alt={first.hero_image_alt ?? ""}
                 fill
-                sizes="176px"
+                sizes="(max-width: 1024px) 100vw, 480px"
                 className="object-cover"
               />
             </div>
           </Link>
         ) : null}
-        <div className="min-w-0">
-          <Meta article={first} />
-        </div>
+        <Meta
+          article={first}
+          iconUrl={iconBySlug?.get(first.categories.slug)}
+          large
+        />
       </article>
 
-      {rest.map((article) => (
-        <article key={article.id} className="group">
-          <Meta article={article} />
+      {/* A rule above each pair gives the stack a rhythm; without it eight
+          identical text blocks read as one undifferentiated dump. */}
+      {rest.map((article, index) => (
+        <article
+          key={article.id}
+          className={`group ${index > 1 ? "border-t border-hairline pt-5" : ""}`}
+        >
+          <Meta
+            article={article}
+            iconUrl={iconBySlug?.get(article.categories.slug)}
+          />
         </article>
       ))}
     </div>
