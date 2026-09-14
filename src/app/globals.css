@@ -122,30 +122,6 @@
     line-height: 1.65;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
-    transition: margin-right 240ms ease;
-  }
-
-  /* The sections panel makes room for itself rather than covering the page.
-     Narrowing the body by the width of the panel reflows everything still on
-     screen into what is left, so a reader choosing a section can still see the
-     story they were reading behind the choice — and nothing is hidden under an
-     overlay they have to dismiss to get back to.
-
-     Only where there is width to give up. Below this the panel goes back to
-     covering the page: taking 22rem off a 900px tablet leaves a column too
-     narrow to reflow into, and off a phone leaves nothing at all. The class is
-     put on <html> by SectionsDrawer, which is also what decides whether it is
-     wide enough to push. */
-  @media (min-width: 1024px) {
-    html.sections-open body {
-      margin-right: 22rem;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    body {
-      transition: none;
-    }
   }
 
   /* Headlines are set in the serif; everything else — labels, bylines,
