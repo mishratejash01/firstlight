@@ -6,6 +6,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { aiIsConfigured, runWithChain } from "@/lib/ai/config";
 import type { Features } from "./score";
+import { recordDecision, snapshotEvent } from "./decisions";
 
 /**
  * Editorial judgement on the events the maths has surfaced.
@@ -373,6 +374,10 @@ export async function triageCandidates(
           triaged_score: event.score,
         })
         .eq("id", event.id);
+      await recordDecision(event.id, "triage_excluded", {
+        score: Number(event.score),
+        reason: `Matched the exclusion "${excludedBy}".`,
+      });
       continue;
     }
 
@@ -384,6 +389,10 @@ export async function triageCandidates(
       .limit(40);
 
     const breakdown = (event.score_breakdown as { features?: Partial<Features> } | null) ?? {};
+
+    // What the engine saw when it asked. The fit learns from this, not from
+    // what the event looks like once a verdict exists.
+    await snapshotEvent(event.id, "triage");
 
     const result = await triageEvent({
       title: event.title,
@@ -405,6 +414,7 @@ export async function triageCandidates(
         .from("story_events")
         .update({ last_error: `Triage failed: ${result.error}` })
         .eq("id", event.id);
+      await recordDecision(event.id, "triage_failed", { score: Number(event.score), reason: result.error });
       continue;
     }
 
@@ -432,6 +442,17 @@ export async function triageCandidates(
         last_error: null,
       })
       .eq("id", event.id);
+    await recordDecision(event.id, triage.newsworthy ? "triage_accept" : "triage_reject", {
+      score: Number(event.score),
+      reason: triage.reason,
+      details: {
+        category: triage.category,
+        section: triage.newsworthy ? triage.section || null : null,
+        urgency: triage.urgency,
+        modelId: result.modelId,
+        ms: result.ms,
+      },
+    });
   }
 
   return report;
