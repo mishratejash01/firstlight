@@ -154,7 +154,15 @@ export async function SiteHeader({
       </header>
 
       <StickyNav>
-        <nav aria-label="Sections">
+        {/* Positioned, so the hover panels below resolve against this row
+            rather than against the sticky block as a whole. Against the block,
+            "top-full" put them under the breaking bar — and the bar is not part
+            of any section's list item, so a pointer travelling from a name down
+            to its panel crossed dead ground, dropped the hover and closed the
+            panel. Opening and closing like that changes the page height on
+            every flicker, which the browser's scroll anchoring then tries to
+            correct, and the page appears to scroll on its own. */}
+        <nav aria-label="Sections" className="relative">
           <div className="mx-auto flex max-w-wide items-center gap-4 px-4 sm:px-6">
             {/* Fixed-width spacers either side, not flexible ones: they keep
               the strip optically centred while leaving it free to take the rest
@@ -198,12 +206,12 @@ export async function SiteHeader({
               marks fold away the names are left sitting against the very top
               of the window — two pixels from it, measured — which reads as the
               bar having been cut off rather than closed up. */}
-            <ul className="-mx-4 flex min-w-0 flex-1 gap-6 overflow-x-auto px-4 pb-3 group-data-[shrunk=true]/nav:pt-3 sm:mx-0 sm:flex-wrap sm:justify-center sm:gap-y-2 sm:overflow-visible sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <ul className="-mx-4 flex min-w-0 flex-1 gap-6 overflow-x-auto px-4 group-data-[shrunk=true]/nav:pt-3 sm:mx-0 sm:flex-wrap sm:justify-center sm:gap-y-2 sm:overflow-visible sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {categories.map((category) => {
                 const active = category.slug === activeSlug;
                 const latest = latestBySection.get(category.slug) ?? [];
                 return (
-                  <li key={category.slug} className="group shrink-0">
+                  <li key={category.slug} className="group shrink-0 pb-3">
                     <Link
                       href={`/${category.slug}`}
                       aria-current={active ? "page" : undefined}
@@ -268,10 +276,17 @@ export async function SiteHeader({
 
                     {/* Sits inside the item so the pointer can move from the
                         name into the panel without dropping the hover, but is
-                        positioned against the strip so it spans the full width
-                        rather than the width of one name. */}
+                        positioned against the nav row so it spans the full
+                        width rather than the width of one name.
+
+                        Pulled up over the row's last few pixels. The strip is
+                        centred against the taller sign-in slot beside it, which
+                        leaves a sliver of nav below the names belonging to no
+                        item; a pointer crossing it lost the hover and shut the
+                        panel. The top padding grows by the same amount, so what
+                        a reader sees has not moved — only the hit area. */}
                     {latest.length ? (
-                      <div className="absolute inset-x-0 top-full z-50 hidden border-t border-hairline bg-paper pt-5 pb-6 shadow-[0_10px_24px_-18px_rgba(20,22,28,0.45)] sm:group-hover:block">
+                      <div className="absolute inset-x-0 top-full -mt-3 z-50 hidden border-t border-hairline bg-paper pt-8 pb-6 shadow-[0_10px_24px_-18px_rgba(20,22,28,0.45)] sm:group-hover:block">
                         {/* The ground runs the width of the window; the stories
                             inside it line up with the section strip above. */}
                         <div className="mx-auto flex max-w-wide items-start px-4 sm:px-6">
@@ -351,7 +366,7 @@ export async function SiteHeader({
                 );
               })}
               {overflow.length ? (
-                <li className="shrink-0 pb-0">
+                <li className="shrink-0 pb-3">
                   <SectionsDrawer sections={overflow} />
                 </li>
               ) : null}
