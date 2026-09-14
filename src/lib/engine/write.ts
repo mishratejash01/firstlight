@@ -236,6 +236,13 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
   const fetchSources = await readSetting<boolean>("source_fetch_enabled", true);
   const maxDocuments = await readSetting<number>("engine_max_documents", 5);
   const minSourcesRequired = await readSetting<number>("source_fetch_min_required", 1);
+  // The timing rule's three numbers, all settings: write at once above the
+  // first probability; between the second and the first, wait this many
+  // minutes after the second independent outlet; below the second, the
+  // ordinary queue.
+  const writeNowAt = await readSetting<number>("engine_timing_write_now", 0.7);
+  const waitFromAt = await readSetting<number>("engine_fast_lane_threshold", 0.5);
+  const waitMinutes = await readSetting<number>("engine_timing_wait_minutes", 20);
 
   const report: EventWriteReport = { autoWrite, publishing, remaining: 0, outcomes: [] };
   if (!autoWrite) return report;
@@ -287,7 +294,7 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
   const { data: candidates } = await supabase
     .from("story_events")
     .select(
-      "id, title, entities, independent_sources, write_attempts, triage_section, triage_angle, triage_reason, urgency, score, first_seen_at",
+      "id, title, entities, independent_sources, write_attempts, triage_section, triage_angle, triage_reason, urgency, score, first_seen_at, p_big, second_source_at",
     )
     .or(
       `and(status.eq.newsworthy,or(claimed_at.is.null,claimed_at.lt.${retryBefore})),and(status.eq.writing,claimed_at.lt.${staleBefore})`,
@@ -354,6 +361,34 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
 
   for (const event of candidates.slice(0, Math.min(limit, report.remaining))) {
     const attempts = (event.write_attempts ?? 0) + 1;
+
+    // The timing rule. A story the earliness model expects to grow is worth
+    // a short wait for its confirmation; one it is sure of is written at
+    // once; and nothing waits past three hours, or the wait would be the
+    // delay it was meant to prevent.
+    const pBig = Number(event.p_big ?? 0);
+    const ageMinutes = (Date.now() - new Date(event.first_seen_at).getTime()) / 60_000;
+    if (pBig >= waitFromAt && pBig < writeNowAt && ageMinutes < 180) {
+      const secondAt = event.second_source_at ? new Date(event.second_source_at).getTime() : null;
+      const waited = secondAt ? (Date.now() - secondAt) / 60_000 : null;
+      if (waited === null || waited < waitMinutes) {
+        await recordDecision(event.id, "timing_wait", {
+          score: Number(event.score ?? 0),
+          reason:
+            waited === null
+              ? "Waiting for a second independent outlet."
+              : `Waiting ${Math.ceil(waitMinutes - waited)} more minutes after the second outlet.`,
+          details: { p_big: pBig, waited_minutes: waited === null ? null : Math.round(waited) },
+        });
+        report.outcomes.push({
+          eventId: event.id,
+          title: event.title,
+          status: "held",
+          reason: "Timing: waiting briefly for confirmation.",
+        });
+        continue;
+      }
+    }
 
     // The claim. A single UPDATE whose WHERE repeats the availability test, so
     // if another run got here first this affects no rows and we move on.
