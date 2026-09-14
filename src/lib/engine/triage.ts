@@ -304,6 +304,22 @@ export async function triageCandidates(
         .limit(limit)
     : { data: [] };
 
+  // The fast lane: events the earliness model expects to become big go to
+  // triage at the beat threshold, whatever their beat.
+  const fastLaneThreshold = await readSetting<number>("engine_fast_lane_threshold", 0.5);
+  const { data: fastLane } = await supabase
+    .from("story_events")
+    .select(
+      "id, title, entities, first_seen_at, region_mix, score, score_breakdown, independent_sources",
+    )
+    .eq("status", "candidate")
+    .is("triaged_at", null)
+    .gte("p_big", fastLaneThreshold)
+    .gte("score", beatThreshold)
+    .gte("first_seen_at", since)
+    .order("p_big", { ascending: false })
+    .limit(limit);
+
   const [{ data: fresh }, { data: grown }, { data: categories }] = await Promise.all([
     supabase
       .from("story_events")
@@ -351,7 +367,7 @@ export async function triageCandidates(
   );
 
   const seenIds = new Set<string>();
-  const queue = [...(onBeat ?? []), ...(fresh ?? []), ...regrown]
+  const queue = [...(fastLane ?? []), ...(onBeat ?? []), ...(fresh ?? []), ...regrown]
     .filter((event) => (seenIds.has(event.id) ? false : (seenIds.add(event.id), true)))
     .slice(0, limit);
 
