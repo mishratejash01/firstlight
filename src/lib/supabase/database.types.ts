@@ -644,6 +644,8 @@ export type Database = {
           iptc_qcode: string | null
           is_active: boolean
           name: string
+          icon_url: string | null
+          layout: string
           show_in_nav: boolean
           slug: string
           sort_order: number
@@ -657,6 +659,8 @@ export type Database = {
           iptc_qcode?: string | null
           is_active?: boolean
           name: string
+          icon_url?: string | null
+          layout?: string
           show_in_nav?: boolean
           slug: string
           sort_order?: number
@@ -670,6 +674,8 @@ export type Database = {
           iptc_qcode?: string | null
           is_active?: boolean
           name?: string
+          icon_url?: string | null
+          layout?: string
           show_in_nav?: boolean
           slug?: string
           sort_order?: number
