@@ -22,9 +22,14 @@ export function ArticleCard({
   article,
   variant = "card",
   showEyebrow = true,
+  showDek = true,
 }: {
   article: ArticleCardData;
   variant?: "lead" | "card" | "list";
+  /** Off in a column that has to finish level with something beside it: the
+   *  dek is the first thing worth losing, being the only part a reader can do
+   *  without once the headline has told them what happened. */
+  showDek?: boolean;
   /** Off where the container already names the section — inside a section
    *  block, or on a section front, where every card carries the same label and
    *  repeating it says nothing. A breaking story keeps its marker either way. */
@@ -72,7 +77,7 @@ export function ArticleCard({
 
       {/* A list entry carries no dek. Its whole reason for existing is that a
  reader can take in six of them in the time one card takes. */}
-      {dek && variant !== "list" ? (
+      {dek && showDek && variant !== "list" ? (
         <p className="mt-1.5 text-meta leading-relaxed text-ink">{dek}</p>
       ) : null}
 
