@@ -59,6 +59,7 @@ export function isEditorial(user: SessionUser | null): boolean {
 export function dashboardHomeFor(user: SessionUser): string {
   if (user.roles.includes("admin")) return "/admin";
   if (user.roles.includes("editor")) return "/desk";
+  if (user.roles.includes("reviewer")) return "/review";
   if (user.roles.includes("author")) return "/contribute";
   return "/account";
 }
