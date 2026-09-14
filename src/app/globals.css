@@ -297,6 +297,36 @@
   animation-play-state: paused;
 }
 
+/* ---------------------------------------------------------------------------
+   Bulletin board — the change between headlines.
+
+   A fade in only, with no fade out. The board is a large block carrying a
+   picture; fading it out would leave a wide panel of flat red on the page for
+   a third of a second every time the story changed, which reads as the page
+   breaking rather than as a bulletin moving on. The new item simply arrives
+   over the old one's place.
+--------------------------------------------------------------------------- */
+.board-item {
+  animation: board-in 420ms ease both;
+}
+
+@keyframes board-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-item {
+    animation: none;
+  }
+}
+
 @keyframes breaking-cycle {
   0% {
     opacity: 0;
