@@ -53,7 +53,7 @@ export type ArticleCardData = {
  * and the right thing to rank breaking coverage by rather than inventing a
  * second list of important categories in a file somewhere.
  */
-export type BreakingArticle = Omit<ArticleCardData, "categories"> & {
+export type RankedArticle = Omit<ArticleCardData, "categories"> & {
   categories: { slug: string; name: string; sort_order: number };
 };
 
@@ -76,7 +76,7 @@ function nowIso() {
  */
 export async function getBreakingArticles(
   limit = 60,
-): Promise<BreakingArticle[]> {
+): Promise<RankedArticle[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("articles")
@@ -88,7 +88,33 @@ export async function getBreakingArticles(
     .limit(limit);
 
   if (error) return [];
-  return (data ?? []) as unknown as BreakingArticle[];
+  return (data ?? []) as unknown as RankedArticle[];
+}
+
+/**
+ * The day's stories, for the bulletin board.
+ *
+ * A rolling twenty-four hours rather than since midnight. "The current day" on
+ * a news site means the last day's news, and anchoring to midnight would empty
+ * the board every morning and make what it shows depend on which timezone the
+ * server happens to run in — which, for a paper read in India and deployed in
+ * Sydney, is a bug waiting rather than a detail.
+ */
+export async function getTopOfDay(limit = 50): Promise<RankedArticle[]> {
+  const supabase = await createClient();
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await supabase
+    .from("articles")
+    .select(BREAKING_FIELDS)
+    .in("status", VISIBLE_STATUSES)
+    .lte("published_at", nowIso())
+    .gte("published_at", since)
+    .order("published_at", { ascending: false })
+    .limit(limit);
+
+  if (error) return [];
+  return (data ?? []) as unknown as RankedArticle[];
 }
 
 /**
@@ -115,17 +141,17 @@ const SECTION_HANDICAP_HOURS = 12;
  * desks 100, 200, 300 means the same thing as one numbering them 1, 2, 3, and
  * neither should change how hard recency is weighted.
  */
-export function rankBreaking(
-  articles: BreakingArticle[],
+export function rankByConsequence(
+  articles: RankedArticle[],
   now: number = Date.now(),
-): BreakingArticle[] {
+): RankedArticle[] {
   if (articles.length < 2) return [...articles];
 
   const orders = articles.map((article) => article.categories?.sort_order ?? 0);
   const lowest = Math.min(...orders);
   const span = Math.max(...orders) - lowest;
 
-  const score = (article: BreakingArticle) => {
+  const score = (article: RankedArticle) => {
     // A story with no timestamp cannot be ranked on recency and should never
     // lead the bar; it sorts last rather than first.
     if (!article.published_at) return Number.POSITIVE_INFINITY;
