@@ -9,7 +9,7 @@ import { buildBulletin, formatRunTime } from "@/lib/bulletin/script";
 import {
   getBreakingArticles,
   getRecentArticles,
-  rankBreaking,
+  rankByConsequence,
   type ArticleCardData,
 } from "@/lib/queries/articles";
 
@@ -51,7 +51,7 @@ export default async function BulletinPage() {
     picked.push(article);
   };
 
-  rankBreaking(breakingAll).forEach(add);
+  rankByConsequence(breakingAll).forEach(add);
   recent.forEach(add);
 
   const { lines, seconds } = buildBulletin(picked);
