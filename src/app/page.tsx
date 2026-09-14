@@ -76,11 +76,12 @@ export default async function HomePage() {
     .map((p) => take(byId.get(p.article_id)))
     .filter((a): a is ArticleCardData => Boolean(a));
 
-  // The briefs beside the splash. Ten short entries in two columns come out
-  // level with a lead of this depth; a handful of full cards did not.
-  const briefs = [...pinnedRail, ...nextUnused(10 - pinnedRail.length)].slice(
+  // The briefs beside the splash: one with a picture, then pairs beneath it.
+  // Six is what finishes level with a lead of this depth — the count is set by
+  // the splash's height, not by how many stories happen to be spare.
+  const briefs = [...pinnedRail, ...nextUnused(6 - pinnedRail.length)].slice(
     0,
-    10,
+    6,
   );
   briefs.forEach((a) => used.add(a.id));
 
@@ -100,6 +101,9 @@ export default async function HomePage() {
   // Only the leading sections get a picture block of their own; the rest are
   // listed at the foot. Twenty full blocks is not a front page, it is twenty
   // front pages stacked.
+  // Section marks, so a brief can show its section's icon beside the name.
+  const iconBySlug = new Map(categories.map((c) => [c.slug, c.icon_url]));
+
   const FULL_BLOCKS = 5;
   const featured = shelves.slice(0, FULL_BLOCKS);
   const remaining = shelves.slice(FULL_BLOCKS);
@@ -129,7 +133,7 @@ export default async function HomePage() {
               lot. Two columns of briefs finish level with the splash where a
               single column of full cards ran a screen past it. */}
           <div className="lg:col-span-5">
-            <BriefGrid articles={briefs} />
+            <BriefGrid articles={briefs} iconBySlug={iconBySlug} />
           </div>
         </div>
 
