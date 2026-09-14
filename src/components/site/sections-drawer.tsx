@@ -84,7 +84,7 @@ export function SectionsDrawer({ sections }: { sections: NavCategory[] }) {
             aria-modal="true"
             aria-label="All sections"
             tabIndex={-1}
-            className="absolute inset-y-0 right-0 w-full max-w-sm overflow-y-auto bg-paper p-6 outline-none"
+            className="absolute inset-y-0 right-0 w-full max-w-sm overflow-y-auto bg-signal-soft p-6 outline-none"
           >
             <div className="flex items-center justify-between gap-4">
               <h2 className="font-label text-section font-semibold text-ink">
@@ -117,7 +117,7 @@ export function SectionsDrawer({ sections }: { sections: NavCategory[] }) {
                   <Link
                     href={`/${section.slug}`}
                     onClick={() => setOpen(false)}
-                    className="flex h-full flex-col items-center gap-2 rounded-panel bg-wash p-4 text-center hover:text-accent"
+                    className="flex h-full flex-col items-center gap-2 rounded-panel bg-paper p-4 text-center hover:text-accent"
                   >
                     <span className="flex h-8 items-end">
                       {section.icon_url ? (
