@@ -6,7 +6,8 @@ import { AccountMenu } from "@/components/site/account-menu";
 import { SearchBox } from "@/components/site/search-box";
 import { SocialLinks } from "@/components/site/social-links";
 import { BreakingStrip } from "@/components/article/breaking-strip";
-import { getNavCategories } from "@/lib/queries/navigation";
+import { SectionsDrawer } from "@/components/site/sections-drawer";
+import { getAllSections, getNavCategories } from "@/lib/queries/navigation";
 import {
   getRecentArticles,
   type ArticleCardData,
@@ -49,10 +50,25 @@ export async function SiteHeader({
 }) {
   // One query feeds every section's hover panel. Asking per section would mean
   // a round trip per item in the navigation, on every page of the site.
-  const [categories, recent] = await Promise.all([
+  const [navCategories, allSections, recent] = await Promise.all([
     getNavCategories(),
+    getAllSections(),
     getRecentArticles(60),
   ]);
+
+  // The bar carries the sections the editors ranked highest; past this it wraps
+  // into a second row and stops reading as a masthead. The number is a design
+  // constant, like a type size — which sections fill it is still the running
+  // order held in the database.
+  const BAR_LIMIT = 8;
+  const categories = navCategories.slice(0, BAR_LIMIT);
+
+  // Everything the bar could not take, by name. Includes sections held out of
+  // the header entirely, which is exactly where a reader would look for them.
+  const inBar = new Set(categories.map((c) => c.slug));
+  const overflow = allSections
+    .filter((section) => !inBar.has(section.slug))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const latestBySection = new Map<string, ArticleCardData[]>();
   for (const article of recent) {
@@ -213,6 +229,11 @@ export async function SiteHeader({
                   </li>
                 );
               })}
+              {overflow.length ? (
+                <li className="shrink-0 pb-0">
+                  <SectionsDrawer sections={overflow} />
+                </li>
+              ) : null}
             </ul>
 
             <div className="hidden w-24 shrink-0 pb-3 sm:flex sm:justify-end">
