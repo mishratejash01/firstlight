@@ -1398,6 +1398,7 @@ export type Database = {
       signal_mentions: {
         Row: {
           body: string | null
+          created_at: string | null
           embedding: string | null
           entities: string[]
           event_id: string | null
@@ -1414,6 +1415,7 @@ export type Database = {
         }
         Insert: {
           body?: string | null
+          created_at?: string | null
           embedding?: string | null
           entities?: string[]
           event_id?: string | null
@@ -1430,6 +1432,7 @@ export type Database = {
         }
         Update: {
           body?: string | null
+          created_at?: string | null
           embedding?: string | null
           entities?: string[]
           event_id?: string | null
@@ -2208,6 +2211,26 @@ export type Database = {
         }[]
       }
       engine_build_missed_sample: { Args: { p_date?: string }; Returns: number }
+      engine_earliness_rows: {
+        Args: { p_from: string; p_to: string; p_with_label?: boolean }
+        Returns: {
+          big: boolean
+          created_at: string
+          entity_count: number
+          event_id: string
+          first_authority: number
+          first_kind: string
+          home_share: number
+          hour_ist: number
+          n_men_30: number
+          n_out_10: number
+          n_out_30: number
+          n_out_6h: number
+          on_beat: boolean
+          second_source_at: string
+          via_top: boolean
+        }[]
+      }
       engine_entity_baselines: {
         Args: { p_entities: string[] }
         Returns: {
@@ -2251,6 +2274,16 @@ export type Database = {
       engine_harvest_outlet_outcomes: {
         Args: { p_hours: number }
         Returns: number
+      }
+      engine_label_drift: {
+        Args: never
+        Returns: {
+          label_source: string
+          mean_24h: number
+          mean_7d: number
+          n_24h: number
+          n_7d: number
+        }[]
       }
       engine_learning_ledger: {
         Args: { p_days?: number }
