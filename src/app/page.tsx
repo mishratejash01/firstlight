@@ -11,8 +11,10 @@ import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { getNavCategories } from "@/lib/queries/navigation";
 import {
+  getBreakingArticles,
   getLivePlacements,
   getRecentArticles,
+  rankBreaking,
   type ArticleCardData,
 } from "@/lib/queries/articles";
 
@@ -27,10 +29,11 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const [articles, placements, categories] = await Promise.all([
+  const [articles, placements, categories, breakingAll] = await Promise.all([
     getRecentArticles(90),
     getLivePlacements(),
     getNavCategories(),
+    getBreakingArticles(),
   ]);
 
   if (!articles.length) {
@@ -108,10 +111,19 @@ export default async function HomePage() {
   const featured = shelves.slice(0, FULL_BLOCKS);
   const remaining = shelves.slice(FULL_BLOCKS);
 
-  // The strip is a pointer to a breaking story the reader might otherwise
-  // scroll past. If the breaking story is already the splash, there is nothing
-  // to point at and the row does not render at all.
-  const breaking = articles.find((a) => a.is_breaking && a.id !== hero.id);
+  // The strip points at breaking stories the reader might otherwise scroll
+  // past, so it drops whichever one is already the splash — there is nothing to
+  // point at when the story is the first thing on the page. With none left the
+  // row does not render at all.
+  //
+  // Capped at ten. The bar shows one at a time and holds each for five seconds,
+  // so ten is already most of a minute before a reader sees the first one come
+  // round again; past that the rota stops being a bulletin and becomes a
+  // section front that happens to move.
+  const BREAKING_IN_BAR = 10;
+  const breaking = rankBreaking(breakingAll)
+    .filter((a) => a.id !== hero.id)
+    .slice(0, BREAKING_IN_BAR);
 
   return (
     <>
