@@ -97,8 +97,8 @@ export default async function AdminLearningPage() {
         </p>
         <p className="mt-1 max-w-measure text-body text-muted">
           {enabled
-            ? "The nightly fit may replace the live weights when the new ones beat them on the held-out day."
-            : "Fits run and are recorded every night, but the live weights hold still. Turn on once a fit has been promoted at least once by hand and looked sensible."}
+            ? "Every night the weights are refit on the last 30 days of labels. New weights go live only if they beat the current ones on a day held out of the fit, and may move each weight at most 35 per cent in one night."
+            : "Fits run and are recorded every night, but the live weights hold still. Turn on when a nightly fit beats the live weights and its numbers look right to you."}
           {promotedSelection ? ` Live selection weights: version ${promotedSelection.id}, ${formatDateTime(promotedSelection.created_at)}.` : " Live selection weights: the fitted anchors."}
           {promotedEarliness ? ` Earliness model: version ${promotedEarliness.id}.` : " Earliness model: none yet."}
         </p>
