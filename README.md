@@ -1,6 +1,6 @@
 # An autonomous newsroom
 
-It It watches the world's feeds, notices when something is
+It watches the world's feeds, notices when something is
 happening, decides whether it matters, verifies it against independent sources,
 writes the story, finds a licensed photograph, and publishes. Then it grades
 itself against what the rest of the press went on to cover, and against what
