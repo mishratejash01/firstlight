@@ -1,6 +1,6 @@
-# firstlight
+# An autonomous newsroom
 
-An autonomous newsroom. It watches the world's feeds, notices when something is
+It It watches the world's feeds, notices when something is
 happening, decides whether it matters, verifies it against independent sources,
 writes the story, finds a licensed photograph, and publishes. Then it grades
 itself against what the rest of the press went on to cover, and against what
@@ -8,9 +8,8 @@ the people who run the paper think of the result, and adjusts.
 
 It runs a real publication around the clock. No human presses publish.
 
-In astronomy, first light is the moment a new telescope sees the sky. Here it
-is the moment a story is seen before the world has finished confirming it. The
-whole design is aimed at that moment: be early, and be right.
+The whole design is aimed at one moment: the story seen before the world has
+finished confirming it. Be early, and be right.
 
 ---
 
@@ -89,9 +88,8 @@ when it is sure and waits a few minutes for a second outlet when it is not.
 The learner broke scoring twice. Its feedback rule asked whether two outlets
 with an authority weight of 1.5 or more had followed each story, which for a
 paper outside the Anglo-American wire circuit was usually no even when the
-story was everywhere. It concluded
-evidence did not predict success and turned the evidence weights to their
-floor. Posting stopped. The fix was not a better learner; it was a better
+story was everywhere. It concluded evidence did not predict success and turned
+the evidence weights to their floor. Posting stopped. The fix was not a better learner; it was a better
 question, asked of every event rather than only the ones we wrote, and a gate
 that lets nothing go live without beating the incumbent on data it never saw.
 
