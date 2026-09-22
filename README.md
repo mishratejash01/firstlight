@@ -6,8 +6,7 @@ writes the story, finds a licensed photograph, and publishes. Then it grades
 itself against what the rest of the press went on to cover, and against what
 the people who run the paper think of the result, and adjusts.
 
-It runs a real publication, The India Front, around the clock. No human presses
-publish.
+It runs a real publication around the clock. No human presses publish.
 
 In astronomy, first light is the moment a new telescope sees the sky. Here it
 is the moment a story is seen before the world has finished confirming it. The
@@ -88,8 +87,9 @@ when it is sure and waits a few minutes for a second outlet when it is not.
 ## Things I got wrong
 
 The learner broke scoring twice. Its feedback rule asked whether two outlets
-with an authority weight of 1.5 or more had followed each story, which for an
-Indian paper was usually no even when the story was everywhere. It concluded
+with an authority weight of 1.5 or more had followed each story, which for a
+paper outside the Anglo-American wire circuit was usually no even when the
+story was everywhere. It concluded
 evidence did not predict success and turned the evidence weights to their
 floor. Posting stopped. The fix was not a better learner; it was a better
 question, asked of every event rather than only the ones we wrote, and a gate
