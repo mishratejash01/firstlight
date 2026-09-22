@@ -1,6 +1,6 @@
-# An autonomous newsroom
+# firstlight
 
-It watches the world's feeds, notices when something is
+An autonomous newsroom. It watches the world's feeds, notices when something is
 happening, decides whether it matters, verifies it against independent sources,
 writes the story, finds a licensed photograph, and publishes. Then it grades
 itself against what the rest of the press went on to cover, and against what
@@ -8,8 +8,9 @@ the people who run the paper think of the result, and adjusts.
 
 It runs a real publication around the clock. No human presses publish.
 
-The whole design is aimed at one moment: the story seen before the world has
-finished confirming it. Be early, and be right.
+In astronomy, first light is the moment a new telescope sees the sky. Here it
+is the moment a story is seen before the world has finished confirming it. The
+whole design is aimed at that moment: be early, and be right.
 
 ---
 
