@@ -63,20 +63,48 @@ export function pageMetadata({
  * stored in lower case, so without this "us politics" would read "Us Politics".
  */
 const INITIALISMS = new Set([
-  "ai", "agi", "api", "bjp", "brics", "cbi", "ceo", "cji", "cpi", "eu", "ev", "evs", "fbi", "fifa",
-  "g7", "g20", "gdp", "gst", "icc", "imf", "ipl", "ipo", "isro", "it", "llm", "llms", "nasa", "nato",
-  "nda", "nfl", "nhs", "npa", "opec", "rbi", "sebi", "sec", "uae", "uk", "un", "upi", "us", "usa",
-  "who", "wto",
+  "4g", "5g", "6g", "aap", "ai", "agi", "aiadmk", "aiims", "api", "asean", "bcci", "bjp", "brics",
+  "bse", "bsf", "bsp", "caa", "cbi", "cbse", "ceo", "cji", "cm", "cpi", "cpu", "crpf", "cuet", "dmk",
+  "drdo", "eu", "ev", "evm", "evms", "evs", "f1", "fbi", "fdi", "fifa", "g7", "g20", "gdp", "gpu",
+  "gpus", "gst", "hdfc", "ias", "iaf", "icc", "icici", "iim", "iit", "imd", "imf", "ipl", "ipo",
+  "ips", "isl", "isro", "it", "jee", "lic", "llm", "llms", "mea", "mla", "mlas", "mp", "mps", "nasa",
+  "nato", "nba", "ncp", "nda", "neet", "nfl", "nhs", "nia", "npa", "nrc", "nse", "nta", "ntpc",
+  "odi", "ongc", "opec", "pg", "pm", "pmo", "psu", "psus", "rbi", "rjd", "rss", "saarc", "sbi",
+  "sco", "sebi", "sec", "ssc", "t20", "tmc", "uae", "uapa", "uefa", "ufc", "ug", "ugc", "uk", "un",
+  "upi", "upsc", "us", "usa", "who", "wpl", "wto",
 ]);
 
-/** A stored lower-case topic name set in title case for headings and titles. */
+/** Names with their own capitalisation, which title case would get wrong. */
+const PROPER_FORMS = new Map([
+  ["bytedance", "ByteDance"], ["chatgpt", "ChatGPT"], ["deepseek", "DeepSeek"], ["ebay", "eBay"],
+  ["fedex", "FedEx"], ["github", "GitHub"], ["indigo", "IndiGo"], ["ios", "iOS"], ["ipad", "iPad"],
+  ["iphone", "iPhone"], ["linkedin", "LinkedIn"], ["macos", "macOS"], ["openai", "OpenAI"],
+  ["paypal", "PayPal"], ["phonepe", "PhonePe"], ["playstation", "PlayStation"], ["pok", "PoK"],
+  ["spacex", "SpaceX"], ["tiktok", "TikTok"], ["whatsapp", "WhatsApp"], ["xai", "xAI"],
+  ["youtube", "YouTube"],
+]);
+
+/** Short words title case leaves in lower case unless they open the name. */
+const MINOR_WORDS = new Set([
+  "a", "an", "and", "as", "at", "by", "for", "from", "in", "into", "of", "on", "or", "the", "to",
+  "vs", "with",
+]);
+
+/**
+ * A stored lower-case topic name set in title case for headings and titles:
+ * "reserve bank of india" reads "Reserve Bank of India", "bcci" reads "BCCI"
+ * and "openai" reads "OpenAI".
+ */
 export function displayTopicName(name: string): string {
   return name
-    .split(/(\s+|-)/)
-    .map((part) => {
+    .split(/(\s+|[-‐‑])/)
+    .map((part, index) => {
       const lower = part.toLowerCase();
+      if (/^\s+$|^[-‐‑]$/.test(part) || !part) return part;
       if (INITIALISMS.has(lower)) return lower.toUpperCase();
-      if (/^\s+$|^-$/.test(part)) return part;
+      const proper = PROPER_FORMS.get(lower);
+      if (proper) return proper;
+      if (index > 0 && MINOR_WORDS.has(lower)) return lower;
       return part.charAt(0).toUpperCase() + part.slice(1);
     })
     .join("");
