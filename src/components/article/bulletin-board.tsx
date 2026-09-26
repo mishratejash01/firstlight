@@ -99,7 +99,7 @@ export function BulletinBoard({ items }: { items: BoardItem[] }) {
                 src={cloudinaryImage(item.imageUrl, "card") ?? item.imageUrl}
                 alt={item.imageAlt ?? ""}
                 fill
-                sizes="(max-width: 1024px) 100vw, 55vw"
+                sizes="(max-width: 640px) calc(100vw - 32px), (max-width: 1024px) calc(100vw - 48px), 55vw"
                 className="object-cover"
               />
             ) : null}
