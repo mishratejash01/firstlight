@@ -1,5 +1,8 @@
-import { SITE_NAME, SITE_TAGLINE } from "@/lib/site";
+import { SITE_DESCRIPTION, SITE_LOCALE, SITE_NAME, absoluteUrl } from "@/lib/site";
 import type { Metadata } from "next";
+
+import { JsonLd } from "@/components/seo/json-ld";
+import { collectionPageJsonLd } from "@/lib/seo/json-ld";
 
 import { HeroStory } from "@/components/article/hero-story";
 import { ArticleCard } from "@/components/article/article-card";
@@ -19,10 +22,30 @@ import {
   type ArticleCardData,
 } from "@/lib/queries/articles";
 
+/**
+ * The front page's title leads with the paper's name and says what it is, in
+ * the words people search with. It is absolute: the layout's template would
+ * otherwise append the name a second time.
+ */
+const FRONT_PAGE_TITLE = `${SITE_NAME}: Latest News from India and the World`;
+
 export const metadata: Metadata = {
-  title: `${SITE_NAME} — ${SITE_TAGLINE}`,
-  description:
-    "Independent reporting across politics, business, technology, science, health, sport and culture.",
+  title: { absolute: FRONT_PAGE_TITLE },
+  description: SITE_DESCRIPTION,
+  alternates: { canonical: absoluteUrl("/") },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: SITE_LOCALE,
+    title: FRONT_PAGE_TITLE,
+    description: SITE_DESCRIPTION,
+    url: absoluteUrl("/"),
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: FRONT_PAGE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
 };
 
 // The front page changes as stories publish, so it is rendered per request and
@@ -138,7 +161,25 @@ export default async function HomePage() {
     <>
       {/* The splash is named so the bar does not point at the story
           already filling the top of this page. */}
-      <SiteHeader excludeId={hero.id} />
+      <SiteHeader excludeId={hero.id} isFrontPage />
+
+      {/* The front page as a list of the stories it leads with, in the order
+          they appear: the splash, the briefs beside it, then each section's
+          shelf. Search engines and answer engines read this as the paper's
+          current front, not just a page of links. */}
+      <JsonLd
+        data={collectionPageJsonLd({
+          url: absoluteUrl("/"),
+          name: FRONT_PAGE_TITLE,
+          description: SITE_DESCRIPTION,
+          items: [hero, ...briefs, ...shelves.flatMap((shelf) => shelf.articles)]
+            .slice(0, 30)
+            .map((article) => ({
+              url: absoluteUrl(`/${article.categories.slug}/${article.slug}`),
+              name: article.headline,
+            })),
+        })}
+      />
 
       <main className="route-enter">
         <div className="mx-auto max-w-page px-4 sm:px-6">
