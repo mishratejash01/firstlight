@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import { ArticleCard } from "@/components/article/article-card";
 import { Eyebrow } from "@/components/article/eyebrow";
 import { JsonLd } from "@/components/seo/json-ld";
+import { EmailLink } from "@/components/site/email-link";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { NewsletterSignup } from "@/components/site/newsletter-signup";
@@ -29,7 +30,7 @@ import {
   newsArticleJsonLd,
 } from "@/lib/seo/json-ld";
 import { lastChanged } from "@/lib/queries/syndication";
-import { SITE_NAME, SITE_URL, X_HANDLE, absoluteUrl } from "@/lib/site";
+import { PUBLISHER, SITE_NAME, SITE_URL, X_HANDLE, absoluteUrl } from "@/lib/site";
 
 /**
  * A story counts as updated, for the visible "Updated" line, once its text has
@@ -362,6 +363,26 @@ export default async function ArticlePage(
                   {renderMarkdown(article.body)}
                 </div>
               )}
+
+              {/* Every story ends with the way to report an error in it. The
+                  message is addressed to the editor with the headline as its
+                  subject and the story's address in its body, so a report
+                  arrives saying which story it is about. */}
+              {PUBLISHER.editor.email ? (
+                <p className="mt-8 text-meta text-muted">
+                  Found an error in this story? Write to{" "}
+                  <EmailLink
+                    address={PUBLISHER.editor.email}
+                    subject={`Possible error: ${article.headline}`}
+                    body={`${url}\r\n\r\n`}
+                  />
+                  . Our{" "}
+                  <Link href="/corrections" className="text-accent underline underline-offset-4">
+                    corrections policy
+                  </Link>{" "}
+                  explains how we put mistakes right.
+                </p>
+              ) : null}
 
               {keyFacts.length ? (
                 <section className="mt-12 border-t border-hairline pt-6">
