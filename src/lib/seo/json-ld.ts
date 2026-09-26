@@ -202,18 +202,26 @@ export function newsArticleJsonLd({
   entities,
   keyFacts,
   tags,
+  searchKeywords = [],
 }: {
   article: ArticleForJsonLd;
   url: string;
   entities: EntityLink[];
   keyFacts: { label: string; value: string }[];
   tags: { name: string }[];
+  /** The searches the story was written to answer; see lib/seo/search-research. */
+  searchKeywords?: string[] | null;
 }) {
   const about = entities.filter((e) => e.relation === "about").map((e) => entityNode(e.entity));
   const mentions = entities.filter((e) => e.relation === "mentions").map((e) => entityNode(e.entity));
   const images = articleImageNodes(article.hero_image_url, article.hero_image_alt, article.hero_image_credit);
   const words = wordCount(article.body);
   const published = toIstIso(article.published_at);
+  // Topic tags first, then the search phrases, each once whatever its case.
+  const keywords = [...tags.map((tag) => tag.name), ...(searchKeywords ?? [])].filter(
+    (keyword, index, all) =>
+      all.findIndex((other) => other.toLowerCase() === keyword.toLowerCase()) === index,
+  );
 
   return {
     "@context": "https://schema.org",
@@ -252,7 +260,7 @@ export function newsArticleJsonLd({
           ...(article.authors.title ? { jobTitle: article.authors.title } : {}),
         }
       : { "@type": "NewsMediaOrganization", "@id": ORGANIZATION_ID, name: SITE_NAME, url: absoluteUrl("/") },
-    ...(tags.length ? { keywords: tags.map((tag) => tag.name).join(", ") } : {}),
+    ...(keywords.length ? { keywords: keywords.join(", ") } : {}),
     ...(words ? { wordCount: words } : {}),
     ...(about.length ? { about } : {}),
     ...(mentions.length ? { mentions } : {}),
