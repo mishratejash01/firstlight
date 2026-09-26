@@ -5,7 +5,7 @@ import type { ArticleCardData } from "@/lib/queries/articles";
 import { cloudinaryImage } from "@/lib/media/transform";
 
 /**
- * The latest column beside the lead.
+ * A column of the latest headlines.
  *
  * No panel and no rule over the heading: the column sits on the page and the
  * hairlines between its entries are all the structure it needs.
@@ -16,19 +16,47 @@ import { cloudinaryImage } from "@/lib/media/transform";
  * section label above each headline does the identifying that a thumbnail was
  * doing badly. Hairlines separate them, which is all the separation a labelled
  * list needs.
+ *
+ * `compact` is the form beside an article: every entry alike, smaller type and
+ * no picture, so the column reads as a quiet list next to the story rather
+ * than as a second story competing with it.
  */
 export function HeadlineRail({
   articles,
   title,
   showLeadImage = true,
+  compact = false,
 }: {
   articles: ArticleCardData[];
   title: string;
   /** Off where the column already carries pictures above it — a third one here
    *  would make the block a gallery rather than a list of what has happened. */
   showLeadImage?: boolean;
+  compact?: boolean;
 }) {
   if (!articles.length) return null;
+
+  if (compact) {
+    return (
+      <aside aria-label={title}>
+        <h2 className="eyebrow font-label font-semibold text-signal">{title}</h2>
+        <ul className="mt-3 divide-y divide-hairline">
+          {articles.map((article) => (
+            <li key={article.id} className="group py-3 first:pt-1">
+              <Link href={`/${article.categories.slug}/${article.slug}`}>
+                <p className="font-label text-[0.75rem] font-semibold text-muted">
+                  {article.categories.name}
+                </p>
+                <h3 className="mt-1 text-[0.9375rem] leading-[1.35] text-ink group-hover:text-accent">
+                  {article.headline}
+                </h3>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </aside>
+    );
+  }
 
   const [lead, ...rest] = articles;
   const leadHref = `/${lead.categories.slug}/${lead.slug}`;
