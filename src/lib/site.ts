@@ -67,6 +67,13 @@ export function absoluteUrl(path = "/"): string {
 }
 
 /**
+ * The domain the paper's email addresses are at: the bare domain, not the www
+ * host the site is served from. One constant, so that a move to a new domain
+ * is one edit rather than five.
+ */
+const MAIL_DOMAIN = "theindiadecade.com";
+
+/**
  * Who publishes the paper, and how to reach them. Supplied by the owner.
  *
  * Every empty value is simply left off the site: the About, Masthead, Contact
@@ -74,32 +81,58 @@ export function absoluteUrl(path = "/"): string {
  * filled in here, so no page ever publishes a placeholder. The grievance
  * officer is what rule 11 of India's IT (Intermediary Guidelines and Digital
  * Media Ethics Code) Rules, 2021 asks every digital news publisher to name on
- * its site; the Contact page appears once one is set.
+ * its site.
+ *
+ * Each address is a mailbox with one job, so that a reader reporting an error
+ * reaches the editor rather than the advertising desk, and each inbox can be
+ * handed to whoever does that job. Only these mailboxes are published, never
+ * aliases of them, so nothing on the site can bounce while they exist.
  */
 export const PUBLISHER: {
   /** The registered legal name of the company or person that owns the paper. */
   legalName: string;
   /** Registered office address in India, on one line. */
   address: string;
-  /** Newsroom email for tips, corrections and general contact. */
+  /** General enquiries: questions about the site or an account, jobs, and anything the other addresses do not cover. */
   email: string;
+  /** The news desk: tips, press releases and invitations. */
+  newsroomEmail: string;
+  /** Advertising, sponsorship, syndication and other partnerships. */
+  partnershipsEmail: string;
   /** Newsroom telephone, in international format. */
   phone: string;
   /** Year the paper was founded, e.g. "2026". */
   foundingYear: string;
-  /** The person with editorial responsibility for what the paper publishes. */
-  editor: { name: string; title: string };
-  /** The grievance officer required by the IT Rules, 2021. Based in India. */
+  /** The person with editorial responsibility for what the paper publishes; their address takes corrections and letters. */
+  editor: { name: string; title: string; email: string };
+  /** The grievance officer required by the IT Rules, 2021. Based in India. Also answers requests about readers' personal data. */
   grievanceOfficer: { name: string; email: string; phone: string };
 } = {
   legalName: "",
   address: "",
-  email: "",
+  email: `contact@${MAIL_DOMAIN}`,
+  newsroomEmail: `newsroom@${MAIL_DOMAIN}`,
+  partnershipsEmail: `partnerships@${MAIL_DOMAIN}`,
   phone: "",
   foundingYear: "",
-  editor: { name: "", title: "" },
-  grievanceOfficer: { name: "", email: "", phone: "" },
+  editor: { name: "", title: "", email: `editor@${MAIL_DOMAIN}` },
+  grievanceOfficer: { name: "", email: `grievance@${MAIL_DOMAIN}`, phone: "" },
 };
+
+/**
+ * Whether the contact page has anything on it. It exists only once there is
+ * some way to reach the paper, and every link to it checks this first, so no
+ * page ever links to one that is not there.
+ */
+export const HAS_CONTACT_PAGE = Boolean(
+  PUBLISHER.email ||
+    PUBLISHER.newsroomEmail ||
+    PUBLISHER.partnershipsEmail ||
+    PUBLISHER.phone ||
+    PUBLISHER.editor.email ||
+    PUBLISHER.grievanceOfficer.name ||
+    PUBLISHER.grievanceOfficer.email,
+);
 
 /**
  * Where the paper's social accounts live.
