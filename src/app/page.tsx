@@ -23,11 +23,12 @@ import {
 } from "@/lib/queries/articles";
 
 /**
- * The front page's title leads with the paper's name and says what it is, in
- * the words people search with. It is absolute: the layout's template would
- * otherwise append the name a second time.
+ * The front page's title leads with the paper's name, then the searches a
+ * front page answers: latest news today, breaking news, India news. It is
+ * absolute: the layout's template would otherwise append the name a second
+ * time.
  */
-const FRONT_PAGE_TITLE = `${SITE_NAME}: Latest News from India and the World`;
+const FRONT_PAGE_TITLE = `${SITE_NAME}: Latest News Today, Breaking News and India News`;
 
 export const metadata: Metadata = {
   title: { absolute: FRONT_PAGE_TITLE },
