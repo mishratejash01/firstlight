@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { createClient } from "@/lib/supabase/client";
-
 type Session = {
   signedIn: boolean;
   name: string | null;
@@ -22,47 +20,83 @@ type Session = {
  * Until the session is known this renders nothing rather than "Sign in".
  * Guessing wrong and showing a sign-in link to someone already signed in is the
  * more confusing failure, and it is the one that was happening.
+ *
+ * Most readers have never signed in, and for them the answer is known from the
+ * absence of a session cookie, without the auth library: it is the largest
+ * script on the site, and it is fetched only for readers who have a session to
+ * show or keep fresh.
  */
+function hasSessionCookie(): boolean {
+  return document.cookie
+    .split("; ")
+    .some((row) => /^sb-[^=]+-auth-token(?:\.\d+)?=/.test(row));
+}
+
 export function AccountMenu() {
   const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
-    const supabase = createClient();
     let active = true;
+    let started = false;
+    let unsubscribe: (() => void) | undefined;
 
-    async function resolve() {
-      const { data } = await supabase.auth.getClaims();
-      const claims = data?.claims;
-
-      if (!claims?.sub) {
+    async function start() {
+      if (!hasSessionCookie()) {
         if (active) setSession({ signedIn: false, name: null, roles: [] });
         return;
       }
+      if (started) return;
+      started = true;
 
-      const { data: roleRows } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", claims.sub);
-
+      const { createClient } = await import("@/lib/supabase/client");
       if (!active) return;
-      setSession({
-        signedIn: true,
-        name:
-          typeof claims.email === "string" ? claims.email.split("@")[0] : null,
-        roles: (roleRows ?? []).map((row) => row.role),
+      const supabase = createClient();
+
+      async function resolve() {
+        const { data } = await supabase.auth.getClaims();
+        const claims = data?.claims;
+
+        if (!claims?.sub) {
+          if (active) setSession({ signedIn: false, name: null, roles: [] });
+          return;
+        }
+
+        const { data: roleRows } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", claims.sub);
+
+        if (!active) return;
+        setSession({
+          signedIn: true,
+          name:
+            typeof claims.email === "string" ? claims.email.split("@")[0] : null,
+          roles: (roleRows ?? []).map((row) => row.role),
+        });
+      }
+
+      void resolve();
+
+      // Keep the header honest if the reader signs in or out in another tab.
+      const { data: sub } = supabase.auth.onAuthStateChange(() => {
+        void resolve();
       });
+      unsubscribe = () => sub.subscription.unsubscribe();
     }
 
-    void resolve();
+    void start();
 
-    // Keep the header honest if the reader signs in or out in another tab.
-    const { data: sub } = supabase.auth.onAuthStateChange(() => {
-      void resolve();
-    });
+    // A reader who signs in in another tab comes back to this one with a
+    // session cookie it did not have when the page loaded.
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && !started) void start();
+    };
+    document.addEventListener("visibilitychange", onVisible);
 
     return () => {
       active = false;
-      sub.subscription.unsubscribe();
+      document.removeEventListener("visibilitychange", onVisible);
+      unsubscribe?.();
     };
   }, []);
 
