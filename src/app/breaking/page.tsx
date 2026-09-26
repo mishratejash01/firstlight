@@ -16,8 +16,9 @@ import { cloudinaryImage } from "@/lib/media/transform";
 export async function generateMetadata(): Promise<Metadata> {
   const flagged = await getBreakingArticles(1);
   return pageMetadata({
-    title: "Breaking news",
-    description: "Every story the newsroom has flagged as breaking, newest first.",
+    title: "Breaking News Today",
+    description:
+      "Breaking news today from India and the world: every story the newsroom has flagged as breaking, newest first.",
     path: "/breaking",
     // With nothing flagged the page is an empty list, not something to rank.
     noindex: flagged.length === 0,
@@ -120,7 +121,7 @@ export default async function BreakingPage() {
       <SiteHeader />
       <main className="route-enter mx-auto max-w-page px-4 sm:px-6">
         <div className="mx-auto max-w-4xl py-10">
-          <h1 className="text-hero leading-tight text-ink">Breaking</h1>
+          <h1 className="text-hero leading-tight text-ink">Breaking news</h1>
           <p className="mt-3 text-lead leading-relaxed text-muted">
             Every story the newsroom has flagged as breaking, most recent first.
           </p>
