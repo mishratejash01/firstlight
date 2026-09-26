@@ -1,6 +1,6 @@
 import { cache } from "react";
 
-import { createClient } from "@/lib/supabase/server";
+import { createAnonymousClient } from "@/lib/supabase/anonymous";
 
 /**
  * Everything an article page needs, in one place.
@@ -53,7 +53,7 @@ export const getArticle = cache(async function getArticle(
   categorySlug: string,
   slug: string,
 ) {
-  const supabase = await createClient();
+  const supabase = createAnonymousClient();
 
   const { data: article } = await supabase
     .from("articles")
@@ -138,7 +138,7 @@ export const getArticle = cache(async function getArticle(
 
 /** Ranked related coverage, from the recommendation function. */
 export async function getRelatedArticles(articleId: string, limit = 4) {
-  const supabase = await createClient();
+  const supabase = createAnonymousClient();
   const { data, error } = await supabase.rpc("related_articles", {
     p_article_id: articleId,
     p_limit: limit,
