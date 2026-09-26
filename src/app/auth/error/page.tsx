@@ -11,6 +11,9 @@ export const metadata: Metadata = {
 const REASONS: Record<string, string> = {
   missing_code: "The sign-in link was incomplete.",
   exchange_failed: "The sign-in link had already been used, or it expired.",
+  cancelled: "Sign-in with Google was cancelled.",
+  expired: "The sign-in took too long, or was started in another window.",
+  unavailable: "Sign-in with Google is not available right now.",
 };
 
 export default async function AuthErrorPage(props: PageProps<"/auth/error">) {
