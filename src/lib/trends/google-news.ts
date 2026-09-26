@@ -1,5 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 
+import { CRAWLER_USER_AGENT } from "@/lib/site";
+
 /**
  * Google News RSS, used as a corroboration source.
  *
@@ -67,7 +69,7 @@ export async function searchGoogleNews(
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
-        "User-Agent": "TheFederalPostBot/1.0 (+https://newswebsite-pi.vercel.app)",
+        "User-Agent": CRAWLER_USER_AGENT,
         Accept: "application/rss+xml, application/xml, text/xml",
       },
       cache: "no-store",
