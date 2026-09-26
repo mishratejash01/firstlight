@@ -29,7 +29,7 @@ import {
   newsArticleJsonLd,
 } from "@/lib/seo/json-ld";
 import { lastChanged } from "@/lib/queries/syndication";
-import { SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/site";
+import { SITE_NAME, SITE_URL, X_HANDLE, absoluteUrl } from "@/lib/site";
 
 /**
  * A story counts as updated, for the visible "Updated" line, once its text has
@@ -136,6 +136,7 @@ export async function generateMetadata(
     },
     twitter: {
       card: "summary_large_image",
+      ...(X_HANDLE ? { site: X_HANDLE } : {}),
       title: article.headline,
       description,
       images: images?.map((image) => image.url),
