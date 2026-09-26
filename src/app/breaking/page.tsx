@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+
+import { pageMetadata } from "@/lib/seo/metadata";
 import Image from "next/image";
 import Link from "next/link";
 
-import { SITE_NAME } from "@/lib/site";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import {
@@ -12,11 +13,16 @@ import {
 import { formatClockTime, formatDate } from "@/lib/format/datetime";
 import { cloudinaryImage } from "@/lib/media/transform";
 
-export const metadata: Metadata = {
-  title: `Breaking — ${SITE_NAME}`,
-  description: "Every story the newsroom has flagged as breaking.",
-  alternates: { canonical: "/breaking" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const flagged = await getBreakingArticles(1);
+  return pageMetadata({
+    title: "Breaking news",
+    description: "Every story the newsroom has flagged as breaking, newest first.",
+    path: "/breaking",
+    // With nothing flagged the page is an empty list, not something to rank.
+    noindex: flagged.length === 0,
+  });
+}
 
 // Alerts are the one thing on the site that must never be served stale for
 // long, so this page revalidates far more often than the front page does.
