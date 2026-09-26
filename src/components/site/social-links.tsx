@@ -37,6 +37,11 @@ function Mark({ name }: { name: string }) {
   return (
     <svg
       viewBox="0 0 24 24"
+      // A size of its own as well as the class, so that wherever the stylesheet
+      // has not loaded (a slow connection, a reader view, a crawler's preview)
+      // the mark stays 17px rather than filling the page.
+      width="17"
+      height="17"
       aria-hidden="true"
       focusable="false"
       className="h-[17px] w-[17px]"
