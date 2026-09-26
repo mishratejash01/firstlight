@@ -1,5 +1,5 @@
-import Image from "next/image";
 import Link from "next/link";
+import { SectionMark } from "@/components/site/section-mark";
 
 import { StoryTile } from "./story-tile";
 import type { ArticleCardData } from "@/lib/queries/articles";
@@ -68,14 +68,7 @@ function SectionHeader({
             in a row is three things introducing one section. Hidden from screen
             readers, since the name is written out beside it. */}
         {iconUrl ? (
-          <Image
-            src={iconUrl}
-            alt=""
-            aria-hidden="true"
-            width={40}
-            height={40}
-            className="h-[1.5em] w-[1.5em] shrink-0 object-contain"
-          />
+          <SectionMark src={iconUrl} className="h-[1.5em] w-[1.5em]" />
         ) : (
           <span
             aria-hidden="true"
