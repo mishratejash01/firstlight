@@ -12,11 +12,17 @@ export const CONSENT_VERSION = "v1";
 /** Twelve months, after which we ask again rather than assuming. */
 export const CONSENT_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 
-export type ConsentState = "granted" | "denied" | "unset";
+/**
+ * "noted" is a reader in India who has seen the notice that measurement is on
+ * by default and left it on. It is not agreement: once the India default ends
+ * (see INDIA_DEFAULT_ENDS_AT), a reader who only noted it is asked properly.
+ */
+export type ConsentState = "granted" | "denied" | "noted" | "unset";
 
 export function parseConsent(value: string | undefined | null): ConsentState {
   if (value === `${CONSENT_VERSION}:granted`) return "granted";
   if (value === `${CONSENT_VERSION}:denied`) return "denied";
+  if (value === `${CONSENT_VERSION}:noted`) return "noted";
   // An unrecognised or older version means the question needs asking again.
   return "unset";
 }
@@ -42,7 +48,61 @@ export function writeConsentCookie(state: Exclude<ConsentState, "unset">): void 
     `; Path=/; Max-Age=${CONSENT_MAX_AGE_SECONDS}; SameSite=Lax${secure}`;
 }
 
-/** Browser storage keys that exist only after consent: the random reading identifier and its per-tab session. */
+/**
+ * Readers in India.
+ *
+ * India has no rule yet that measurement must wait for agreement: the consent
+ * duties of the Digital Personal Data Protection Act and its 2025 Rules begin
+ * on 13 May 2027. Until then readers in India are measured by default, told
+ * so on their first visit, and can turn it off in one click, there or from
+ * Privacy settings. From that date they are asked first, as readers everywhere
+ * else already are. The date is written here rather than left to memory, so
+ * the change happens on time without anyone having to make it.
+ */
+export const INDIA_DEFAULT_ENDS_AT = Date.parse("2027-05-13T00:00:00+05:30");
+
+/**
+ * Whether the browser is set to India Standard Time, which is how the site
+ * tells a reader in India without looking anything up about them. A device
+ * usually follows the local time zone when it travels, so the mistake this
+ * makes is asking a reader from India first: the safe direction.
+ */
+export function browserInIndia(): boolean {
+  try {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return zone === "Asia/Kolkata" || zone === "Asia/Calcutta";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * What the site does for a reader now:
+ * - "on": measuring, nothing to show (they agreed, or left the India default on)
+ * - "off": not measuring (they declined or turned it off)
+ * - "notice": measuring by the India default, with the notice showing
+ * - "ask": nothing measured until they choose; the question is showing
+ */
+export type TrackingMode = "on" | "off" | "notice" | "ask";
+
+export function trackingMode(state: ConsentState, inIndia: boolean, now: number): TrackingMode {
+  if (state === "granted") return "on";
+  if (state === "denied") return "off";
+  if (inIndia && now < INDIA_DEFAULT_ENDS_AT) return state === "noted" ? "on" : "notice";
+  return "ask";
+}
+
+/** The mode for this browser, read from the consent cookie. Client-side only. */
+export function readTrackingMode(): TrackingMode {
+  return trackingMode(readConsentCookie(), browserInIndia(), Date.now());
+}
+
+/** Whether reading measurement and Google Analytics may run. */
+export function measurementAllowed(mode: TrackingMode): boolean {
+  return mode === "on" || mode === "notice";
+}
+
+/** Browser storage keys that exist only while measurement is allowed: the random reading identifier and its per-tab session. */
 export const ANON_ID_KEY = "nw_anon_id";
 export const SESSION_ID_KEY = "nw_session_id";
 
@@ -75,13 +135,24 @@ export function clearTrackingStorage(): void {
 }
 
 /**
- * Withdraws consent: forgets the stored choice, so the question is asked again,
- * and clears what the earlier choice allowed.
+ * Records a reader's choice and makes it true at once. Declining deletes the
+ * reading identifier and the analytics cookies; and because a script that is
+ * already running cannot be unloaded, a page that was measuring reloads
+ * without it. The banner, the notice and the account page all record through
+ * here, so no route to "off" can leave something behind.
  */
-export function resetConsent(): void {
-  if (typeof document === "undefined") return;
-  document.cookie = `${CONSENT_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`;
-  clearTrackingStorage();
+export function recordChoice(state: Exclude<ConsentState, "unset">): void {
+  if (typeof window === "undefined") return;
+  const wasMeasuring = measurementAllowed(readTrackingMode());
+  writeConsentCookie(state);
+  if (state === "denied") {
+    clearTrackingStorage();
+    if (wasMeasuring) {
+      window.location.reload();
+      return;
+    }
+  }
+  notifyConsentChanged();
 }
 
 /**
@@ -103,6 +174,24 @@ export function subscribeToConsent(listener: Listener): () => void {
 /** Call after writing the cookie so every reader re-renders. */
 export function notifyConsentChanged(): void {
   for (const listener of listeners) listener();
+}
+
+/**
+ * Privacy settings: a request, from anywhere on the page, to show the full
+ * choice again. Nothing changes until the reader picks, so opening it can
+ * never switch measurement on for someone who had turned it off.
+ */
+const choiceListeners = new Set<Listener>();
+
+export function subscribeToChoiceRequests(listener: Listener): () => void {
+  choiceListeners.add(listener);
+  return () => {
+    choiceListeners.delete(listener);
+  };
+}
+
+export function requestPrivacyChoice(): void {
+  for (const listener of choiceListeners) listener();
 }
 
 /**
