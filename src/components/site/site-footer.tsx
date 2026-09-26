@@ -1,4 +1,4 @@
-import { PUBLISHER, SITE_NAME, SITE_TAGLINE } from "@/lib/site";
+import { HAS_CONTACT_PAGE, PUBLISHER, SITE_NAME, SITE_TAGLINE } from "@/lib/site";
 import { PrivacySettingsButton } from "@/components/analytics/privacy-settings-button";
 import Link from "next/link";
 
@@ -40,10 +40,16 @@ const ABOUT_LINKS = [
   { href: "/editorial-standards", label: "Editorial standards" },
   { href: "/corrections", label: "Corrections policy" },
   { href: "/privacy", label: "Privacy and tracking" },
-  // The contact page exists only once the publisher's contact details or
-  // grievance officer are set; linking to it before then would be a dead end.
-  ...(PUBLISHER.email || PUBLISHER.phone || PUBLISHER.grievanceOfficer.name
-    ? [{ href: "/contact", label: "Contact and grievances" }]
+  // The contact page exists only once the publisher's contact details are
+  // set; linking to it before then would be a dead end. The two below go
+  // straight to their own sections of it, for the two kinds of reader who
+  // come looking for a way in: someone with a story, and an advertiser.
+  ...(HAS_CONTACT_PAGE ? [{ href: "/contact", label: "Contact and grievances" }] : []),
+  ...(PUBLISHER.newsroomEmail
+    ? [{ href: "/contact#newsroom", label: "Send us a news tip" }]
+    : []),
+  ...(PUBLISHER.partnershipsEmail
+    ? [{ href: "/contact#advertising", label: "Advertise with us" }]
     : []),
 ];
 
