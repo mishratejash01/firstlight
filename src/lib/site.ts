@@ -12,20 +12,21 @@ export const SITE_NAME = "The India Decade";
 /**
  * What the paper covers, in one line.
  *
- * Sits under the nameplate in the footer and closes the home page title. Here
+ * Sits under the nameplate in the footer and on the default share image. Here
  * rather than written out at each of those, for the same reason the name is: a
- * paper whose description in a search result disagrees with the one under its
- * own nameplate looks like two different papers.
+ * paper that describes itself differently in two places looks like two
+ * different papers.
  */
 export const SITE_TAGLINE =
   "reporting on politics, business, science and culture";
 
 /**
  * The description search engines and link previews show for the paper as a
- * whole: the front page, and any page that does not describe itself.
+ * whole: the front page, and any page that does not describe itself. Written
+ * in the words people search for news with, as a sentence rather than a list.
  */
 export const SITE_DESCRIPTION =
-  "News from India and the world: politics, business, technology, science, health, sport and culture, with the sources behind every story.";
+  "Latest news today from India and the world: breaking news and top headlines on politics, business, technology, sports, entertainment, health and science.";
 
 /**
  * The one address the paper is published at, with no trailing slash.
@@ -40,6 +41,16 @@ export const SITE_URL = (
 
 /** The canonical hostname, for comparing against the host a request arrived on. */
 export const SITE_HOST = new URL(SITE_URL).host;
+
+/**
+ * How the newsroom's own fetchers (wire, feeds, source articles, picture
+ * libraries) identify themselves to the sites they read: a product token a
+ * site owner can match in robots.txt, and the address the paper is found at.
+ * Built from the name and the address, so a rename or a move reaches every
+ * fetcher at once instead of leaving one announcing an old name.
+ */
+export const CRAWLER_TOKEN = `${SITE_NAME.replace(/[^A-Za-z0-9]/g, "")}Bot`;
+export const CRAWLER_USER_AGENT = `${CRAWLER_TOKEN}/1.0 (+${SITE_URL})`;
 
 /**
  * English, written for readers in India. BCP 47 for the page's lang attribute
