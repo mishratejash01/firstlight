@@ -9,6 +9,8 @@
  * structured data travel with it.
  */
 
+import { PUBLISHER, SITE_NAME } from "@/lib/site";
+
 export type FeedItem = {
   title: string;
   url: string;
@@ -39,6 +41,26 @@ export function escapeXml(value: string): string {
     // Characters XML 1.0 forbids outright; one stray control byte in a
     // headline would otherwise make the whole feed unparseable.
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
+}
+
+/**
+ * The two people RSS asks a channel to name: the managing editor, answerable
+ * for what the feed says, and the webmaster, for the feed itself. Every feed
+ * is the paper's, so every feed names the same two, each written the way RSS
+ * specifies, as an address followed by a name in brackets.
+ */
+function channelContacts(): string {
+  const lines: string[] = [];
+  if (PUBLISHER.editor.email) {
+    const editor = `${PUBLISHER.editor.name || "Editor"}, ${SITE_NAME}`;
+    lines.push(
+      `    <managingEditor>${escapeXml(`${PUBLISHER.editor.email} (${editor})`)}</managingEditor>\n`,
+    );
+  }
+  if (PUBLISHER.email) {
+    lines.push(`    <webMaster>${escapeXml(`${PUBLISHER.email} (${SITE_NAME})`)}</webMaster>\n`);
+  }
+  return lines.join("");
 }
 
 /** RFC 822 dates, which RSS requires: "Sat, 26 Sep 2026 08:01:51 GMT". */
@@ -79,7 +101,7 @@ export function renderRss(feed: Feed): string {
     <link>${escapeXml(feed.siteUrl)}</link>
     <description>${escapeXml(feed.description)}</description>
     <language>${escapeXml(feed.language)}</language>
-    <atom:link href="${escapeXml(feed.selfUrl)}" rel="self" type="application/rss+xml" />
+${channelContacts()}    <atom:link href="${escapeXml(feed.selfUrl)}" rel="self" type="application/rss+xml" />
     <image>
       <url>${escapeXml(feed.imageUrl)}</url>
       <title>${escapeXml(feed.title)}</title>
