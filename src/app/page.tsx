@@ -23,12 +23,14 @@ import {
 } from "@/lib/queries/articles";
 
 /**
- * The front page's title leads with the paper's name, then the searches a
- * front page answers: latest news today, breaking news, India news. It is
- * absolute: the layout's template would otherwise append the name a second
- * time.
+ * The front page's title leads with the paper's name, then what the page is:
+ * today's latest and breaking news, the searches a front page answers. No word
+ * appears twice (the name already carries "India"), and it fits a search
+ * result without being cut off. The page's own heading says the same thing.
+ * It is absolute: the layout's template would otherwise append the name a
+ * second time.
  */
-const FRONT_PAGE_TITLE = `${SITE_NAME}: Latest News Today, Breaking News and India News`;
+const FRONT_PAGE_TITLE = `${SITE_NAME}: Today's Latest and Breaking News`;
 
 export const metadata: Metadata = {
   title: { absolute: FRONT_PAGE_TITLE },
@@ -162,7 +164,7 @@ export default async function HomePage() {
     <>
       {/* The splash is named so the bar does not point at the story
           already filling the top of this page. */}
-      <SiteHeader excludeId={hero.id} isFrontPage />
+      <SiteHeader excludeId={hero.id} />
 
       {/* The front page as a list of the stories it leads with, in the order
           they appear: the splash, the briefs beside it, then each section's
@@ -184,13 +186,24 @@ export default async function HomePage() {
 
       <main className="route-enter">
         <div className="mx-auto max-w-page px-4 sm:px-6">
+          {/* The page's heading, in the same form as every section label below
+              it: what the front page is, in the words of its title. The
+              paper's name above is the masthead, not the heading. */}
+          <h1 className="font-label flex items-center gap-3 pt-8 text-section font-semibold text-ink">
+            <span
+              aria-hidden="true"
+              className="inline-block h-[1.15em] w-[5px] shrink-0 rounded-[2px] bg-accent"
+            />
+            Today&rsquo;s latest and breaking news
+          </h1>
+
           {/* The splash on the left; the right side stacked in rows of differing
             width rather than a second and third column of equal weight. Two
             stories side by side, then one across the full width, then the
             digest — which descends in size the way a front page should, and
             lets the right side finish level with the splash instead of running
             past it. They stack in reading order on a phone. */}
-          <div className="grid grid-cols-1 gap-x-10 gap-y-10 pt-8 pb-12 lg:grid-cols-12">
+          <div className="grid grid-cols-1 gap-x-10 gap-y-10 pt-6 pb-12 lg:grid-cols-12">
             <div className="lg:col-span-7">
               <HeroStory article={hero} />
             </div>
