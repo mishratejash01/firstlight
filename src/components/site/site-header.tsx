@@ -55,6 +55,59 @@ import { cloudinaryImage } from "@/lib/media/transform";
  * or need a hardcoded offset to sit below them. That element shrinks once the
  * page has moved — see StickyNav.
  */
+/**
+ * How many sections the bar carries on a desktop, from each breakpoint up,
+ * measured so the row stays on one line at every width from the breakpoint to
+ * the next. Phones and tablets keep eleven: the phone strip scrolls sideways,
+ * and the tablet row was left as it was.
+ */
+type BarTier = "lg" | "xl" | "laptop" | "2xl" | "desktop" | "wide";
+const BAR_TIERS: { from: BarTier; count: number }[] = [
+  { from: "lg", count: 7 },
+  { from: "xl", count: 9 },
+  { from: "laptop", count: 11 },
+  { from: "2xl", count: 12 },
+  { from: "desktop", count: 13 },
+  { from: "wide", count: 14 },
+];
+const BAR_BELOW_LG = 11;
+const BAR_MAX = 14;
+
+// Written out whole so the stylesheet generator can find every class.
+const SHOW_FROM: Record<BarTier, string> = {
+  lg: "",
+  xl: "xl:block",
+  laptop: "laptop:block",
+  "2xl": "2xl:block",
+  desktop: "desktop:block",
+  wide: "wide:block",
+};
+const HIDE_FROM: Record<BarTier, string> = {
+  lg: "lg:hidden",
+  xl: "xl:hidden",
+  laptop: "laptop:hidden",
+  "2xl": "2xl:hidden",
+  desktop: "desktop:hidden",
+  wide: "wide:hidden",
+};
+
+const tierFor = (index: number) => BAR_TIERS.find((tier) => index < tier.count)?.from;
+
+/** Where a section at this place in the running order shows in the bar. */
+function barClasses(index: number): string {
+  const tier = tierFor(index);
+  if (!tier || tier === "lg") return "";
+  return `${index < BAR_BELOW_LG ? "lg:hidden" : "hidden"} ${SHOW_FROM[tier]}`;
+}
+
+/** Where the same section shows in the "More" panel: wherever the bar does not. */
+function panelClasses(index: number | undefined): string | undefined {
+  const tier = index === undefined ? undefined : tierFor(index);
+  if (index === undefined || !tier) return undefined;
+  if (tier === "lg") return "hidden";
+  return index < BAR_BELOW_LG ? `hidden lg:block ${HIDE_FROM[tier]}` : HIDE_FROM[tier];
+}
+
 export async function SiteHeader({
   activeSlug,
   excludeId,
@@ -92,18 +145,21 @@ export async function SiteHeader({
     .slice(0, BREAKING_IN_BAR);
 
   // The bar carries the sections the editors ranked highest, as many as fill
-  // the strip's width on a desktop without wrapping into a second row. The
-  // number is a design constant, like a type size — which sections fill it is
-  // still the running order held in the database.
-  const BAR_LIMIT = 11;
-  const categories = navCategories.slice(0, BAR_LIMIT);
+  // one row at the width of the window: a wider window has room for more of
+  // the running order before the rest go behind "More". The counts are design
+  // constants, like type sizes, measured so the row never wraps; which
+  // sections fill them is still the running order held in the database. On a
+  // phone the strip scrolls sideways, so it carries the lot.
+  const categories = navCategories.slice(0, BAR_MAX);
 
-  // Everything the bar could not take, by name. Includes sections held out of
-  // the header entirely, which is exactly where a reader would look for them.
-  const inBar = new Set(categories.map((c) => c.slug));
+  // Everything the bar cannot always show, by name: the sections it carries
+  // only on some widths (hidden here wherever it does) and the ones held out
+  // of the header entirely, which is exactly where a reader would look.
+  const place = new Map(categories.map((c, index) => [c.slug, index]));
   const overflow = allSections
-    .filter((section) => !inBar.has(section.slug))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .filter((section) => tierFor(place.get(section.slug) ?? BAR_MAX) !== "lg")
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((section) => ({ ...section, hideFrom: panelClasses(place.get(section.slug)) }));
 
   const latestBySection = new Map<string, ArticleCardData[]>();
   for (const article of recent) {
@@ -249,12 +305,15 @@ export async function SiteHeader({
               marks fold away the names are left sitting against the very top
               of the window — two pixels from it, measured — which reads as the
               bar having been cut off rather than closed up. */}
-            <ul className="-mx-4 flex min-w-0 flex-1 gap-6 overflow-x-auto px-4 group-data-[shrunk=true]/nav:pt-3 sm:mx-0 sm:flex-wrap sm:justify-center sm:gap-y-2 sm:overflow-visible sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {categories.map((category) => {
+            {/* The marks and names grow a step on wide windows, which have
+              the room: the sizes are variables so the fold-away on scroll
+              still wins over them. */}
+            <ul className="-mx-4 flex min-w-0 flex-1 gap-6 overflow-x-auto px-4 [--nav-mark:2.25rem] group-data-[shrunk=true]/nav:pt-3 sm:mx-0 sm:flex-wrap sm:justify-center sm:gap-y-2 sm:overflow-visible sm:px-0 xl:gap-x-5 xl:[--nav-mark:2.5rem] xl:[--text-kicker:0.75rem] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {categories.map((category, index) => {
                 const active = category.slug === activeSlug;
                 const latest = latestBySection.get(category.slug) ?? [];
                 return (
-                  <li key={category.slug} className="group shrink-0 pb-3">
+                  <li key={category.slug} className={`group shrink-0 pb-3 ${barClasses(index)}`}>
                     <Link
                       href={`/${category.slug}`}
                       aria-current={active ? "page" : undefined}
@@ -282,7 +341,7 @@ export async function SiteHeader({
                           name is shorter than its mark, so "AI" sat centred in
                           a gap twice the width of the word with nothing
                           visible in it. */}
-                      <span className="flex h-9 w-9 items-end justify-center overflow-hidden transition-[height,width] duration-200 group-data-[shrunk=true]/nav:h-0 group-data-[shrunk=true]/nav:w-0 motion-reduce:transition-none">
+                      <span className="flex h-[var(--nav-mark)] w-[var(--nav-mark)] items-end justify-center overflow-hidden transition-[height,width] duration-200 group-data-[shrunk=true]/nav:h-0 group-data-[shrunk=true]/nav:w-0 motion-reduce:transition-none">
                         {category.icon_url ? (
                           <SectionMark
                             src={category.icon_url}
@@ -291,7 +350,7 @@ export async function SiteHeader({
                             // collapse are a still-opaque sliver of artwork one
                             // or two pixels tall, which flickers along the top
                             // of the bar on every scroll.
-                            className="h-9 w-9 transition-opacity duration-100 group-data-[shrunk=true]/nav:opacity-0 motion-reduce:transition-none"
+                            className="h-[var(--nav-mark)] w-[var(--nav-mark)] transition-opacity duration-100 group-data-[shrunk=true]/nav:opacity-0 motion-reduce:transition-none"
                           />
                         ) : null}
                       </span>
