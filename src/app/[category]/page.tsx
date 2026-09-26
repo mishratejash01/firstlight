@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -26,13 +27,43 @@ async function getCategory(slug: string) {
   return data;
 }
 
+/**
+ * The front of a section shows its lead story and thirty more; every older
+ * story is reachable through numbered pages of thirty, linked from the foot of
+ * each page. Without them, anything past the first thirty-one stories in a
+ * section could only be found through the sitemap.
+ */
+const FRONT_COUNT = 31;
+const PAGE_SIZE = 30;
+
+/** "?page=3" -> 3. Anything that is not a whole number above 1 is page 1. */
+function pageNumber(value: string | string[] | undefined): number {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const page = raw && /^\d{1,4}$/.test(raw) ? Number(raw) : 1;
+  return page >= 2 ? page : 1;
+}
+
+function pageOffset(page: number): number {
+  return page === 1 ? 0 : FRONT_COUNT + (page - 2) * PAGE_SIZE;
+}
+
 export async function generateMetadata(
   props: PageProps<"/[category]">,
 ): Promise<Metadata> {
   const { category: slug } = await props.params;
+  const page = pageNumber((await props.searchParams).page);
   const category = await getCategory(slug);
   if (!category) return { title: "Not found" };
-  const [latest] = await getArticlesByCategory(slug, 1);
+  const [latest] = await getArticlesByCategory(slug, 1, pageOffset(page));
+
+  if (page > 1) {
+    return pageMetadata({
+      title: `${category.name} news: page ${page}`,
+      description: `Earlier ${category.name.toLowerCase()} stories from ${SITE_NAME}, page ${page}.`,
+      path: `/${category.slug}?page=${page}`,
+      noindex: !latest,
+    });
+  }
 
   return pageMetadata({
     title: `${category.name} news`,
@@ -51,13 +82,21 @@ export async function generateMetadata(
 
 export default async function CategoryPage(props: PageProps<"/[category]">) {
   const { category: slug } = await props.params;
+  const page = pageNumber((await props.searchParams).page);
   const category = await getCategory(slug);
   if (!category) notFound();
 
-  const articles = await getArticlesByCategory(slug, 31);
-  const [lead, ...rest] = articles;
+  // One more than the page shows, to know whether an older page exists.
+  const size = page === 1 ? FRONT_COUNT : PAGE_SIZE;
+  const fetched = await getArticlesByCategory(slug, size + 1, pageOffset(page));
+  const hasOlder = fetched.length > size;
+  const articles = fetched.slice(0, size);
+  if (page > 1 && !articles.length) notFound();
+  const lead = page === 1 ? articles[0] : undefined;
+  const rest = page === 1 ? articles.slice(1) : articles;
 
-  const url = absoluteUrl(`/${category.slug}`);
+  const url = absoluteUrl(page === 1 ? `/${category.slug}` : `/${category.slug}?page=${page}`);
+  const pageHref = (n: number) => (n === 1 ? `/${category.slug}` : `/${category.slug}?page=${n}`);
 
   return (
     <>
@@ -66,7 +105,7 @@ export default async function CategoryPage(props: PageProps<"/[category]">) {
       <JsonLd
         data={collectionPageJsonLd({
           url,
-          name: `${category.name} news`,
+          name: page === 1 ? `${category.name} news` : `${category.name} news: page ${page}`,
           description: category.description,
           items: articles.map((article) => ({
             url: absoluteUrl(`/${article.categories.slug}/${article.slug}`),
@@ -77,7 +116,7 @@ export default async function CategoryPage(props: PageProps<"/[category]">) {
       <JsonLd
         data={breadcrumbJsonLd([
           { name: "Home", url: absoluteUrl("/") },
-          { name: category.name, url },
+          { name: category.name, url: absoluteUrl(`/${category.slug}`) },
         ])}
       />
 
@@ -85,6 +124,7 @@ export default async function CategoryPage(props: PageProps<"/[category]">) {
         <div className="border-b border-hairline py-8">
           <h1 className="text-hero font-bold tracking-[-0.02em] text-ink">
             {category.name}
+            {page > 1 ? <span className="text-muted"> · page {page}</span> : null}
           </h1>
           {category.description ? (
             <p className="mt-2 max-w-measure text-lead text-muted">
@@ -97,11 +137,11 @@ export default async function CategoryPage(props: PageProps<"/[category]">) {
           <div className="py-10">
             <HeroStory article={lead} />
           </div>
-        ) : (
+        ) : page === 1 ? (
           <p className="py-16 text-lead text-muted">
             Nothing published in this section yet.
           </p>
-        )}
+        ) : null}
 
         {rest.length ? (
           <div className="story-grid border-t border-hairline py-10">
@@ -113,6 +153,28 @@ export default async function CategoryPage(props: PageProps<"/[category]">) {
               />
             ))}
           </div>
+        ) : null}
+
+        {/* Plain links, so crawlers can walk the whole archive of the section
+            one page at a time. */}
+        {page > 1 || hasOlder ? (
+          <nav
+            aria-label={`${category.name} pages`}
+            className="flex items-center justify-between border-t border-hairline py-8 text-body"
+          >
+            {page > 1 ? (
+              <Link href={pageHref(page - 1)} className="text-accent underline underline-offset-4">
+                Newer stories
+              </Link>
+            ) : (
+              <span />
+            )}
+            {hasOlder ? (
+              <Link href={pageHref(page + 1)} className="text-accent underline underline-offset-4">
+                Older stories
+              </Link>
+            ) : null}
+          </nav>
         ) : null}
       </main>
 
