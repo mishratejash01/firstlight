@@ -6,6 +6,7 @@ import { useSyncExternalStore } from "react";
 import { ConsentBanner } from "./consent-banner";
 import {
   CONSENT_SERVER_SNAPSHOT,
+  clearTrackingStorage,
   getConsentServerSnapshot,
   notifyConsentChanged,
   readConsentCookie,
@@ -39,6 +40,8 @@ export function AnalyticsProvider({ measurementId }: { measurementId?: string })
 
   function decide(state: "granted" | "denied") {
     writeConsentCookie(state);
+    // Declining clears anything an earlier "agree" left in the browser.
+    if (state === "denied") clearTrackingStorage();
     notifyConsentChanged();
   }
 
