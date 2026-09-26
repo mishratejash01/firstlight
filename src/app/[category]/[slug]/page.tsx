@@ -279,7 +279,7 @@ export default async function ArticlePage(
                     fill
                     loading="eager"
                     fetchPriority="high"
-                    sizes="(max-width: 1024px) 100vw, 672px"
+                    sizes="(max-width: 640px) calc(100vw - 32px), (max-width: 1024px) calc(100vw - 48px), 672px"
                     className="object-cover"
                   />
                 </div>
