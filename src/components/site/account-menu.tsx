@@ -46,7 +46,7 @@ function hasSessionCookie(): boolean {
     .some((row) => /^sb-[^=]+-auth-token(?:\.\d+)?=/.test(row));
 }
 
-export function AccountMenu() {
+export function AccountMenu({ compact = false }: { compact?: boolean } = {}) {
   const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
@@ -119,7 +119,20 @@ export function AccountMenu() {
     return <span className="inline-block h-4 w-16" aria-hidden="true" />;
   }
 
-  if (!session.signedIn) return <SignInControl />;
+  if (!session.signedIn) return <SignInControl compact={compact} />;
+
+  // A phone's top line has room for one thing: the reader's own name, which
+  // leads to the account page and from there to anything else they can use.
+  if (compact) {
+    return (
+      <Link
+        href="/account"
+        className="block max-w-[6.5rem] truncate text-meta text-ink underline-offset-4 hover:underline"
+      >
+        {session.name ?? "Profile"}
+      </Link>
+    );
+  }
 
   const isAdmin = session.roles.includes("admin");
   const isEditor = isAdmin || session.roles.includes("editor");
@@ -168,7 +181,7 @@ export function AccountMenu() {
  * Closes on Escape and on a click outside, and hands focus back to the button
  * it came from.
  */
-function SignInControl() {
+function SignInControl({ compact = false }: { compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLSpanElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -201,7 +214,11 @@ function SignInControl() {
         onClick={() => setOpen((was) => !was)}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="rounded-control bg-signal px-3 py-1.5 text-meta font-semibold whitespace-nowrap text-paper transition-opacity hover:opacity-90 xl:px-4 xl:py-2 xl:text-[0.875rem]"
+        className={
+          compact
+            ? "rounded-control bg-signal px-2.5 py-1 text-[0.75rem] font-semibold whitespace-nowrap text-paper transition-opacity hover:opacity-90"
+            : "rounded-control bg-signal px-3 py-1.5 text-meta font-semibold whitespace-nowrap text-paper transition-opacity hover:opacity-90 xl:px-4 xl:py-2 xl:text-[0.875rem]"
+        }
       >
         Sign in
       </button>
@@ -212,7 +229,7 @@ function SignInControl() {
         <span
           role="dialog"
           aria-label="Sign in"
-          className="absolute top-full right-0 z-[70] mt-3 block w-80 text-left"
+          className="absolute top-full right-0 z-[70] mt-3 block w-80 max-w-[calc(100vw-2rem)] text-left"
         >
           <LoginCard />
         </span>
