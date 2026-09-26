@@ -34,12 +34,41 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // No other site may show these pages inside a frame, which is how a
+          // reader is tricked into clicking something they cannot see. The
+          // CSP directive is the current standard; the older header covers
+          // browsers that predate it.
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+        ],
+      },
+      {
+        // Section icons are fetched on every page. Without this they are
+        // revalidated with the server on each visit; a day's cache, then a
+        // week of serving the cached copy while a fresh one is fetched, keeps
+        // a returning reader from asking for all of them again.
+        source: "/icons/:file*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
         ],
       },
     ];
   },
   async redirects() {
-    if (!REDIRECT_TO_CANONICAL) return [];
+    // Older pages of a section were first addressed as /politics?page=2; they
+    // now live at /politics/page/2, where they can be cached. Only section
+    // paths are matched: the site's own top-level pages never paginate.
+    const olderSectionPages = {
+      source:
+        "/:category((?!(?:search|breaking|bulletin|sections|about|privacy|corrections|editorial-standards|masthead|contact|login|account|admin|desk|review|contribute|live|topic|author|api)$)[a-z0-9-]+)",
+      has: [{ type: "query" as const, key: "page", value: "(?<number>[2-9]|[1-9]\\d{1,3})" }],
+      destination: "/:category/page/:number",
+      permanent: true,
+    };
+    if (!REDIRECT_TO_CANONICAL) return [olderSectionPages];
     return [
       {
         // Everything but the API, which the scheduler calls by the hosting
@@ -49,6 +78,7 @@ const nextConfig: NextConfig = {
         destination: `${SITE_URL}/:path`,
         permanent: true,
       },
+      olderSectionPages,
     ];
   },
   // This project sits inside a parent directory that also contains a lockfile.
