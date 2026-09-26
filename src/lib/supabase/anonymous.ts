@@ -8,10 +8,17 @@ import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./env";
 /**
  * A session-less server client that acts as the anonymous role.
  *
- * Exists for writes that deliberately have no user attached — the actorless
- * page tally, chiefly. The cookie-bound client in server.ts cannot be used for
- * those: it calls cookies(), which Next.js forbids inside an after() callback,
- * and it would attach a session to a row that is supposed to have none.
+ * Exists for two things that must not involve a reader's session:
+ *
+ *   - Reads for public pages. Everything a public page shows is what an
+ *     anonymous reader may see, and reading it through the cookie-bound client
+ *     in server.ts calls cookies(), which makes Next.js render the page afresh
+ *     for every visit. Through this client the page can be cached and served
+ *     from the edge, which is most of the difference between a page arriving
+ *     in half a second and in fifty milliseconds.
+ *   - Writes that deliberately have no user attached, such as the actorless
+ *     page tally, where a session would attach a person to a row that is
+ *     supposed to have none.
  *
  * This is NOT a privileged client. It holds the publishable key, so RLS applies
  * exactly as it does for any reader: it may append events and cannot read them
