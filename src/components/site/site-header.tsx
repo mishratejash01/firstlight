@@ -169,7 +169,7 @@ export async function SiteHeader({
                 src="/brand/the-india-decade.png"
                 alt={SITE_NAME}
                 width={1200}
-                height={235}
+                height={218}
                 priority
                 className="h-11 w-auto sm:h-16"
               />
@@ -186,8 +186,16 @@ export async function SiteHeader({
             to its panel crossed dead ground, dropped the hover and closed the
             panel. Opening and closing like that changes the page height on
             every flicker, which the browser's scroll anchoring then tries to
-            correct, and the page appears to scroll on its own. */}
-        <nav aria-label="Sections" className="relative">
+            correct, and the page appears to scroll on its own.
+
+            Clipped on the x axis, which is what stops the whole document
+            scrolling sideways on a phone. The section strip inside scrolls
+            horizontally and its items run far past the right edge; nav was
+            passing that width up to the body, so the page could be dragged
+            595px sideways. `clip` rather than `hidden` on purpose — hidden
+            would force the y axis to `auto` and trap the hover panels, which
+            have to hang below this row. */}
+        <nav aria-label="Sections" className="relative overflow-x-clip">
           <div className="mx-auto flex max-w-wide items-center gap-4 px-4 sm:px-6">
             {/* Fixed-width spacers either side, not flexible ones: they keep
               the strip optically centred while leaving it free to take the rest
