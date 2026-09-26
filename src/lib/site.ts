@@ -115,5 +115,5 @@ export const PUBLISHER: {
 export const SOCIAL_LINKS: { name: string; href: string }[] = [
   { name: "X", href: "" },
   { name: "Facebook", href: "" },
-  { name: "Instagram", href: "" },
+  { name: "Instagram", href: "https://www.instagram.com/theindiadecade/" },
 ];
