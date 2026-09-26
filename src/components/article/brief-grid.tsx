@@ -110,7 +110,7 @@ export function BriefGrid({
                 }
                 alt={first.hero_image_alt ?? ""}
                 fill
-                sizes="(max-width: 1024px) 100vw, 480px"
+                sizes="(max-width: 640px) calc(100vw - 32px), (max-width: 1024px) calc(100vw - 48px), 480px"
                 className="object-cover"
               />
             </div>
