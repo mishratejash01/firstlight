@@ -4,6 +4,7 @@ import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { CRAWLER_USER_AGENT } from "@/lib/site";
 import { checkRobots } from "./robots";
 
 /**
@@ -22,8 +23,7 @@ import { checkRobots } from "./robots";
  * with attribution. It is never published as-is.
  */
 
-const USER_AGENT =
-  "TheFederalPostBot/1.0 (+https://newswebsite-pi.vercel.app; contact via site)";
+const USER_AGENT = CRAWLER_USER_AGENT;
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_HTML_BYTES = 3 * 1024 * 1024;
 /** Roughly 3,000 words. Beyond that a summariser gains nothing and costs more. */
