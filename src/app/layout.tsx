@@ -114,6 +114,15 @@ export const viewport: Viewport = {
   colorScheme: "light",
 };
 
+/**
+ * The longest any page is served from the cache before it is rebuilt. Pages
+ * with nothing of their own that changes (About, Privacy) still carry the
+ * header's sections and breaking-news strip, which do; without this they
+ * would be built once and keep the strip they were built with until the next
+ * deploy. Pages that need fresher content set a shorter time themselves.
+ */
+export const revalidate = 300;
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
