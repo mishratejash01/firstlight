@@ -4,6 +4,7 @@ import { SITE_NAME } from "@/lib/site";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { slugify, withUniqueSuffix } from "@/lib/format/slug";
 import { submitToIndexNow } from "@/lib/seo/indexnow";
+import { researchSearch } from "@/lib/seo/search-research";
 import { draftingModelId } from "@/lib/ai/config";
 import { attachStructuredData } from "@/lib/ai/attach-structure";
 import { draftFromTrend } from "@/lib/ai/draft";
@@ -554,10 +555,20 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
         (c) => c.name.toLowerCase() === (event.triage_section ?? "").toLowerCase(),
       ) ?? null;
 
+    // How readers are searching for this story right now, so the headline and
+    // opening can use their words. A few seconds at most; without it the
+    // story is still written.
+    const research = await researchSearch({
+      title: event.title,
+      headlines: newsItems.map((item) => item.title),
+    });
+
     const result = await draftFromTrend({
       term: verification.summary || event.title,
+      termKind: "story",
       newsItems,
       documents,
+      searchResearch: research,
       sectionName: section?.name,
       angle: [event.triage_angle, event.urgency === "breaking" ? "This is breaking news; lead with what is confirmed." : null]
         .filter(Boolean)
@@ -691,6 +702,11 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
         severity: verification.severity,
         sources_read: documents.length,
         minutes_since_first_seen: Math.round((Date.now() - new Date(event.first_seen_at).getTime()) / 60_000),
+        // What the search research found, kept so it can later be compared
+        // with the searches that actually bring readers to the story.
+        search: research
+          ? { searches: research.searches.map((search) => search.term), phrases: research.phrases, keywords: draft.searchKeywords }
+          : null,
       },
     });
 
@@ -767,10 +783,16 @@ export async function redraftEvent(eventId: string): Promise<RedraftOutcome> {
   if (!documents.length) return { ok: false, reason: "None of the source articles could be read." };
 
   const section = article.categories as unknown as { name: string } | null;
+  const research = await researchSearch({
+    title: article.headline,
+    headlines: newsItems.map((item) => item.title),
+  });
   const result = await draftFromTrend({
     term: event.summary || event.title,
+    termKind: "story",
     newsItems,
     documents,
+    searchResearch: research,
     sectionName: section?.name,
     angle: [
       event.triage_angle,
