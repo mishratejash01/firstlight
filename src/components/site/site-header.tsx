@@ -144,21 +144,32 @@ export async function SiteHeader({
             <SocialLinks />
           </div>
 
-          <div className="col-span-2 text-center lg:order-2 lg:col-span-1">
+          <div className="col-span-2 flex justify-center lg:order-2 lg:col-span-1">
             {/* The paper's name, never the page's heading: every page, the
                 front included, has a heading of its own that says what is on
                 it, and the name is the same on all of them.
 
                 Artwork now rather than type. Sized by height so the lockup
-                keeps its proportions and the dove stays on the same baseline as
-                the words beside it at every breakpoint. The name is in the alt
-                text, so a reader who cannot see it still gets it here. */}
-            <Link href="/" className="inline-block">
+                keeps its proportions at every breakpoint. The name is in the
+                alt text, so a reader who cannot see it still gets it here.
+
+                The file is cropped to what can be seen rather than to every
+                pixel carrying a trace of alpha: the original has a soft halo
+                below the mark, and including it left the image box a quarter
+                taller than the artwork, so centring the box sat the lockup
+                visibly high in the row.
+
+                The cell centres with flex rather than text-align. An inline
+                block sits on a text baseline, so the cell grew eight pixels
+                taller than the image to leave room for a descender that is not
+                there, and the lockup rode the top of that while the dateline
+                and the social marks sat on the row's true middle. */}
+            <Link href="/" className="block">
               <Image
                 src="/brand/the-india-decade.png"
                 alt={SITE_NAME}
                 width={1200}
-                height={326}
+                height={218}
                 priority
                 className="h-11 w-auto sm:h-16"
               />
@@ -175,8 +186,16 @@ export async function SiteHeader({
             to its panel crossed dead ground, dropped the hover and closed the
             panel. Opening and closing like that changes the page height on
             every flicker, which the browser's scroll anchoring then tries to
-            correct, and the page appears to scroll on its own. */}
-        <nav aria-label="Sections" className="relative">
+            correct, and the page appears to scroll on its own.
+
+            Clipped on the x axis, which is what stops the whole document
+            scrolling sideways on a phone. The section strip inside scrolls
+            horizontally and its items run far past the right edge; nav was
+            passing that width up to the body, so the page could be dragged
+            595px sideways. `clip` rather than `hidden` on purpose — hidden
+            would force the y axis to `auto` and trap the hover panels, which
+            have to hang below this row. */}
+        <nav aria-label="Sections" className="relative overflow-x-clip">
           <div className="mx-auto flex max-w-wide items-center gap-4 px-4 sm:px-6">
             {/* Fixed-width spacers either side, not flexible ones: they keep
               the strip optically centred while leaving it free to take the rest
