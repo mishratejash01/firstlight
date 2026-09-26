@@ -5,10 +5,11 @@ import { useSyncExternalStore } from "react";
 import {
   CONSENT_SERVER_SNAPSHOT,
   getConsentServerSnapshot,
-  notifyConsentChanged,
+  measurementAllowed,
   readConsentCookie,
+  readTrackingMode,
+  recordChoice,
   subscribeToConsent,
-  writeConsentCookie,
 } from "@/lib/analytics/consent";
 
 /**
@@ -24,13 +25,19 @@ export function TrackingPreference() {
     readConsentCookie,
     getConsentServerSnapshot,
   );
+  const mode = useSyncExternalStore(
+    subscribeToConsent,
+    readTrackingMode,
+    getConsentServerSnapshot,
+  );
 
+  // Through the same path as the banner, so declining here also deletes the
+  // identifier and the analytics cookies.
   function set(state: "granted" | "denied") {
-    writeConsentCookie(state);
-    notifyConsentChanged();
+    recordChoice(state);
   }
 
-  if (consent === CONSENT_SERVER_SNAPSHOT) {
+  if (consent === CONSENT_SERVER_SNAPSHOT || mode === CONSENT_SERVER_SNAPSHOT) {
     // Unreadable during server rendering; the client fills it in immediately.
     return <p className="mt-2 text-meta text-muted">Checking your current choice…</p>;
   }
@@ -40,7 +47,9 @@ export function TrackingPreference() {
       ? "You have agreed to reading measurement."
       : consent === "denied"
         ? "You have declined reading measurement."
-        : "You have not made a choice yet.";
+        : measurementAllowed(mode)
+          ? "Reading measurement is on: it is on by default for readers in India until 13 May 2027, when you will be asked instead."
+          : "You have not made a choice yet.";
 
   return (
     <div>
