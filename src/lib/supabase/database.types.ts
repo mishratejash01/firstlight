@@ -560,6 +560,7 @@ export type Database = {
           read_count: number
           reviewed_by: string | null
           scheduled_for: string | null
+          search_keywords: string[]
           search_vector: unknown
           slug: string
           source_id: string | null
@@ -597,6 +598,7 @@ export type Database = {
           read_count?: number
           reviewed_by?: string | null
           scheduled_for?: string | null
+          search_keywords?: string[]
           search_vector?: unknown
           slug: string
           source_id?: string | null
@@ -634,6 +636,7 @@ export type Database = {
           read_count?: number
           reviewed_by?: string | null
           scheduled_for?: string | null
+          search_keywords?: string[]
           search_vector?: unknown
           slug?: string
           source_id?: string | null
@@ -719,6 +722,7 @@ export type Database = {
           is_active: boolean
           layout: string
           name: string
+          seo_title: string | null
           show_in_nav: boolean
           slug: string
           sort_order: number
@@ -734,6 +738,7 @@ export type Database = {
           is_active?: boolean
           layout?: string
           name: string
+          seo_title?: string | null
           show_in_nav?: boolean
           slug: string
           sort_order?: number
@@ -749,6 +754,7 @@ export type Database = {
           is_active?: boolean
           layout?: string
           name?: string
+          seo_title?: string | null
           show_in_nav?: boolean
           slug?: string
           sort_order?: number
