@@ -181,6 +181,7 @@ export default async function ArticlePage(
           entities,
           keyFacts,
           tags,
+          searchKeywords: article.search_keywords,
         })}
       />
       {faqSchema ? <JsonLd data={faqSchema} /> : null}
