@@ -34,6 +34,8 @@ export type ArticleDetail = {
   meta_title: string | null;
   meta_description: string | null;
   canonical_url: string | null;
+  /** The searches the story was written to answer, most important first. */
+  search_keywords: string[] | null;
   categories: { slug: string; name: string };
   authors: {
     slug: string;
@@ -62,7 +64,7 @@ export const getArticle = cache(async function getArticle(
       hero_image_url, hero_image_alt, hero_image_credit,
       published_at, updated_at, content_updated_at, is_breaking,
       ai_assisted, ai_unverified_claims, reviewed_by,
-      meta_title, meta_description, canonical_url,
+      meta_title, meta_description, canonical_url, search_keywords,
       categories!inner ( slug, name ),
       authors ( slug, display_name, title, bio )
     `,
