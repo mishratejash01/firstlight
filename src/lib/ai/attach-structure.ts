@@ -27,14 +27,29 @@ export type AttachResult = {
   entities: number;
   keyFacts: number;
   faqs: number;
+  searchKeywords: number;
 };
+
+/**
+ * The drafter's search phrases, tidied: lower case, single-spaced, each once,
+ * none absurdly long, at most eight.
+ */
+function cleanKeywords(phrases: string[] | undefined): string[] {
+  const kept: string[] = [];
+  for (const phrase of phrases ?? []) {
+    const clean = phrase.toLowerCase().replace(/\s+/g, " ").trim();
+    if (clean && clean.length <= 80 && !kept.includes(clean)) kept.push(clean);
+    if (kept.length === 8) break;
+  }
+  return kept;
+}
 
 export async function attachStructuredData(
   supabase: Client,
   articleId: string,
   draft: DraftedArticle,
 ): Promise<AttachResult> {
-  const result: AttachResult = { tags: 0, entities: 0, keyFacts: 0, faqs: 0 };
+  const result: AttachResult = { tags: 0, entities: 0, keyFacts: 0, faqs: 0, searchKeywords: 0 };
 
   // Best effort throughout. A tag that fails to attach is not a reason to lose
   // an article that has already been written and paid for.
@@ -120,6 +135,22 @@ export async function attachStructuredData(
     }
   } catch (error) {
     console.error("[structure] faqs failed", error);
+  }
+
+  // The searches the piece was written to answer, kept with it so an editor
+  // can see them and they can be checked later against the searches that
+  // actually bring readers. Replaced, not merged, when a story is redrafted.
+  try {
+    const keywords = cleanKeywords(draft.searchKeywords);
+    if (keywords.length) {
+      const { error } = await supabase
+        .from("articles")
+        .update({ search_keywords: keywords })
+        .eq("id", articleId);
+      if (!error) result.searchKeywords = keywords.length;
+    }
+  } catch (error) {
+    console.error("[structure] search keywords failed", error);
   }
 
   return result;
