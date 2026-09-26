@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 
-import { createClient } from "@/lib/supabase/client";
 import {
   ANON_ID_KEY,
   SESSION_ID_KEY,
@@ -56,21 +55,30 @@ export function ReadingInstrumentation({ articleId }: { articleId: string }) {
       return;
     }
 
-    const supabase = createClient();
+    // The database client is fetched here, once measurement is known to be
+    // allowed, rather than shipped in every page's first download: it is the
+    // largest library on the site, and most readers never send an event.
+    const client = import("@/lib/supabase/client")
+      .then(({ createClient }) => createClient())
+      .catch(() => null);
     const arrivedAt = Date.now();
 
     const send = (eventType: string, extra: Record<string, Json> = {}) => {
       if (fired.current.has(eventType)) return;
       fired.current.add(eventType);
 
-      void supabase.from("analytics_events").insert({
-        event_type: eventType,
-        article_id: articleId,
-        anonymous_id: anonId,
-        session_id: sessionId,
-        path: window.location.pathname,
-        properties: extra,
-        is_server_side: false,
+      // Awaited, not just called: a Supabase query is only sent when something
+      // awaits it, and an insert that is never awaited is never made.
+      void client.then(async (supabase) => {
+        await supabase?.from("analytics_events").insert({
+          event_type: eventType,
+          article_id: articleId,
+          anonymous_id: anonId,
+          session_id: sessionId,
+          path: window.location.pathname,
+          properties: extra,
+          is_server_side: false,
+        });
       });
     };
 
