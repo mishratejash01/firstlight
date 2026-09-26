@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+
+import { pageMetadata } from "@/lib/seo/metadata";
 import Link from "next/link";
 
 import { SITE_NAME } from "@/lib/site";
@@ -13,12 +15,11 @@ import {
   type ArticleCardData,
 } from "@/lib/queries/articles";
 
-export const metadata: Metadata = {
-  title: `News bulletin — ${SITE_NAME}`,
-  description:
-    "The main stories of the day, as a running order you can listen to.",
-  alternates: { canonical: "/bulletin" },
-};
+export const metadata: Metadata = pageMetadata({
+  title: "News bulletin",
+  description: "The main stories of the day, as a running order you can listen to.",
+  path: "/bulletin",
+});
 
 // A bulletin is only worth listening to if it is current.
 export const revalidate = 60;
