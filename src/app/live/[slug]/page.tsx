@@ -10,9 +10,10 @@ import { captureRequestContext, logPageView } from "@/lib/analytics/server-event
 import { formatClockTime, formatDate, formatDateTime } from "@/lib/format/datetime";
 import { renderMarkdown } from "@/lib/format/markdown";
 import { liveBlogJsonLd } from "@/lib/seo/json-ld";
+import { pageMetadata } from "@/lib/seo/metadata";
+import { absoluteUrl } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 // A live blog is worthless stale.
 export const dynamic = "force-dynamic";
@@ -59,11 +60,11 @@ export async function generateMetadata(
   const result = await getEvent(slug);
   if (!result) return { title: "Not found" };
 
-  return {
-    title: result.event.meta_title ?? `${result.event.title} — live coverage`,
-    description: result.event.meta_description ?? result.event.summary ?? undefined,
-    alternates: { canonical: `/live/${result.event.slug}` },
-  };
+  return pageMetadata({
+    title: result.event.meta_title ?? `${result.event.title}: live updates`,
+    description: result.event.meta_description ?? result.event.summary,
+    path: `/live/${result.event.slug}`,
+  });
 }
 
 export default async function LiveEventPage(props: PageProps<"/live/[slug]">) {
@@ -72,7 +73,7 @@ export default async function LiveEventPage(props: PageProps<"/live/[slug]">) {
   if (!result) notFound();
 
   const { event, updates, linked } = result;
-  const url = `${SITE_URL}/live/${event.slug}`;
+  const url = absoluteUrl(`/live/${event.slug}`);
 
   const requestContext = await captureRequestContext();
   after(() => logPageView({ path: `/live/${slug}`, context: requestContext }));
@@ -90,6 +91,7 @@ export default async function LiveEventPage(props: PageProps<"/live/[slug]">) {
           summary: event.summary,
           coverageStart: event.coverage_starts_at,
           coverageEnd: event.coverage_ends_at,
+          imageUrl: event.hero_image_url,
           updates: [...updates]
             .reverse()
             .map((u) => ({
