@@ -20,11 +20,21 @@ async function getCategory(slug: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("categories")
-    .select("slug, name, description")
+    .select("slug, name, description, seo_title")
     .eq("slug", slug)
     .eq("is_active", true)
     .maybeSingle();
   return data;
+}
+
+/**
+ * The section's title in search results. A section's name is written for the
+ * menu ("Sport"); the title uses the words people search with ("Sports News
+ * Today: Cricket, IPL, Football and More"), which editors set per section.
+ * A section without one still gets the words most news searches use.
+ */
+function searchTitle(category: { name: string; seo_title: string | null }): string {
+  return category.seo_title?.trim() || `${category.name} News Today`;
 }
 
 /**
@@ -58,7 +68,7 @@ export async function generateMetadata(
 
   if (page > 1) {
     return pageMetadata({
-      title: `${category.name} news: page ${page}`,
+      title: `${category.name} News: Page ${page}`,
       description: `Earlier ${category.name.toLowerCase()} stories from ${SITE_NAME}, page ${page}.`,
       path: `/${category.slug}?page=${page}`,
       noindex: !latest,
@@ -66,7 +76,7 @@ export async function generateMetadata(
   }
 
   return pageMetadata({
-    title: `${category.name} news`,
+    title: searchTitle(category),
     description:
       category.description ??
       `The latest ${category.name.toLowerCase()} news and reporting from ${SITE_NAME}.`,
@@ -105,7 +115,7 @@ export default async function CategoryPage(props: PageProps<"/[category]">) {
       <JsonLd
         data={collectionPageJsonLd({
           url,
-          name: page === 1 ? `${category.name} news` : `${category.name} news: page ${page}`,
+          name: page === 1 ? searchTitle(category) : `${category.name} News: Page ${page}`,
           description: category.description,
           items: articles.map((article) => ({
             url: absoluteUrl(`/${article.categories.slug}/${article.slug}`),
