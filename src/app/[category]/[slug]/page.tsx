@@ -208,15 +208,14 @@ export default async function ArticlePage(
       <ReadingInstrumentation articleId={article.id} />
 
       <main className="route-enter mx-auto max-w-page px-4 sm:px-6">
-        {/* The story keeps its measure and the rail gives up the width. The rail
-            carries a list of headlines, which reads perfectly well at twenty
-            rems; at twenty-six it took better than a third of the row and the
-            piece a reader actually opened had to share the page with it. The
-            story column is untouched — it is set to the reading measure, and
-            widening it to fill the gap would only make the lines harder to
-            follow. */}
-        <div className="mx-auto grid max-w-[66rem] grid-cols-1 gap-x-16 lg:grid-cols-[minmax(0,42rem)_20rem]">
-          <article className="min-w-0 pt-8 pb-10">
+        {/* The page runs to the same width as the masthead and the front
+            page, so the story's left edge and the rail's right edge line up
+            with everything above them. The story takes the room: headline and
+            picture run up to 52rem, the text itself holds to the reading
+            measure, and the rail is a narrow list of headlines behind a
+            hairline, secondary to the piece the reader opened. */}
+        <div className="grid grid-cols-1 gap-x-10 lg:grid-cols-[minmax(0,1fr)_16rem] xl:grid-cols-[minmax(0,1fr)_18rem] xl:gap-x-16">
+          <article className="min-w-0 pt-8 pb-10 lg:max-w-[52rem]">
             <Eyebrow article={article} className="mb-2.5" />
 
             <h1 className="headline-lg text-hero leading-[1.08] text-ink sm:text-[2.75rem]">
@@ -224,7 +223,7 @@ export default async function ArticlePage(
             </h1>
 
             {article.standfirst ? (
-              <p className="mt-4 text-[1.1875rem] leading-[1.5] text-ink">
+              <p className="mt-4 max-w-[42rem] text-[1.1875rem] leading-[1.5] text-ink">
                 {article.standfirst}
               </p>
             ) : null}
@@ -327,132 +326,136 @@ export default async function ArticlePage(
               </figure>
             ) : null}
 
-            {/* A curated item is a summary and a link. There is no body column on
- the row to render, by database constraint, so this branch cannot
- silently reproduce someone else's article. */}
-            {article.origin === "curated" ? (
-              <div className="mt-6">
-                <p className="font-label text-prose text-ink">
-                  {article.summary}
-                </p>
-                {article.attribution_url ? (
-                  <p className="mt-5 border-l-2 border-accent pl-4 text-body">
-                    <a
-                      href={article.attribution_url}
-                      rel="noopener noreferrer nofollow"
-                      target="_blank"
-                      className="text-accent underline underline-offset-4"
-                      data-track="click_source_link"
-                    >
-                      Read the full report at{" "}
-                      {article.attribution_label ?? "the original source"}
-                    </a>
+            {/* Everything that is read line by line holds to the reading
+                measure, even where the picture above runs wider. */}
+            <div className="max-w-[42rem]">
+              {/* A curated item is a summary and a link. There is no body column on
+   the row to render, by database constraint, so this branch cannot
+   silently reproduce someone else's article. */}
+              {article.origin === "curated" ? (
+                <div className="mt-6">
+                  <p className="font-label text-prose text-ink">
+                    {article.summary}
                   </p>
-                ) : null}
-              </div>
-            ) : (
-              <div className="font-label mt-7">
-                {renderMarkdown(article.body)}
-              </div>
-            )}
-
-            {keyFacts.length ? (
-              <section className="mt-12 border-t border-hairline pt-6">
-                <h2 className="text-section text-ink">Key numbers</h2>
-                <dl className="mt-4 divide-y divide-hairline">
-                  {keyFacts.map((fact) => (
-                    <div
-                      key={fact.label}
-                      className="flex flex-wrap items-baseline gap-x-4 py-3"
-                    >
-                      <dt className="text-meta text-muted">{fact.label}</dt>
-                      <dd className="text-[1.25rem] text-ink">{fact.value}</dd>
-                      <dd className="w-full text-meta text-muted">
-                        Source: {fact.attribution}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </section>
-            ) : null}
-
-            {faqs.length ? (
-              <section className="mt-12 border-t border-hairline pt-6">
-                <h2 className="text-section text-ink">
-                  Questions readers are asking
-                </h2>
-                <div className="mt-4 divide-y divide-hairline">
-                  {faqs.map((faq) => (
-                    <div key={faq.question} className="py-4">
-                      <h3 className="text-[1.1rem] text-ink">{faq.question}</h3>
-                      <p className="mt-1.5 text-body leading-relaxed text-muted">
-                        {faq.answer}
-                      </p>
-                    </div>
-                  ))}
+                  {article.attribution_url ? (
+                    <p className="mt-5 border-l-2 border-accent pl-4 text-body">
+                      <a
+                        href={article.attribution_url}
+                        rel="noopener noreferrer nofollow"
+                        target="_blank"
+                        className="text-accent underline underline-offset-4"
+                        data-track="click_source_link"
+                      >
+                        Read the full report at{" "}
+                        {article.attribution_label ?? "the original source"}
+                      </a>
+                    </p>
+                  ) : null}
                 </div>
-              </section>
-            ) : null}
+              ) : (
+                <div className="font-label mt-7">
+                  {renderMarkdown(article.body)}
+                </div>
+              )}
 
-            {events.length ? (
-              <section className="mt-12 border-t border-hairline pt-6">
-                <h2 className="text-section text-ink">Follow this story</h2>
-                <ul className="mt-3 space-y-2">
-                  {events.map((event) => (
-                    <li key={event.slug}>
-                      <Link
-                        href={`/live/${event.slug}`}
-                        className="text-body text-accent underline underline-offset-4"
+              {keyFacts.length ? (
+                <section className="mt-12 border-t border-hairline pt-6">
+                  <h2 className="text-section text-ink">Key numbers</h2>
+                  <dl className="mt-4 divide-y divide-hairline">
+                    {keyFacts.map((fact) => (
+                      <div
+                        key={fact.label}
+                        className="flex flex-wrap items-baseline gap-x-4 py-3"
                       >
-                        {event.title}
-                      </Link>
-                      {event.is_live ? (
-                        <span className="ml-2 text-meta text-signal">
-                          Updating
-                        </span>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
+                        <dt className="text-meta text-muted">{fact.label}</dt>
+                        <dd className="text-[1.25rem] text-ink">{fact.value}</dd>
+                        <dd className="w-full text-meta text-muted">
+                          Source: {fact.attribution}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </section>
+              ) : null}
 
-            {primaryEntities.length ? (
-              <section className="mt-12 border-t border-hairline pt-6">
-                <h2 className="text-body font-semibold text-ink">
-                  In this story
-                </h2>
-                <ul className="mt-3 space-y-1.5">
-                  {primaryEntities.map(({ entity, roleNote }) => (
-                    <li key={entity.slug} className="text-meta text-muted">
-                      <span className="text-ink">{entity.name}</span>
-                      {roleNote ? ` — ${roleNote}` : null}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
+              {faqs.length ? (
+                <section className="mt-12 border-t border-hairline pt-6">
+                  <h2 className="text-section text-ink">
+                    Questions readers are asking
+                  </h2>
+                  <div className="mt-4 divide-y divide-hairline">
+                    {faqs.map((faq) => (
+                      <div key={faq.question} className="py-4">
+                        <h3 className="text-[1.1rem] text-ink">{faq.question}</h3>
+                        <p className="mt-1.5 text-body leading-relaxed text-muted">
+                          {faq.answer}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
 
-            {tags.length ? (
-              <section className="mt-12 border-t border-hairline pt-6">
-                <h2 className="sr-only">Topics</h2>
-                <ul className="flex flex-wrap gap-x-4 gap-y-2">
-                  {tags.map((tag) => (
-                    <li key={tag.slug}>
-                      <Link
-                        href={`/topic/${tag.slug}`}
-                        className="text-meta text-accent hover:underline underline-offset-4"
-                      >
-                        {tag.name}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
+              {events.length ? (
+                <section className="mt-12 border-t border-hairline pt-6">
+                  <h2 className="text-section text-ink">Follow this story</h2>
+                  <ul className="mt-3 space-y-2">
+                    {events.map((event) => (
+                      <li key={event.slug}>
+                        <Link
+                          href={`/live/${event.slug}`}
+                          className="text-body text-accent underline underline-offset-4"
+                        >
+                          {event.title}
+                        </Link>
+                        {event.is_live ? (
+                          <span className="ml-2 text-meta text-signal">
+                            Updating
+                          </span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
 
-            <div className="mt-12 border-t border-hairline pt-8">
-              <NewsletterSignup context="article-end" />
+              {primaryEntities.length ? (
+                <section className="mt-12 border-t border-hairline pt-6">
+                  <h2 className="text-body font-semibold text-ink">
+                    In this story
+                  </h2>
+                  <ul className="mt-3 space-y-1.5">
+                    {primaryEntities.map(({ entity, roleNote }) => (
+                      <li key={entity.slug} className="text-meta text-muted">
+                        <span className="text-ink">{entity.name}</span>
+                        {roleNote ? ` — ${roleNote}` : null}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+
+              {tags.length ? (
+                <section className="mt-12 border-t border-hairline pt-6">
+                  <h2 className="sr-only">Topics</h2>
+                  <ul className="flex flex-wrap gap-x-4 gap-y-2">
+                    {tags.map((tag) => (
+                      <li key={tag.slug}>
+                        <Link
+                          href={`/topic/${tag.slug}`}
+                          className="text-meta text-accent hover:underline underline-offset-4"
+                        >
+                          {tag.name}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+
+              <div className="mt-12 border-t border-hairline pt-8">
+                <NewsletterSignup context="article-end" />
+              </div>
             </div>
           </article>
 
@@ -460,9 +463,9 @@ export default async function ArticlePage(
               than six headlines do, and a column that scrolls out of sight after
               the second paragraph is just the old empty margin with pictures in
               it for a moment. */}
-          <aside className="border-t border-hairline pt-8 lg:border-t-0 lg:pt-8">
+          <aside className="border-t border-hairline pt-8 lg:border-t-0 lg:border-l lg:pt-8 lg:pl-8">
             <div className="lg:sticky lg:top-20">
-              <HeadlineRail articles={latest} title="Latest" />
+              <HeadlineRail articles={latest} title="Latest" compact />
             </div>
           </aside>
         </div>
