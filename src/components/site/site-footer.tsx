@@ -1,4 +1,5 @@
-import { SITE_NAME, SITE_TAGLINE } from "@/lib/site";
+import { PUBLISHER, SITE_NAME, SITE_TAGLINE } from "@/lib/site";
+import { PrivacySettingsButton } from "@/components/analytics/privacy-settings-button";
 import Link from "next/link";
 
 import { getAllSections } from "@/lib/queries/navigation";
@@ -39,6 +40,11 @@ const ABOUT_LINKS = [
   { href: "/editorial-standards", label: "Editorial standards" },
   { href: "/corrections", label: "Corrections policy" },
   { href: "/privacy", label: "Privacy and tracking" },
+  // The contact page exists only once the publisher's contact details or
+  // grievance officer are set; linking to it before then would be a dead end.
+  ...(PUBLISHER.email || PUBLISHER.phone || PUBLISHER.grievanceOfficer.name
+    ? [{ href: "/contact", label: "Contact and grievances" }]
+    : []),
 ];
 
 const LEGAL_LINKS = [
@@ -124,6 +130,9 @@ export async function SiteFooter() {
                 </Link>
               </li>
             ))}
+            <li>
+              <PrivacySettingsButton className="text-meta text-muted hover:text-accent" />
+            </li>
           </ul>
         </div>
       </div>
