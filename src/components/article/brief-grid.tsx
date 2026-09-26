@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { SectionMark } from "@/components/site/section-mark";
 
 import type { ArticleCardData } from "@/lib/queries/articles";
 import { cloudinaryImage } from "@/lib/media/transform";
@@ -54,16 +55,7 @@ function Meta({
           the reader came for, and the label is what they check afterwards to
           place it. */}
       <p className="mt-2 flex items-center gap-1.5 text-meta text-muted">
-        {iconUrl ? (
-          <Image
-            src={iconUrl}
-            alt=""
-            aria-hidden="true"
-            width={24}
-            height={24}
-            className="h-4 w-4 shrink-0 object-contain"
-          />
-        ) : null}
+        {iconUrl ? <SectionMark src={iconUrl} className="h-4 w-4" /> : null}
         <span className="text-ink">{article.categories.name}</span>
         {article.published_at ? (
           <>
