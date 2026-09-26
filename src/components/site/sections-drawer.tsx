@@ -69,6 +69,10 @@ function MoreFace() {
       </span>
       <span className="eyebrow font-label text-ink group-hover/more:text-accent">
         More
+        {/* "More" alone says nothing out of context, to a screen reader
+            listing the page's links or a search engine reading anchor text;
+            the name it announces is "More sections". */}
+        <span className="sr-only"> sections</span>
       </span>
       {/* Matches the rule that marks the active section, so "More" sits on
           the same baseline as the names beside it rather than riding up by
