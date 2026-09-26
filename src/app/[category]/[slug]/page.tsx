@@ -210,12 +210,13 @@ export default async function ArticlePage(
       <main className="route-enter mx-auto max-w-page px-4 sm:px-6">
         {/* The page runs to the same width as the masthead and the front
             page, so the story's left edge and the rail's right edge line up
-            with everything above them. The story takes the room: headline and
-            picture run up to 52rem, the text itself holds to the reading
-            measure, and the rail is a narrow list of headlines behind a
-            hairline, secondary to the piece the reader opened. */}
-        <div className="grid grid-cols-1 gap-x-10 lg:grid-cols-[minmax(0,1fr)_16rem] xl:grid-cols-[minmax(0,1fr)_18rem] xl:gap-x-16">
-          <article className="min-w-0 pt-8 pb-10 lg:max-w-[52rem]">
+            with everything above them. The story takes all the room the rail
+            leaves: headline and picture run the full width of the column, so
+            nothing opens up between the story and the rail. The rail is a
+            narrow list of headlines behind a hairline, secondary to the piece
+            the reader opened. */}
+        <div className="grid grid-cols-1 gap-x-10 lg:grid-cols-[minmax(0,1fr)_16rem] xl:grid-cols-[minmax(0,1fr)_18rem] xl:gap-x-14 2xl:grid-cols-[minmax(0,1fr)_20rem]">
+          <article className="min-w-0 pt-8 pb-10">
             <Eyebrow article={article} className="mb-2.5" />
 
             <h1 className="headline-lg text-hero leading-[1.08] text-ink sm:text-[2.75rem]">
@@ -223,7 +224,7 @@ export default async function ArticlePage(
             </h1>
 
             {article.standfirst ? (
-              <p className="mt-4 max-w-[42rem] text-[1.1875rem] leading-[1.5] text-ink">
+              <p className="mt-4 max-w-[42rem] text-[1.1875rem] leading-[1.5] text-ink xl:max-w-[46rem]">
                 {article.standfirst}
               </p>
             ) : null}
@@ -327,8 +328,11 @@ export default async function ArticlePage(
             ) : null}
 
             {/* Everything that is read line by line holds to the reading
-                measure, even where the picture above runs wider. */}
-            <div className="max-w-[42rem]">
+                measure, even where the picture above runs wider. On larger
+                screens the type steps up and the measure with it, so the text
+                fills more of the column while a line stays under about
+                seventy-five characters. */}
+            <div className="max-w-[42rem] xl:max-w-[44rem] xl:[--text-prose:1.1875rem] 2xl:max-w-[47rem] 2xl:[--text-prose:1.25rem]">
               {/* A curated item is a summary and a link. There is no body column on
    the row to render, by database constraint, so this branch cannot
    silently reproduce someone else's article. */}
