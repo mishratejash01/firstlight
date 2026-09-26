@@ -123,6 +123,12 @@
     /* Anything jumped to by a fragment link clears the sticky section bar
        instead of landing underneath it. */
     scroll-padding-top: 6rem;
+    /* The page never scrolls sideways. One unbreakable line (a long picture
+       credit did it) made the page wider than a phone's screen, so the
+       browser zoomed out to fit it and let the reader swipe the page left and
+       right. clip rather than hidden: hidden would make this a scroll
+       container and stop the section bar from sticking. */
+    overflow-x: clip;
   }
 
   body {
