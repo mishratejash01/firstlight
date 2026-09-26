@@ -28,7 +28,7 @@ export default function PrivacyPage() {
         </p>
 
         <h2 className="mt-8 text-section text-ink">
-          Before you agree to anything
+          What every page view records
         </h2>
         <p>
           When a page is served we record that a page was served — the article,
@@ -43,23 +43,36 @@ export default function PrivacyPage() {
         <p>
           With your agreement we additionally record how far you scroll, whether
           you finish an article, and which links you follow, tied to a random
-          identifier stored in your browser. That identifier is generated at the
-          moment you agree — not before — and it is not derived from anything
-          about you or your device. We use this to work out which stories lose
-          readers and where, which is how we decide what to change.
+          identifier stored in your browser. That identifier is generated only
+          once this measurement is on — when you agree, or for readers in India
+          as described below — and it is not derived from anything about you or
+          your device. We use this to work out which stories lose readers and
+          where, which is how we decide what to change.
         </p>
         <p>
           Agreeing also loads Google Analytics, which we use alongside our own
-          records for search reporting. Declining means it is never requested at
+          records for search reporting. If you decline, it is not requested at
           all.
+        </p>
+
+        <h2 className="mt-8 text-section text-ink">Readers in India</h2>
+        <p>
+          If your browser is set to India Standard Time, we take you to be
+          reading from India. Until 12 May 2027, the measurement described above,
+          Google Analytics included, is on by default for readers in India: a
+          notice says so on your first visit, and choosing Turn off in that
+          notice, or Decline in Privacy settings, stops it and deletes the
+          identifier and the analytics cookies. From 13 May 2027, when the consent rules of India&rsquo;s
+          Digital Personal Data Protection Act take effect, readers in India will
+          be asked first, as readers everywhere else are now.
         </p>
 
         <h2 className="mt-8 text-section text-ink">Changing your mind</h2>
         <p>
           Your choice is stored in a cookie on this site and is remembered for
           twelve months, after which we ask again. To change it at any time, use
-          Privacy settings at the foot of every page: it clears the identifier
-          and the analytics cookies and asks you again.
+          Privacy settings at the foot of every page: it asks you again, and
+          declining clears the identifier and the analytics cookies.
         </p>
 
         <h2 className="mt-8 text-section text-ink">If you sign in</h2>
