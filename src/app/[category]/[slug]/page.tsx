@@ -21,15 +21,34 @@ import {
 } from "@/lib/analytics/server-events";
 import { renderMarkdown } from "@/lib/format/markdown";
 import { listeningMinutes, markdownToSpeech } from "@/lib/format/speech-text";
-import { cloudinaryImage } from "@/lib/media/transform";
-import { formatDateTime } from "@/lib/format/datetime";
+import {
+  SHARE_IMAGE_SHAPE,
+  cloudinaryCrop,
+  cloudinaryImage,
+} from "@/lib/media/transform";
+import { formatDateTime, toIstIso } from "@/lib/format/datetime";
 import {
   breadcrumbJsonLd,
   faqJsonLd,
   newsArticleJsonLd,
 } from "@/lib/seo/json-ld";
+import { lastChanged } from "@/lib/queries/syndication";
+import { SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/site";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+/**
+ * A story counts as updated, for the visible "Updated" line, once its text has
+ * changed more than this long after publication. Fixing a typo in the first
+ * minutes is not an update a reader needs told about.
+ */
+const UPDATE_NOTICE_AFTER_MS = 15 * 60 * 1000;
+
+function modifiedTime(article: { published_at: string | null; content_updated_at: string | null }) {
+  if (!article.published_at) return null;
+  return lastChanged({
+    published_at: article.published_at,
+    content_updated_at: article.content_updated_at,
+  });
+}
 
 /**
  * Rendered per request rather than statically.
@@ -48,26 +67,58 @@ export async function generateMetadata(
   const result = await getArticle(category, slug);
   if (!result) return { title: "Not found" };
 
-  const { article } = result;
-  const url = `${SITE_URL}/${article.categories.slug}/${article.slug}`;
+  const { article, tags } = result;
+  const url = absoluteUrl(`/${article.categories.slug}/${article.slug}`);
   const description =
     article.meta_description ??
     article.standfirst ??
     article.summary ??
     undefined;
+  const modified = modifiedTime(article) ?? undefined;
+  const shareImage = cloudinaryCrop(
+    article.hero_image_url,
+    SHARE_IMAGE_SHAPE.width,
+    SHARE_IMAGE_SHAPE.height,
+  );
+  const images = shareImage
+    ? [
+        {
+          url: shareImage,
+          width: SHARE_IMAGE_SHAPE.width,
+          height: SHARE_IMAGE_SHAPE.height,
+          alt: article.hero_image_alt ?? article.headline,
+        },
+      ]
+    : article.hero_image_url
+      ? [{ url: article.hero_image_url, alt: article.hero_image_alt ?? article.headline }]
+      : undefined;
 
   return {
     title: article.meta_title ?? article.headline,
     description,
     alternates: { canonical: article.canonical_url ?? url },
+    authors: article.authors
+      ? [{ name: article.authors.display_name, url: absoluteUrl(`/author/${article.authors.slug}`) }]
+      : [{ name: SITE_NAME, url: SITE_URL }],
     openGraph: {
       type: "article",
       title: article.headline,
       description,
       url,
-      publishedTime: article.published_at ?? undefined,
-      modifiedTime: article.updated_at,
-      images: article.hero_image_url ? [article.hero_image_url] : undefined,
+      publishedTime: toIstIso(article.published_at),
+      modifiedTime: toIstIso(modified),
+      section: article.categories.name,
+      tags: tags.map((tag) => tag.name),
+      authors: article.authors
+        ? [absoluteUrl(`/author/${article.authors.slug}`)]
+        : [SITE_URL],
+      images,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: article.headline,
+      description,
+      images: images?.map((image) => image.url),
     },
   };
 }
@@ -88,10 +139,19 @@ export default async function ArticlePage(
   ]);
   // The story being read is not "latest" to the person reading it.
   const latest = recent.filter((item) => item.id !== article.id).slice(0, 6);
-  const url = `${SITE_URL}/${article.categories.slug}/${article.slug}`;
+  const url = absoluteUrl(`/${article.categories.slug}/${article.slug}`);
   // What the listen button will read: the body with its markup stripped,
   // computed here so the client is sent words rather than Markdown.
   const speechBlocks = article.body ? markdownToSpeech(article.body) : [];
+  // Shown only when the text changed well after publication; a correction in
+  // the first minutes is not an update a reader needs told about.
+  const modified = modifiedTime(article);
+  const updatedAt =
+    modified &&
+    article.published_at &&
+    Date.parse(modified) - Date.parse(article.published_at) > UPDATE_NOTICE_AFTER_MS
+      ? modified
+      : null;
 
   // Request context must be read here, during render: cookies() and headers()
   // are unavailable inside an after() callback. The write itself is deferred so
@@ -114,7 +174,15 @@ export default async function ArticlePage(
           reader is already on is a dead end. */}
       <SiteHeader activeSlug={article.categories.slug} excludeId={article.id} />
 
-      <JsonLd data={newsArticleJsonLd({ article, url, entities, keyFacts })} />
+      <JsonLd
+        data={newsArticleJsonLd({
+          article: { ...article, dateModified: modifiedTime(article) },
+          url,
+          entities,
+          keyFacts,
+          tags,
+        })}
+      />
       {faqSchema ? <JsonLd data={faqSchema} /> : null}
       <JsonLd
         data={breadcrumbJsonLd([
@@ -145,30 +213,54 @@ export default async function ArticlePage(
             ) : null}
 
             <div className="mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-hairline pb-5">
-              {article.authors ? (
-                <p className="text-meta text-ink">
-                  <Link
-                    href={`/author/${article.authors.slug}`}
-                    className="hover:text-accent"
-                  >
-                    {article.authors.display_name}
-                  </Link>
-                  {article.authors.title ? (
-                    <span className="text-muted">
-                      {" "}
-                      · {article.authors.title}
-                    </span>
-                  ) : null}
-                </p>
-              ) : null}
+              {/* The byline. A story without a named writer is the paper's
+                  own and says so, linked to the page about who we are. */}
+              <p className="text-meta text-ink">
+                {article.authors ? (
+                  <>
+                    By{" "}
+                    <Link
+                      href={`/author/${article.authors.slug}`}
+                      className="hover:text-accent"
+                    >
+                      {article.authors.display_name}
+                    </Link>
+                    {article.authors.title ? (
+                      <span className="text-muted">
+                        {" "}
+                        · {article.authors.title}
+                      </span>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    By{" "}
+                    <Link href="/about" className="hover:text-accent">
+                      {SITE_NAME}
+                    </Link>
+                  </>
+                )}
+              </p>
               {article.published_at ? (
                 <p className="text-meta text-muted">
                   <span aria-hidden="true" className="mr-3">
                     &middot;
                   </span>
-                  <time dateTime={article.published_at}>
+                  Published{" "}
+                  <time dateTime={toIstIso(article.published_at)}>
                     {formatDateTime(article.published_at)}
                   </time>
+                  {updatedAt ? (
+                    <>
+                      <span aria-hidden="true" className="mx-3">
+                        &middot;
+                      </span>
+                      Updated{" "}
+                      <time dateTime={toIstIso(updatedAt)}>
+                        {formatDateTime(updatedAt)}
+                      </time>
+                    </>
+                  ) : null}
                 </p>
               ) : null}
               {article.origin !== "curated" && speechBlocks.length ? (
@@ -193,7 +285,8 @@ export default async function ArticlePage(
                     }
                     alt={article.hero_image_alt ?? ""}
                     fill
-                    priority
+                    loading="eager"
+                    fetchPriority="high"
                     sizes="(max-width: 1024px) 100vw, 672px"
                     className="object-cover"
                   />
