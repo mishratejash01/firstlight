@@ -1,5 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
+import { SectionMark } from "@/components/site/section-mark";
+import { inSentence } from "@/lib/format/section-name";
 
 import type { ArticleCardData } from "@/lib/queries/articles";
 import type { NavCategory } from "@/lib/queries/navigation";
@@ -46,7 +48,7 @@ export function SectionDigest({
           aria-hidden="true"
           className="inline-block h-[1.15em] w-[5px] shrink-0 rounded-[2px] bg-accent"
         />
-        Categories to read more
+        More sections
       </h2>
 
       <ul className="mt-7 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -58,14 +60,7 @@ export function SectionDigest({
             >
               <span className="flex h-10 items-end">
                 {category.icon_url ? (
-                  <Image
-                    src={category.icon_url}
-                    alt=""
-                    aria-hidden="true"
-                    width={40}
-                    height={40}
-                    className="h-10 w-10 object-contain"
-                  />
+                  <SectionMark src={category.icon_url} className="h-10 w-10" />
                 ) : null}
               </span>
               <span className="font-label text-body font-semibold text-ink">
@@ -84,14 +79,7 @@ export function SectionDigest({
           <h3 className="flex items-baseline justify-between gap-4">
             <span className="flex items-center gap-2.5">
               {category.icon_url ? (
-                <Image
-                  src={category.icon_url}
-                  alt=""
-                  aria-hidden="true"
-                  width={32}
-                  height={32}
-                  className="h-6 w-6 shrink-0 object-contain"
-                />
+                <SectionMark src={category.icon_url} className="h-6 w-6" />
               ) : null}
               <Link
                 href={`/${category.slug}`}
@@ -104,7 +92,7 @@ export function SectionDigest({
               href={`/${category.slug}`}
               className="shrink-0 text-meta text-accent underline-offset-4 hover:underline"
             >
-              More {category.name.toLowerCase()}
+              More {inSentence(category.name)}
             </Link>
           </h3>
 
