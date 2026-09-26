@@ -56,8 +56,15 @@ import { cloudinaryImage } from "@/lib/media/transform";
 export async function SiteHeader({
   activeSlug,
   excludeId,
+  isFrontPage = false,
 }: {
   activeSlug?: string;
+  /**
+   * The front page has no headline of its own; the paper's name is its
+   * heading. Set here, the nameplate becomes the page's one h1 there and stays
+   * a plain link everywhere else, where the story or section title is the h1.
+   */
+  isFrontPage?: boolean;
   /**
    * A story this page is already leading on — the front page's splash, or the
    * article being read. The bar exists to point at things a reader would
@@ -143,12 +150,20 @@ export async function SiteHeader({
           </div>
 
           <div className="col-span-2 text-center lg:order-2 lg:col-span-1">
-            <Link
-              href="/"
-              className="text-nameplate font-extrabold tracking-[-0.04em] text-ink sm:text-nameplate-lg"
-            >
-              {SITE_NAME}
-            </Link>
+            {isFrontPage ? (
+              // font-sans because headings default to the serif; the
+              // nameplate is set in the grotesque on every page.
+              <h1 className="font-sans text-nameplate font-extrabold tracking-[-0.04em] text-ink sm:text-nameplate-lg">
+                <Link href="/">{SITE_NAME}</Link>
+              </h1>
+            ) : (
+              <Link
+                href="/"
+                className="text-nameplate font-extrabold tracking-[-0.04em] text-ink sm:text-nameplate-lg"
+              >
+                {SITE_NAME}
+              </Link>
+            )}
           </div>
         </div>
       </header>
