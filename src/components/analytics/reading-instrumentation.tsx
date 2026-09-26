@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import {
   ANON_ID_KEY,
   SESSION_ID_KEY,
-  readConsentCookie,
+  measurementAllowed,
+  readTrackingMode,
 } from "@/lib/analytics/consent";
 import type { Json } from "@/lib/supabase/database.types";
 
@@ -18,9 +19,11 @@ import type { Json } from "@/lib/supabase/database.types";
  * the server-side page view this produces the drop-off curve editors use to
  * find where a piece loses people.
  *
- * Nothing here runs without consent. The anonymous identifier is generated
- * only after consent is granted — assigning one first and "not using it yet"
- * would be the tracking the reader declined, performed in advance.
+ * Nothing here runs unless measurement is allowed: the reader agreed, or reads
+ * from India while measurement is on by default there (lib/analytics/consent).
+ * The anonymous identifier is generated only then; assigning one first and
+ * "not using it yet" would be the tracking the reader declined, performed in
+ * advance.
  */
 
 /** Dwell required before a full-scroll counts as actually reading it. */
@@ -40,7 +43,7 @@ export function ReadingInstrumentation({ articleId }: { articleId: string }) {
   const fired = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    if (readConsentCookie() !== "granted") return;
+    if (!measurementAllowed(readTrackingMode())) return;
 
     let anonId: string;
     let sessionId: string;
