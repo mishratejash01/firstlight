@@ -16,8 +16,9 @@ import {
 } from "@/lib/queries/articles";
 
 export const metadata: Metadata = pageMetadata({
-  title: "News bulletin",
-  description: "The main stories of the day, as a running order you can listen to.",
+  title: "Today's Top News Headlines",
+  description:
+    "Today's top news headlines from India and the world, as a short bulletin you can read or listen to.",
   path: "/bulletin",
 });
 
@@ -74,15 +75,14 @@ export default async function BulletinPage() {
                 <BulletinPlayer lines={lines} />
               </div>
 
-              {/* Said plainly rather than buried in a policy page. A reader
-                  hearing a synthetic voice read the news is owed both facts:
-                  that no person recorded this, and that no machine wrote it. */}
+              {/* Said plainly rather than buried in a policy page: a reader
+                  hearing a synthetic voice read the news is owed the fact that
+                  no person recorded it. */}
               <p className="mt-8 rounded-panel bg-wash px-5 py-4 text-meta leading-relaxed text-muted">
                 Read by your device&rsquo;s own speech engine, not by a
                 journalist — no recording is made or sent anywhere. The words
                 are the published headlines and standfirsts of the stories
-                below, written and approved by {SITE_NAME}&rsquo;s editors.
-                Nothing in this bulletin is generated.
+                below, exactly as {SITE_NAME} published them.
               </p>
             </>
           ) : (
