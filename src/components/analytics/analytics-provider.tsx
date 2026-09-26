@@ -54,13 +54,16 @@ export function AnalyticsProvider({ measurementId }: { measurementId?: string })
 
   return (
     <>
+      {/* After the page has loaded, in idle time: Google's script is 170 KB,
+          and fetched any earlier it competes with the story's picture for a
+          phone's bandwidth. The page view is still counted, a moment later. */}
       {measurementAllowed(mode) && measurementId ? (
         <>
           <Script
             src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
-            strategy="afterInteractive"
+            strategy="lazyOnload"
           />
-          <Script id="ga4-init" strategy="afterInteractive">
+          <Script id="ga4-init" strategy="lazyOnload">
             {`
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
