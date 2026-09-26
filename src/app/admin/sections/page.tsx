@@ -4,6 +4,7 @@ import { ActionButton } from "@/components/dashboard/action-button";
 import { AdminNav } from "@/components/dashboard/admin-nav";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { requireAdmin } from "@/lib/auth/guards";
+import { SITE_HOST } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
 import { setCategoryVisibility } from "@/app/admin/actions";
 
@@ -47,7 +48,7 @@ export default async function AdminSectionsPage() {
       <div className="min-w-0">
         <p className="text-body text-ink">{category.name}</p>
         <p className="text-meta text-muted">
-          newswebsite-pi.vercel.app/{category.slug}
+          {SITE_HOST}/{category.slug}
         </p>
       </div>
       <ActionButton
