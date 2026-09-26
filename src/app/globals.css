@@ -99,14 +99,20 @@
    @layer utilities. Inside the layer these are defaults again, which is all
    they were ever meant to be.
 --------------------------------------------------------------------------- */
-/* The page shell narrows to three quarters of the window once there is room
-   for it. Below that it stays full width — three quarters of a phone is a
-   column too narrow to set a headline in, and the gutters below do the work
-   instead. Redefining the token rather than the utility keeps every container
-   on the site in step, since they all read this one variable. */
+/* The page shell takes 85% of the window once there is room for it. Below
+   that it stays full width — a fraction of a phone is a column too narrow to
+   set a headline in, and the gutters below do the work instead. Redefining the
+   token rather than the utility keeps every container on the site in step,
+   since they all read this one variable.
+
+   The news columns and the furniture across the top now run to the same
+   measure. They were deliberately different when the columns sat at three
+   quarters, so the masthead and the breaking bar would not look pinched
+   against them; at 85% there is nothing left to correct for, and two measures
+   a tenth apart read as a misalignment rather than as a decision. */
 @media (min-width: 1024px) {
   :root {
-    --container-page: 75%;
+    --container-page: 85%;
     --container-wide: 85%;
   }
 }
