@@ -2,6 +2,8 @@ import "server-only";
 
 import { XMLParser } from "fast-xml-parser";
 
+import { CRAWLER_USER_AGENT } from "@/lib/site";
+
 import type { IncomingMention } from "../cluster";
 import { outletKey } from "./search-and-news";
 
@@ -20,7 +22,7 @@ import { outletKey } from "./search-and-news";
  */
 
 const REGIONS = ["IN", "US", "GB"];
-const UA = "TheFederalPostBot/1.0 (+https://newswebsite-pi.vercel.app)";
+const UA = CRAWLER_USER_AGENT;
 
 const parser = new XMLParser({
   ignoreAttributes: false,
