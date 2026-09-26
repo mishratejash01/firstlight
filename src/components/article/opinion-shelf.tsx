@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { SectionMark } from "@/components/site/section-mark";
 
 import type { ArticleCardData } from "@/lib/queries/articles";
 import { cloudinaryImage } from "@/lib/media/transform";
@@ -36,14 +37,7 @@ export function OpinionShelf({
       <div className="flex items-baseline justify-between gap-4">
         <h2 className="font-label flex items-center gap-2.5 text-section font-semibold text-ink">
           {iconUrl ? (
-            <Image
-              src={iconUrl}
-              alt=""
-              aria-hidden="true"
-              width={40}
-              height={40}
-              className="h-[1.5em] w-[1.5em] shrink-0 object-contain"
-            />
+            <SectionMark src={iconUrl} className="h-[1.5em] w-[1.5em]" />
           ) : (
             <span
               aria-hidden="true"
@@ -104,7 +98,7 @@ export function OpinionShelf({
                             cloudinaryImage(author.avatar_url, "thumb") ??
                             author.avatar_url
                           }
-                          alt=""
+                          alt={author.display_name}
                           fill
                           sizes="40px"
                           className="object-cover"
