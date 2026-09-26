@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 
-import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { LoginCard } from "@/components/auth/login-card";
 import { dashboardHomeFor, getSessionUser } from "@/lib/auth/roles";
 import { safeRedirectPath } from "@/lib/auth/safe-redirect";
 
@@ -11,6 +11,15 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+/**
+ * Where a redirect lands, not where a reader chooses to go.
+ *
+ * Signing in from the masthead opens the card in place; nobody is sent here for
+ * that any more. This route exists for the cases where a redirect is the only
+ * option — a server guard turning someone away from /desk, the review route, a
+ * follow button pressed before signing in — and it shows the very same card so
+ * the two routes into an account do not look like two different products.
+ */
 export default async function LoginPage(props: PageProps<"/login">) {
   const params = await props.searchParams;
   const rawNext = typeof params.next === "string" ? params.next : null;
@@ -23,21 +32,7 @@ export default async function LoginPage(props: PageProps<"/login">) {
 
   return (
     <main className="route-enter mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center px-6 py-16">
-      <h1 className="text-[1.75rem] leading-tight text-ink">Sign in</h1>
-
-      <p className="mt-3 text-body text-muted">
-        Newsroom staff and contributors sign in here. Readers can sign in to
-        follow topics and manage newsletters.
-      </p>
-
-      <div className="mt-8">
-        <GoogleSignInButton next={next || undefined} />
-      </div>
-
-      <p className="mt-8 border-t border-hairline pt-6 text-meta text-muted">
-        Signing in creates a reader account. Editorial access is granted
-        separately by an administrator.
-      </p>
+      <LoginCard next={next || undefined} />
     </main>
   );
 }
