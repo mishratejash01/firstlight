@@ -190,7 +190,14 @@ export default async function ArticlePage(
       <ReadingInstrumentation articleId={article.id} />
 
       <main className="route-enter mx-auto max-w-page px-4 sm:px-6">
-        <div className="mx-auto grid max-w-[72rem] grid-cols-1 gap-x-16 lg:grid-cols-[minmax(0,42rem)_26rem]">
+        {/* The story keeps its measure and the rail gives up the width. The rail
+            carries a list of headlines, which reads perfectly well at twenty
+            rems; at twenty-six it took better than a third of the row and the
+            piece a reader actually opened had to share the page with it. The
+            story column is untouched — it is set to the reading measure, and
+            widening it to fill the gap would only make the lines harder to
+            follow. */}
+        <div className="mx-auto grid max-w-[66rem] grid-cols-1 gap-x-16 lg:grid-cols-[minmax(0,42rem)_20rem]">
           <article className="min-w-0 pt-8 pb-10">
             <Eyebrow article={article} className="mb-2.5" />
 
