@@ -42,6 +42,48 @@ export function writeConsentCookie(state: Exclude<ConsentState, "unset">): void 
     `; Path=/; Max-Age=${CONSENT_MAX_AGE_SECONDS}; SameSite=Lax${secure}`;
 }
 
+/** Browser storage keys that exist only after consent: the random reading identifier and its per-tab session. */
+export const ANON_ID_KEY = "nw_anon_id";
+export const SESSION_ID_KEY = "nw_session_id";
+
+/**
+ * Removes everything consent allowed us to keep in the browser: the reading
+ * identifiers, and Google Analytics' cookies on this host and its parent
+ * domain. Called when consent is declined or withdrawn.
+ */
+export function clearTrackingStorage(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(ANON_ID_KEY);
+  } catch {
+    // Storage can be unavailable (private modes); there is then nothing to clear.
+  }
+  try {
+    window.sessionStorage.removeItem(SESSION_ID_KEY);
+  } catch {
+    // As above.
+  }
+  const host = window.location.hostname;
+  const parent = host.replace(/^www\./, "");
+  for (const row of document.cookie.split("; ")) {
+    const name = row.split("=")[0];
+    if (name !== "_ga" && !name.startsWith("_ga_")) continue;
+    for (const domain of ["", `; Domain=${host}`, `; Domain=.${parent}`]) {
+      document.cookie = `${name}=; Path=/; Max-Age=0${domain}`;
+    }
+  }
+}
+
+/**
+ * Withdraws consent: forgets the stored choice, so the question is asked again,
+ * and clears what the earlier choice allowed.
+ */
+export function resetConsent(): void {
+  if (typeof document === "undefined") return;
+  document.cookie = `${CONSENT_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`;
+  clearTrackingStorage();
+}
+
 /**
  * Subscription plumbing so React can read the consent cookie as external
  * state through useSyncExternalStore, rather than copying it into component
