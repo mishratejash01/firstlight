@@ -1,5 +1,7 @@
 import "server-only";
 
+import { CRAWLER_USER_AGENT } from "@/lib/site";
+
 import type { IncomingMention } from "../cluster";
 
 /**
@@ -21,7 +23,7 @@ import type { IncomingMention } from "../cluster";
  * Wikipedia title is about as clean an entity key as exists.
  */
 
-const UA = "TheFederalPostBot/1.0 (+https://newswebsite-pi.vercel.app)";
+const UA = CRAWLER_USER_AGENT;
 
 /** Pages that are always in the top list and never news. */
 const FURNITURE = new Set([
