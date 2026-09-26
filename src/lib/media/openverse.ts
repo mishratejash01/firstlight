@@ -1,5 +1,7 @@
 import "server-only";
 
+import { CRAWLER_USER_AGENT } from "@/lib/site";
+
 /**
  * Openly licensed image search.
  *
@@ -80,7 +82,7 @@ export async function searchLicensedImages(
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
-        "User-Agent": "TheFederalPostBot/1.0 (+https://newswebsite-pi.vercel.app)",
+        "User-Agent": CRAWLER_USER_AGENT,
         Accept: "application/json",
       },
       cache: "no-store",
@@ -150,7 +152,7 @@ export async function searchLicensedImage(
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
-        "User-Agent": "TheFederalPostBot/1.0 (+https://newswebsite-pi.vercel.app)",
+        "User-Agent": CRAWLER_USER_AGENT,
         Accept: "application/json",
       },
       cache: "no-store",
