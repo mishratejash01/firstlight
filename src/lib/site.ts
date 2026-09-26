@@ -117,3 +117,14 @@ export const SOCIAL_LINKS: { name: string; href: string }[] = [
   { name: "Facebook", href: "" },
   { name: "Instagram", href: "https://www.instagram.com/theindiadecade/" },
 ];
+
+/**
+ * The paper's X handle, read from its X link ("@theindiadecade"). Link cards
+ * shared on X name it as the site, so a story shared by anyone is credited to
+ * the paper's account. Undefined until the X link is set.
+ */
+export const X_HANDLE: string | undefined = (() => {
+  const href = SOCIAL_LINKS.find((link) => link.name === "X")?.href;
+  const handle = href?.match(/^https:\/\/(?:www\.)?(?:x|twitter)\.com\/([A-Za-z0-9_]{1,15})\/?$/)?.[1];
+  return handle ? `@${handle}` : undefined;
+})();
