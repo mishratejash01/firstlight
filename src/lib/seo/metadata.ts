@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { SITE_LOCALE, SITE_NAME, absoluteUrl } from "@/lib/site";
+import { SITE_LOCALE, SITE_NAME, X_HANDLE, absoluteUrl } from "@/lib/site";
 
 /**
  * Metadata for a listing or standing page, built the same way everywhere.
@@ -49,6 +49,7 @@ export function pageMetadata({
     },
     twitter: {
       card: "summary_large_image",
+      ...(X_HANDLE ? { site: X_HANDLE } : {}),
       title: socialTitle,
       ...(description ? { description } : {}),
       images: [image.url],
