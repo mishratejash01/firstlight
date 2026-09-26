@@ -1,8 +1,16 @@
-import { SITE_NAME } from "@/lib/site";
-import type { Metadata } from "next";
+import {
+  SITE_DESCRIPTION,
+  SITE_LANGUAGE,
+  SITE_LOCALE,
+  SITE_NAME,
+  SITE_URL,
+} from "@/lib/site";
+import type { Metadata, Viewport } from "next";
 import { Inter, Libre_Franklin, Newsreader } from "next/font/google";
 
 import { AnalyticsProvider } from "@/components/analytics/analytics-provider";
+import { JsonLd } from "@/components/seo/json-ld";
+import { siteGraphJsonLd } from "@/lib/seo/json-ld";
 import "./globals.css";
 
 // One family for the whole paper, the way the modern wire services set
@@ -36,9 +44,73 @@ const libreFranklin = Libre_Franklin({
   display: "swap",
 });
 
+/**
+ * Search-console verification codes, set as environment variables once each
+ * webmaster account exists. Absent, nothing is emitted: an empty verification
+ * tag verifies nothing and only clutters the head.
+ */
+const verificationOther: Record<string, string> = {};
+if (process.env.BING_SITE_VERIFICATION) {
+  verificationOther["msvalidate.01"] = process.env.BING_SITE_VERIFICATION;
+}
+
 export const metadata: Metadata = {
-  title: SITE_NAME,
-  description: "General-interest news reporting.",
+  // Every relative URL in page metadata (canonical links, social images)
+  // resolves against the canonical domain, never whatever host served the
+  // request or the hosting provider's own address.
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: SITE_NAME,
+    // A hyphen rather than a pipe: Google rewrites titles that use pipes as
+    // separators about twice as often.
+    template: `%s - ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  publisher: SITE_NAME,
+  category: "news",
+  alternates: {
+    types: {
+      "application/rss+xml": [{ url: "/feed.xml", title: SITE_NAME }],
+    },
+  },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: SITE_LOCALE,
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
+  // Let every search engine show large image previews and full-length
+  // snippets: Google Discover only shows a large picture when
+  // max-image-preview:large is allowed. Indexing itself needs no tag (it is the
+  // default), which leaves pages that opt out, and error pages, with a single
+  // unambiguous noindex rather than two tags that disagree.
+  robots: {
+    "max-image-preview": "large",
+    "max-snippet": -1,
+    "max-video-preview": -1,
+  },
+  formatDetection: {
+    telephone: false,
+    email: false,
+    address: false,
+  },
+  verification: {
+    ...(process.env.GOOGLE_SITE_VERIFICATION
+      ? { google: process.env.GOOGLE_SITE_VERIFICATION }
+      : {}),
+    ...(process.env.YANDEX_SITE_VERIFICATION
+      ? { yandex: process.env.YANDEX_SITE_VERIFICATION }
+      : {}),
+    ...(Object.keys(verificationOther).length ? { other: verificationOther } : {}),
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#ffffff",
+  colorScheme: "light",
 };
 
 export default function RootLayout({
@@ -46,10 +118,13 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html
-      lang="en"
+      lang={SITE_LANGUAGE}
       className={`${newsreader.variable} ${inter.variable} ${libreFranklin.variable}`}
     >
       <body>
+        {/* Who publishes this page, the same on every page: name, logo,
+            standards and corrections pages, and the website it belongs to. */}
+        <JsonLd data={siteGraphJsonLd()} />
         {children}
         <AnalyticsProvider
           measurementId={process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID}
