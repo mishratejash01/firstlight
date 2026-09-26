@@ -58,7 +58,7 @@ export function ArticleCard({
               }
               alt={article.hero_image_alt ?? ""}
               fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              sizes="(max-width: 640px) calc(100vw - 32px), (max-width: 1024px) 50vw, 33vw"
               className="object-cover"
             />
           </div>
