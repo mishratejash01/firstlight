@@ -1,7 +1,21 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+/**
+ * Loaded only when a reader actually opens it.
+ *
+ * The card pulls in the Google button, which pulls in the auth library — the
+ * largest script on the site, and the one this component goes out of its way
+ * not to fetch for the many readers who never sign in. A static import here
+ * would hand it to all of them to render a button that says "Sign in".
+ */
+const LoginCard = dynamic(
+  () => import("@/components/auth/login-card").then((m) => m.LoginCard),
+  { ssr: false },
+);
 
 type Session = {
   signedIn: boolean;
@@ -105,16 +119,7 @@ export function AccountMenu() {
     return <span className="inline-block h-4 w-16" aria-hidden="true" />;
   }
 
-  if (!session.signedIn) {
-    return (
-      <Link
-        href="/login"
-        className="rounded-control bg-signal px-3 py-1.5 text-meta font-semibold whitespace-nowrap text-paper transition-opacity hover:opacity-90"
-      >
-        Sign in
-      </Link>
-    );
-  }
+  if (!session.signedIn) return <SignInControl />;
 
   const isAdmin = session.roles.includes("admin");
   const isEditor = isAdmin || session.roles.includes("editor");
@@ -144,6 +149,74 @@ export function AccountMenu() {
       <Link href="/account" className="text-meta text-ink underline-offset-4 hover:underline">
         {session.name ?? "Profile"}
       </Link>
+    </span>
+  );
+}
+
+/**
+ * Sign in, and the card it opens.
+ *
+ * The card drops out of the masthead rather than sending the reader to a page.
+ * Signing in is a two-second detour — one button, and the browser leaves for
+ * Google anyway — so taking over the whole window to ask for it loses the
+ * reader their place in the story they were reading, for no gain.
+ *
+ * /login still exists and still renders the same card, because a server guard
+ * turning someone away from /desk has to redirect somewhere. What has gone is
+ * the journey to it from the masthead.
+ *
+ * Closes on Escape and on a click outside, and hands focus back to the button
+ * it came from.
+ */
+function SignInControl() {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLSpanElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setOpen(false);
+      buttonRef.current?.focus();
+    };
+    const onDown = (event: MouseEvent) => {
+      if (!wrapRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onDown);
+    };
+  }, [open]);
+
+  return (
+    <span ref={wrapRef} className="relative inline-block">
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setOpen((was) => !was)}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        className="rounded-control bg-signal px-3 py-1.5 text-meta font-semibold whitespace-nowrap text-paper transition-opacity hover:opacity-90"
+      >
+        Sign in
+      </button>
+
+      {open ? (
+        // Anchored to the button's right edge so a card far wider than this
+        // slot opens inwards over the page rather than off the side of it.
+        <span
+          role="dialog"
+          aria-label="Sign in"
+          className="absolute top-full right-0 z-[70] mt-3 block w-80 text-left"
+        >
+          <LoginCard />
+        </span>
+      ) : null}
     </span>
   );
 }
