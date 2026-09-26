@@ -56,7 +56,7 @@ export function HeadlineRail({
                   }
                   alt={lead.hero_image_alt ?? ""}
                   fill
-                  sizes="(max-width: 1024px) 100vw, 22rem"
+                  sizes="(max-width: 640px) calc(100vw - 32px), (max-width: 1024px) calc(100vw - 48px), 22rem"
                   className="object-cover"
                 />
               </div>
