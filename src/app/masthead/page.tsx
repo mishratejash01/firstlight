@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
+import { EmailLink } from "@/components/site/email-link";
 import { StaticPage } from "@/components/site/static-page";
 import { getPublishingAuthors } from "@/lib/queries/syndication";
 import { pageMetadata } from "@/lib/seo/metadata";
@@ -87,13 +88,24 @@ export default async function MastheadPage() {
         ) : null}
 
         <p className="text-meta text-muted">
-          Stories without a named writer are the work of the {SITE_NAME}{" "}
-          newsroom and are published under the paper&rsquo;s name. Our{" "}
+          Stories without a named writer are the work of our newsroom and are
+          published under the paper&rsquo;s name. Our{" "}
           <Link href="/editorial-standards" className="text-accent underline underline-offset-4">
             editorial standards
           </Link>{" "}
           set out how they are sourced and checked.
         </p>
+
+        {PUBLISHER.editor.email ? (
+          <p className="text-meta text-muted">
+            Write to the editor at <EmailLink address={PUBLISHER.editor.email} />.
+            Every other way to reach us is on the{" "}
+            <Link href="/contact" className="text-accent underline underline-offset-4">
+              contact page
+            </Link>
+            .
+          </p>
+        ) : null}
       </div>
     </StaticPage>
   );
