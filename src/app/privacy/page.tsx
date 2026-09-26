@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { PUBLISHER } from "@/lib/site";
 
+import { EmailLink } from "@/components/site/email-link";
+import { GrievanceOfficer } from "@/components/site/grievance-officer";
 import { StaticPage } from "@/components/site/static-page";
 
 export const metadata: Metadata = pageMetadata({
@@ -12,6 +14,8 @@ export const metadata: Metadata = pageMetadata({
 });
 
 export default function PrivacyPage() {
+  const officer = PUBLISHER.grievanceOfficer;
+
   return (
     <StaticPage
       title="Privacy and tracking"
@@ -91,20 +95,35 @@ export default function PrivacyPage() {
           including other readers.
         </p>
 
-        {PUBLISHER.legalName || PUBLISHER.email ? (
+        {/* Requests about personal data go to the grievance officer, who
+            also takes complaints about how it is handled; the general inbox
+            only when no officer's address is set. */}
+        {PUBLISHER.legalName || officer.email || PUBLISHER.email ? (
           <>
-            <h2 className="mt-8 text-section text-ink">Your rights and contact</h2>
+            <h2 id="your-rights" className="mt-8 text-section text-ink">
+              Your rights and contact
+            </h2>
             <p>
               {PUBLISHER.legalName
                 ? `${PUBLISHER.legalName} is responsible for the personal data described here. `
                 : ""}
-              You can ask to see the data held about your account, to correct
-              it, or to have your account and everything stored against it
-              deleted
-              {PUBLISHER.email ? `, by writing to ${PUBLISHER.email}` : ""}.
-              {PUBLISHER.grievanceOfficer.name
-                ? ` Complaints go to our grievance officer, ${PUBLISHER.grievanceOfficer.name}${PUBLISHER.grievanceOfficer.email ? `, at ${PUBLISHER.grievanceOfficer.email}` : ""}.`
-                : ""}
+              You can ask for a copy of the data held about your account, ask
+              us to correct it, or have your account and everything stored
+              against it deleted
+              {officer.email ? (
+                <>
+                  , by writing to <GrievanceOfficer /> from the email address
+                  you sign in with. Complaints about how we handle your data go
+                  to the same address.
+                </>
+              ) : PUBLISHER.email ? (
+                <>
+                  , by writing to <EmailLink address={PUBLISHER.email} /> from
+                  the email address you sign in with.
+                </>
+              ) : (
+                "."
+              )}
             </p>
           </>
         ) : null}
