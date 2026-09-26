@@ -58,6 +58,38 @@ export function publisherNode() {
 }
 
 /**
+ * One contact point per mailbox, each saying what it is for, so a search
+ * engine or an assistant asked how to reach the paper about a particular
+ * thing can answer with the right address rather than the first one. Each
+ * points at its own section of the contact page.
+ */
+function contactPoints() {
+  const points = [
+    { contactType: "general enquiries", email: PUBLISHER.email, telephone: PUBLISHER.phone, anchor: "general" },
+    { contactType: "news tips", email: PUBLISHER.newsroomEmail, telephone: "", anchor: "newsroom" },
+    { contactType: "corrections", email: PUBLISHER.editor.email, telephone: "", anchor: "editor" },
+    { contactType: "advertising", email: PUBLISHER.partnershipsEmail, telephone: "", anchor: "advertising" },
+    {
+      contactType: "grievance officer",
+      email: PUBLISHER.grievanceOfficer.email,
+      telephone: PUBLISHER.grievanceOfficer.phone,
+      anchor: "grievance",
+    },
+  ];
+
+  return points
+    .filter((point) => point.email || point.telephone)
+    .map((point) => ({
+      "@type": "ContactPoint",
+      contactType: point.contactType,
+      ...(point.email ? { email: point.email } : {}),
+      ...(point.telephone ? { telephone: point.telephone } : {}),
+      url: absoluteUrl(`/contact#${point.anchor}`),
+      availableLanguage: "en",
+    }));
+}
+
+/**
  * The organisation and the website, as one graph. Rendered once on every page
  * from the root layout.
  *
@@ -69,7 +101,7 @@ export function publisherNode() {
  */
 export function siteGraphJsonLd() {
   const sameAs = SOCIAL_LINKS.map((link) => link.href).filter(Boolean);
-  const contact = PUBLISHER.email || PUBLISHER.phone;
+  const contactPoint = contactPoints();
 
   return {
     "@context": "https://schema.org",
@@ -101,18 +133,9 @@ export function siteGraphJsonLd() {
               },
             }
           : {}),
-        ...(contact
-          ? {
-              contactPoint: {
-                "@type": "ContactPoint",
-                contactType: "newsroom",
-                ...(PUBLISHER.email ? { email: PUBLISHER.email } : {}),
-                ...(PUBLISHER.phone ? { telephone: PUBLISHER.phone } : {}),
-                areaServed: "IN",
-                availableLanguage: "en",
-              },
-            }
-          : {}),
+        ...(PUBLISHER.email ? { email: PUBLISHER.email } : {}),
+        ...(PUBLISHER.phone ? { telephone: PUBLISHER.phone } : {}),
+        ...(contactPoint.length ? { contactPoint } : {}),
         ...(sameAs.length ? { sameAs } : {}),
       },
       {
