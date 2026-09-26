@@ -1,5 +1,7 @@
 import "server-only";
 
+import { CRAWLER_USER_AGENT } from "@/lib/site";
+
 import type { IncomingMention } from "../cluster";
 
 /**
@@ -16,7 +18,7 @@ import type { IncomingMention } from "../cluster";
  * the price is information, whatever the eventual result.
  */
 
-const UA = "TheFederalPostBot/1.0 (+https://newswebsite-pi.vercel.app)";
+const UA = CRAWLER_USER_AGENT;
 
 async function getJson<T>(url: string): Promise<T | null> {
   const controller = new AbortController();
