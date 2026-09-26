@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 
-import { createClient } from "@/lib/supabase/client";
-
 /**
  * Newsletter signup.
  *
@@ -22,14 +20,21 @@ export function NewsletterSignup({ context }: { context: string }) {
     if (!email.trim()) return;
 
     setState("sending");
-    const supabase = createClient();
-    const { error } = await supabase.rpc("subscribe_to_newsletter", {
-      p_email: email.trim(),
-      p_context: context,
-    });
+    // Loaded on submit rather than with the page: this form sits in the footer
+    // of every page, and the database library it needs is the largest script
+    // on the site, which nobody who does not subscribe should have to download.
+    try {
+      const { createClient } = await import("@/lib/supabase/client");
+      const { error } = await createClient().rpc("subscribe_to_newsletter", {
+        p_email: email.trim(),
+        p_context: context,
+      });
 
-    setState(error ? "error" : "done");
-    if (!error) setEmail("");
+      setState(error ? "error" : "done");
+      if (!error) setEmail("");
+    } catch {
+      setState("error");
+    }
   }
 
   if (state === "done") {
