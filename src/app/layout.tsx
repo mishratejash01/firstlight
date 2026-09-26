@@ -4,6 +4,7 @@ import {
   SITE_LOCALE,
   SITE_NAME,
   SITE_URL,
+  X_HANDLE,
 } from "@/lib/site";
 import type { Metadata, Viewport } from "next";
 import { Inter, Libre_Franklin, Newsreader } from "next/font/google";
@@ -82,6 +83,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
+    ...(X_HANDLE ? { site: X_HANDLE } : {}),
   },
   // Let every search engine show large image previews and full-length
   // snippets: Google Discover only shows a large picture when
