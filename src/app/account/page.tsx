@@ -5,9 +5,11 @@ import type { Metadata } from "next";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { NewsletterSignup } from "@/components/site/newsletter-signup";
+import { EmailLink } from "@/components/site/email-link";
 import { TrackingPreference } from "@/components/account/tracking-preference";
 import { UnfollowButton } from "@/components/account/unfollow-button";
 import { requireUser } from "@/lib/auth/guards";
+import { PUBLISHER } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format/datetime";
 
@@ -80,6 +82,9 @@ export default async function AccountPage() {
   };
 
   const hasNewsroomAccess = user.roles.length > 0;
+  // Requests about a reader's data go where the privacy page sends them: the
+  // grievance officer, or the general inbox if no officer's address is set.
+  const dataRequests = PUBLISHER.grievanceOfficer.email || PUBLISHER.email;
 
   return (
     <>
@@ -183,6 +188,20 @@ export default async function AccountPage() {
               .
             </p>
           </section>
+
+          {/* ---------------------------------------------------------- */}
+          {dataRequests ? (
+            <section className="mt-12 border-t border-hairline pt-6">
+              <h2 className="text-section text-ink">Your data</h2>
+              <p className="mt-2 text-meta leading-relaxed text-muted">
+                For a copy of what we hold about your account, a correction to
+                it, or the deletion of the account and everything stored
+                against it, write to{" "}
+                <EmailLink address={dataRequests} subject="Request about my account data" />{" "}
+                from {user.email ?? "the email address you sign in with"}.
+              </p>
+            </section>
+          ) : null}
 
           {/* Only shown to people who actually have newsroom access. */}
           {hasNewsroomAccess ? (
