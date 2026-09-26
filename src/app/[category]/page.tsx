@@ -1,6 +1,10 @@
-import { SITE_NAME } from "@/lib/site";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+
+import { JsonLd } from "@/components/seo/json-ld";
+import { breadcrumbJsonLd, collectionPageJsonLd } from "@/lib/seo/json-ld";
+import { pageMetadata } from "@/lib/seo/metadata";
+import { SITE_NAME, absoluteUrl } from "@/lib/site";
 
 import { ArticleCard } from "@/components/article/article-card";
 import { HeroStory } from "@/components/article/hero-story";
@@ -28,12 +32,21 @@ export async function generateMetadata(
   const { category: slug } = await props.params;
   const category = await getCategory(slug);
   if (!category) return { title: "Not found" };
+  const [latest] = await getArticlesByCategory(slug, 1);
 
-  return {
-    title: `${category.name} — ${SITE_NAME}`,
-    description: category.description ?? undefined,
-    alternates: { canonical: `/${category.slug}` },
-  };
+  return pageMetadata({
+    title: `${category.name} news`,
+    description:
+      category.description ??
+      `The latest ${category.name.toLowerCase()} news and reporting from ${SITE_NAME}.`,
+    path: `/${category.slug}`,
+    rss: {
+      url: absoluteUrl(`/${category.slug}/feed.xml`),
+      title: `${category.name} - ${SITE_NAME}`,
+    },
+    // A section with nothing in it yet is an empty page to a search engine.
+    noindex: !latest,
+  });
 }
 
 export default async function CategoryPage(props: PageProps<"/[category]">) {
@@ -44,9 +57,29 @@ export default async function CategoryPage(props: PageProps<"/[category]">) {
   const articles = await getArticlesByCategory(slug, 31);
   const [lead, ...rest] = articles;
 
+  const url = absoluteUrl(`/${category.slug}`);
+
   return (
     <>
       <SiteHeader activeSlug={category.slug} />
+
+      <JsonLd
+        data={collectionPageJsonLd({
+          url,
+          name: `${category.name} news`,
+          description: category.description,
+          items: articles.map((article) => ({
+            url: absoluteUrl(`/${article.categories.slug}/${article.slug}`),
+            name: article.headline,
+          })),
+        })}
+      />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: "Home", url: absoluteUrl("/") },
+          { name: category.name, url },
+        ])}
+      />
 
       <main className="route-enter mx-auto max-w-page px-4 sm:px-6">
         <div className="border-b border-hairline py-8">
