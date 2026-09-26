@@ -1,0 +1,28 @@
+import type { MetadataRoute } from "next";
+
+import { SITE_DESCRIPTION, SITE_LANGUAGE, SITE_NAME } from "@/lib/site";
+
+/**
+ * The web app manifest: what a phone shows when a reader adds the paper to the
+ * home screen, and one more place the name and icon are declared the same way.
+ * The icons are the generated monogram sizes from app/icon.tsx.
+ */
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    name: SITE_NAME,
+    short_name: SITE_NAME.replace(/^the\s+/i, ""),
+    description: SITE_DESCRIPTION,
+    lang: SITE_LANGUAGE,
+    start_url: "/",
+    scope: "/",
+    display: "standalone",
+    background_color: "#ffffff",
+    theme_color: "#ffffff",
+    categories: ["news"],
+    icons: [
+      { src: "/icon/192", sizes: "192x192", type: "image/png" },
+      { src: "/icon/512", sizes: "512x512", type: "image/png" },
+      { src: "/icon/512", sizes: "512x512", type: "image/png", purpose: "maskable" },
+    ],
+  };
+}
