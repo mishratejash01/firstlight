@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
+import { EmailLink } from "@/components/site/email-link";
+import { GrievanceOfficer } from "@/components/site/grievance-officer";
 import { StaticPage } from "@/components/site/static-page";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { PUBLISHER, SITE_NAME } from "@/lib/site";
@@ -93,23 +95,58 @@ export default function EditorialStandardsPage() {
         </h2>
         <p>
           We correct errors in the story itself, and every change to a
-          published story is kept in a permanent version history. How to tell
-          us about an error is set out in our{" "}
-          <Link href="/corrections" className={link}>
-            corrections policy
-          </Link>
-          .
+          published story is kept in a permanent version history.{" "}
+          {PUBLISHER.editor.email ? (
+            <>
+              To tell us about an error, write to{" "}
+              <EmailLink address={PUBLISHER.editor.email} />; our{" "}
+              <Link href="/corrections" className={link}>
+                corrections policy
+              </Link>{" "}
+              sets out what happens next.
+            </>
+          ) : (
+            <>
+              How to tell us about an error is set out in our{" "}
+              <Link href="/corrections" className={link}>
+                corrections policy
+              </Link>
+              .
+            </>
+          )}
         </p>
 
-        {PUBLISHER.editor.name ? (
+        {PUBLISHER.grievanceOfficer.name || PUBLISHER.grievanceOfficer.email ? (
+          <>
+            <h2 id="complaints" className="mt-8 text-section text-ink">
+              Complaints
+            </h2>
+            <p>
+              If you believe something we have published breaks these
+              standards, you can complain to <GrievanceOfficer />. We
+              acknowledge every complaint within 24 hours and send a decision
+              within 15 days.
+            </p>
+          </>
+        ) : null}
+
+        {PUBLISHER.editor.name || PUBLISHER.editor.email ? (
           <>
             <h2 id="responsibility" className="mt-8 text-section text-ink">
               Responsibility
             </h2>
             <p>
-              {PUBLISHER.editor.name}
-              {PUBLISHER.editor.title ? `, ${PUBLISHER.editor.title},` : ""} is
-              responsible for everything {SITE_NAME} publishes.
+              {PUBLISHER.editor.name
+                ? `${PUBLISHER.editor.name}${PUBLISHER.editor.title ? `, ${PUBLISHER.editor.title},` : ""}`
+                : "Our editor"}{" "}
+              is responsible for everything {SITE_NAME} publishes
+              {PUBLISHER.editor.email ? (
+                <>
+                  , and can be reached at{" "}
+                  <EmailLink address={PUBLISHER.editor.email} />
+                </>
+              ) : null}
+              .
             </p>
           </>
         ) : null}
