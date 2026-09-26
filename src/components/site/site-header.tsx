@@ -167,13 +167,24 @@ export async function SiteHeader({
     if (list.length < 3) list.push(article);
     latestBySection.set(article.categories.slug, list);
   }
+  // The paper's day is India's day. Formatted on the server, which runs on
+  // UTC, the dateline showed yesterday's date until 5.30 in the morning.
   const now = new Date();
   const today = now.toLocaleDateString("en-GB", {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: "Asia/Kolkata",
   });
+  const todayShort = now.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Asia/Kolkata",
+  });
+  const isoToday = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(now);
 
   return (
     // The sticky block is a sibling of <header>, not a child of it. A sticky
@@ -191,13 +202,23 @@ export async function SiteHeader({
             reading order a screen reader should hear: date, then controls,
             then the paper's name. */}
         <div className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-4 lg:grid-cols-[1fr_auto_1fr]">
+          {/* The short form on a phone, where the same line also has to hold
+              the controls and the sign-in button. */}
           <p className="text-kicker text-muted lg:order-1">
-            <time dateTime={now.toISOString().slice(0, 10)}>{today}</time>
+            <time dateTime={isoToday}>
+              <span className="sm:hidden">{todayShort}</span>
+              <span className="hidden sm:inline">{today}</span>
+            </time>
           </p>
 
-          <div className="flex items-center justify-end gap-4 lg:order-3">
+          <div className="flex items-center justify-end gap-3.5 sm:gap-4 lg:order-3">
             <SearchBox />
             <SocialLinks />
+            {/* On a phone the section strip has the row below to itself, so
+                sign-in lives up here; from sm it sits at the end of that row. */}
+            <span className="sm:hidden">
+              <AccountMenu compact />
+            </span>
           </div>
 
           <div className="col-span-2 flex justify-center lg:order-2 lg:col-span-1">
