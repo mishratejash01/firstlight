@@ -8,6 +8,14 @@
    e.g. --color-ink -> text-ink / bg-ink, --text-lead -> text-lead.
 --------------------------------------------------------------------------- */
 @theme {
+  /* Desktop widths where the section bar has room for more sections (see
+     site-header). Declared here rather than written as min-[…] variants,
+     which the generator places before the standard breakpoints, so a
+     "sm:hidden" would override them. */
+  --breakpoint-laptop: 90rem;    /* 1440px */
+  --breakpoint-desktop: 105rem;  /* 1680px */
+  --breakpoint-wide: 107.5rem;   /* 1720px */
+
   /* Palette — six tokens, no more. Restraint is the point. */
   --color-paper: #ffffff;    /* page background                              */
   --color-ink: #14161c;      /* headlines, body text                         */
