@@ -9,7 +9,11 @@ import { z } from "zod";
  */
 
 export const draftedArticleSchema = z.object({
-  headline: z.string().describe("Sentence case. Specific and concrete, never a teaser."),
+  headline: z
+    .string()
+    .describe(
+      "Sentence case. Specific and concrete, never a teaser. Names the main person, organisation, place or event near the start, in the form people search for it. No more than 100 characters, and no publication date or time in it.",
+    ),
   headlineAlternatives: z
     .array(z.string())
     .describe("Two further headline options for the editor to choose from."),
@@ -21,6 +25,11 @@ export const draftedArticleSchema = z.object({
       "The article in Markdown. Use ## headings that mirror how readers phrase searches — what happened, who is involved, what happens next, key numbers.",
     ),
   suggestedTags: z.array(z.string()).describe("Topic tags, lower case, three to six."),
+  searchKeywords: z
+    .array(z.string())
+    .describe(
+      "The three to eight searches this piece answers, most important first, lower case: the names and phrases a reader would type to find it ('rbi repo rate', 'sanjay malhotra'). Each must be something the piece is actually about.",
+    ),
   imageBrief: z
     .string()
     .describe(
@@ -84,7 +93,11 @@ export const tagSuggestionSchema = z.object({
 });
 
 export const headlineSuggestionSchema = z.object({
-  headlines: z.array(z.string()).describe("Four headline options, sentence case."),
+  headlines: z
+    .array(z.string())
+    .describe(
+      "Four headline options, sentence case, each naming the main subject near the start in the form people search for it.",
+    ),
 });
 
 export const summarySchema = z.object({
