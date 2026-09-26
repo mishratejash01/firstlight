@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/lib/supabase/database.types";
+import { CRAWLER_USER_AGENT } from "@/lib/site";
 import type { LicensedImage } from "@/lib/media/openverse";
 
 /**
@@ -21,7 +22,7 @@ import type { LicensedImage } from "@/lib/media/openverse";
  * Modi" is the Narendra Modi.
  */
 
-const UA = "TheFederalPostBot/1.0 (+https://newswebsite-pi.vercel.app)";
+const UA = CRAWLER_USER_AGENT;
 
 /**
  * Licences we will publish under. Everything else on Commons is declined.
