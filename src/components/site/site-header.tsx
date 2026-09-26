@@ -144,21 +144,32 @@ export async function SiteHeader({
             <SocialLinks />
           </div>
 
-          <div className="col-span-2 text-center lg:order-2 lg:col-span-1">
+          <div className="col-span-2 flex justify-center lg:order-2 lg:col-span-1">
             {/* The paper's name, never the page's heading: every page, the
                 front included, has a heading of its own that says what is on
                 it, and the name is the same on all of them.
 
                 Artwork now rather than type. Sized by height so the lockup
-                keeps its proportions and the dove stays on the same baseline as
-                the words beside it at every breakpoint. The name is in the alt
-                text, so a reader who cannot see it still gets it here. */}
-            <Link href="/" className="inline-block">
+                keeps its proportions at every breakpoint. The name is in the
+                alt text, so a reader who cannot see it still gets it here.
+
+                The file is cropped to what can be seen rather than to every
+                pixel carrying a trace of alpha: the original has a soft halo
+                below the mark, and including it left the image box a quarter
+                taller than the artwork, so centring the box sat the lockup
+                visibly high in the row.
+
+                The cell centres with flex rather than text-align. An inline
+                block sits on a text baseline, so the cell grew eight pixels
+                taller than the image to leave room for a descender that is not
+                there, and the lockup rode the top of that while the dateline
+                and the social marks sat on the row's true middle. */}
+            <Link href="/" className="block">
               <Image
                 src="/brand/the-india-decade.png"
                 alt={SITE_NAME}
                 width={1200}
-                height={326}
+                height={235}
                 priority
                 className="h-11 w-auto sm:h-16"
               />
