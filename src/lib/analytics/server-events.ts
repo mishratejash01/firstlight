@@ -21,6 +21,10 @@ import { createAnonymousClient } from "@/lib/supabase/anonymous";
  * BEFORE handing work to after(). Next.js forbids cookies() and headers()
  * inside an after() callback, and the write itself therefore uses the
  * session-less client rather than the cookie-bound one.
+ *
+ * Article pages are served from the edge cache, so the server no longer sees
+ * each view of them; the page reports its own view to /api/page-view, which
+ * writes the same actorless row through the same function.
  */
 
 export type RequestContext = {
@@ -42,27 +46,26 @@ export type RequestContext = {
  */
 export async function captureRequestContext(): Promise<RequestContext> {
   const h = await headers();
+  return { deviceType: deviceTypeFrom(h), referrer: referrerHost(h.get("referer")) };
+}
 
-  let deviceType: RequestContext["deviceType"] = "desktop";
-  if (h.get("sec-ch-ua-mobile") === "?1") {
-    deviceType = "mobile";
-  } else {
-    const ua = h.get("user-agent") ?? "";
-    if (/iPad|Tablet/i.test(ua)) deviceType = "tablet";
-    else if (/Mobi|Android/i.test(ua)) deviceType = "mobile";
+/** Phone, tablet or desktop, from the request's client hints or user agent. */
+export function deviceTypeFrom(h: Headers): RequestContext["deviceType"] {
+  if (h.get("sec-ch-ua-mobile") === "?1") return "mobile";
+  const ua = h.get("user-agent") ?? "";
+  if (/iPad|Tablet/i.test(ua)) return "tablet";
+  if (/Mobi|Android/i.test(ua)) return "mobile";
+  return "desktop";
+}
+
+/** The host of a referring URL, and nothing else of it. */
+export function referrerHost(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).host || null;
+  } catch {
+    return null;
   }
-
-  let referrer: string | null = null;
-  const referer = h.get("referer");
-  if (referer) {
-    try {
-      referrer = new URL(referer).host;
-    } catch {
-      referrer = null;
-    }
-  }
-
-  return { deviceType, referrer };
 }
 
 export async function logPageView({
