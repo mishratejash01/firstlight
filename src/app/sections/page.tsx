@@ -4,13 +4,14 @@ import { pageMetadata } from "@/lib/seo/metadata";
 import Image from "next/image";
 import Link from "next/link";
 
+import { SITE_NAME } from "@/lib/site";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { getAllSections } from "@/lib/queries/navigation";
 
 export const metadata: Metadata = pageMetadata({
-  title: "All sections",
-  description: "Every section of The India Decade, from politics and business to science, sport and culture.",
+  title: "All News Sections",
+  description: `Every section of ${SITE_NAME}, from politics and business to science, sport and culture.`,
   path: "/sections",
 });
 
