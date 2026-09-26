@@ -15,9 +15,24 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Everything except static assets and image files, which never carry a
-     * session and would only add latency.
+     * Only the pages that act as the signed-in reader: the newsroom's own
+     * areas, sign-in and its callback, the account page, and the topic and
+     * writer pages whose follow buttons show the reader's own state.
+     *
+     * Public pages read nothing about the reader on the server, and running
+     * this in front of them cost a function call and an auth check on every
+     * page view, before the cache could answer. A signed-in reader's session
+     * is still kept fresh on those pages, by the browser's own Supabase client
+     * in the account menu.
      */
-    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico)$).*)",
+    "/admin/:path*",
+    "/desk/:path*",
+    "/review/:path*",
+    "/contribute/:path*",
+    "/account/:path*",
+    "/auth/:path*",
+    "/login",
+    "/topic/:path*",
+    "/author/:path*",
   ],
 };
