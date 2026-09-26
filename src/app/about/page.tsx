@@ -1,9 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
+import { EmailLink } from "@/components/site/email-link";
 import { StaticPage } from "@/components/site/static-page";
 import { pageMetadata } from "@/lib/seo/metadata";
-import { PUBLISHER, SITE_NAME } from "@/lib/site";
+import { HAS_CONTACT_PAGE, PUBLISHER, SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = pageMetadata({
   title: "About",
@@ -14,8 +15,6 @@ export const metadata: Metadata = pageMetadata({
 const link = "text-accent underline underline-offset-4";
 
 export default function AboutPage() {
-  const contact = [PUBLISHER.email, PUBLISHER.phone].filter(Boolean);
-
   return (
     <StaticPage
       title={`About ${SITE_NAME}`}
@@ -83,21 +82,32 @@ export default function AboutPage() {
           </>
         ) : null}
 
-        {contact.length ? (
+        {HAS_CONTACT_PAGE ? (
           <>
             <h2 className="mt-8 text-section text-ink">Contact</h2>
             <p>
-              Reach the newsroom at {contact.join(" or ")}.
-              {PUBLISHER.grievanceOfficer.name ? (
+              {PUBLISHER.email || PUBLISHER.phone ? (
                 <>
-                  {" "}Complaints about our content go to our grievance officer;
-                  see the{" "}
-                  <Link href="/contact" className={link}>
-                    contact page
-                  </Link>
-                  .
+                  Reach us at{" "}
+                  {PUBLISHER.email ? <EmailLink address={PUBLISHER.email} /> : null}
+                  {PUBLISHER.email && PUBLISHER.phone ? " or " : null}
+                  {PUBLISHER.phone}.{" "}
                 </>
               ) : null}
+              {PUBLISHER.newsroomEmail ? (
+                <>
+                  News tips go to <EmailLink address={PUBLISHER.newsroomEmail} />.{" "}
+                </>
+              ) : null}
+              Every way to reach us
+              {PUBLISHER.grievanceOfficer.name || PUBLISHER.grievanceOfficer.email
+                ? ", including our grievance officer,"
+                : ""}{" "}
+              is on the{" "}
+              <Link href="/contact" className={link}>
+                contact page
+              </Link>
+              .
             </p>
           </>
         ) : null}
