@@ -21,6 +21,76 @@ export const SITE_TAGLINE =
   "reporting on politics, business, science and culture";
 
 /**
+ * The description search engines and link previews show for the paper as a
+ * whole: the front page, and any page that does not describe itself.
+ */
+export const SITE_DESCRIPTION =
+  "News from India and the world: politics, business, technology, science, health, sport and culture, with the sources behind every story.";
+
+/**
+ * The one address the paper is published at, with no trailing slash.
+ *
+ * Every canonical link, sitemap entry, feed item and structured-data URL is
+ * built from this, so the site can be reached at other hostnames (the hosting
+ * provider's own) without any of them competing with it in search.
+ */
+export const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
+).replace(/\/+$/, "");
+
+/** The canonical hostname, for comparing against the host a request arrived on. */
+export const SITE_HOST = new URL(SITE_URL).host;
+
+/**
+ * English, written for readers in India. BCP 47 for the page's lang attribute
+ * and inLanguage in structured data; the underscore form is Open Graph's.
+ */
+export const SITE_LANGUAGE = "en-IN";
+export const SITE_LOCALE = "en_IN";
+
+/** An absolute URL on the canonical host for a site path such as "/politics". */
+export function absoluteUrl(path = "/"): string {
+  if (/^https?:\/\//i.test(path)) return path;
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  return normalized === "/" ? SITE_URL : `${SITE_URL}${normalized}`;
+}
+
+/**
+ * Who publishes the paper, and how to reach them. Supplied by the owner.
+ *
+ * Every empty value is simply left off the site: the About, Masthead, Contact
+ * and Privacy pages and the publisher's structured data show only the facts
+ * filled in here, so no page ever publishes a placeholder. The grievance
+ * officer is what rule 11 of India's IT (Intermediary Guidelines and Digital
+ * Media Ethics Code) Rules, 2021 asks every digital news publisher to name on
+ * its site; the Contact page appears once one is set.
+ */
+export const PUBLISHER: {
+  /** The registered legal name of the company or person that owns the paper. */
+  legalName: string;
+  /** Registered office address in India, on one line. */
+  address: string;
+  /** Newsroom email for tips, corrections and general contact. */
+  email: string;
+  /** Newsroom telephone, in international format. */
+  phone: string;
+  /** Year the paper was founded, e.g. "2026". */
+  foundingYear: string;
+  /** The person with editorial responsibility for what the paper publishes. */
+  editor: { name: string; title: string };
+  /** The grievance officer required by the IT Rules, 2021. Based in India. */
+  grievanceOfficer: { name: string; email: string; phone: string };
+} = {
+  legalName: "",
+  address: "",
+  email: "",
+  phone: "",
+  foundingYear: "",
+  editor: { name: "", title: "" },
+  grievanceOfficer: { name: "", email: "", phone: "" },
+};
+
+/**
  * Where the paper's social accounts live.
  *
  * Fill in a URL and that icon appears in the masthead; leave it empty and the
