@@ -205,6 +205,7 @@ export async function getLivePlacements() {
 export async function getArticlesByCategory(
   slug: string,
   limit = 30,
+  offset = 0,
 ): Promise<ArticleCardData[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -214,7 +215,8 @@ export async function getArticlesByCategory(
     .in("status", VISIBLE_STATUSES)
     .lte("published_at", nowIso())
     .order("published_at", { ascending: false })
-    .limit(limit);
+    .order("id", { ascending: false })
+    .range(offset, offset + limit - 1);
 
   if (error) return [];
   return (data ?? []) as unknown as ArticleCardData[];
