@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAnonymousClient } from "@/lib/supabase/anonymous";
 
 export type NavCategory = {
   slug: string;
@@ -35,7 +35,7 @@ export type NavCategory = {
  * is exactly where a reader goes looking for them.
  */
 export async function getAllSections(): Promise<NavCategory[]> {
-  const supabase = await createClient();
+  const supabase = createAnonymousClient();
 
   const withPresentation = await supabase
     .from("categories")
@@ -69,7 +69,7 @@ export async function getAllSections(): Promise<NavCategory[]> {
 }
 
 export async function getNavCategories(): Promise<NavCategory[]> {
-  const supabase = await createClient();
+  const supabase = createAnonymousClient();
 
   const withPresentation = await supabase
     .from("categories")
