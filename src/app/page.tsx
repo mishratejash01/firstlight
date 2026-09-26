@@ -1,4 +1,4 @@
-import { SITE_DESCRIPTION, SITE_LOCALE, SITE_NAME, absoluteUrl } from "@/lib/site";
+import { SITE_DESCRIPTION, SITE_LOCALE, SITE_NAME, X_HANDLE, absoluteUrl } from "@/lib/site";
 import type { Metadata } from "next";
 
 import { JsonLd } from "@/components/seo/json-ld";
@@ -46,6 +46,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
+    ...(X_HANDLE ? { site: X_HANDLE } : {}),
     title: FRONT_PAGE_TITLE,
     description: SITE_DESCRIPTION,
   },
