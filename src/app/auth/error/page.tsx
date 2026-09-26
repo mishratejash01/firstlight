@@ -1,6 +1,9 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
+import { EmailLink } from "@/components/site/email-link";
+import { PUBLISHER } from "@/lib/site";
+
 export const metadata: Metadata = {
   title: "Sign-in problem",
   robots: { index: false, follow: false },
@@ -33,6 +36,13 @@ export default async function AuthErrorPage(props: PageProps<"/auth/error">) {
       >
         Try again
       </Link>
+      {PUBLISHER.email ? (
+        <p className="mt-6 text-meta text-muted">
+          If it keeps happening, write to{" "}
+          <EmailLink address={PUBLISHER.email} subject="Sign-in problem" /> and
+          tell us what you see.
+        </p>
+      ) : null}
     </main>
   );
 }
