@@ -23,7 +23,7 @@ import { cloudinaryImage } from "@/lib/media/transform";
  * the top of the page and the headline. The splash leads with a picture; it
  * still does not spend the whole fold on one.
  *
- * The image carries `priority`: it is the largest thing above the fold and the
+ * The image loads eagerly at high priority: it is the largest thing above the fold and the
  * page's LCP element, so it must not wait behind lazy loading.
  */
 export function HeroStory({ article }: { article: ArticleCardData }) {
@@ -52,7 +52,8 @@ export function HeroStory({ article }: { article: ArticleCardData }) {
               }
               alt={article.hero_image_alt ?? ""}
               fill
-              priority
+              loading="eager"
+              fetchPriority="high"
               sizes="(max-width: 1024px) 100vw, 50vw"
               className="object-cover"
             />
