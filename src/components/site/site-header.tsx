@@ -147,12 +147,21 @@ export async function SiteHeader({
           <div className="col-span-2 text-center lg:order-2 lg:col-span-1">
             {/* The paper's name, never the page's heading: every page, the
                 front included, has a heading of its own that says what is on
-                it, and the name is the same on all of them. */}
-            <Link
-              href="/"
-              className="text-nameplate font-extrabold tracking-[-0.04em] text-ink sm:text-nameplate-lg"
-            >
-              {SITE_NAME}
+                it, and the name is the same on all of them.
+
+                Artwork now rather than type. Sized by height so the lockup
+                keeps its proportions and the dove stays on the same baseline as
+                the words beside it at every breakpoint. The name is in the alt
+                text, so a reader who cannot see it still gets it here. */}
+            <Link href="/" className="inline-block">
+              <Image
+                src="/brand/the-india-decade.png"
+                alt={SITE_NAME}
+                width={1200}
+                height={326}
+                priority
+                className="h-11 w-auto sm:h-16"
+              />
             </Link>
           </div>
         </div>
@@ -185,12 +194,22 @@ export async function SiteHeader({
               className="relative hidden w-20 shrink-0 self-stretch sm:block"
               aria-hidden="true"
             >
+              {/* The dove alone once the page has scrolled. The full lockup
+                  is far too wide for this slot and its lettering unreadable at
+                  the height available; the disc is the part of the mark that
+                  still says whose paper this is at twenty pixels. */}
               <Link
                 href="/"
                 tabIndex={-1}
-                className="absolute top-1/2 left-0 -translate-y-1/2 font-label text-[0.6875rem] font-extrabold tracking-[-0.01em] whitespace-nowrap text-ink opacity-0 transition-opacity duration-200 group-data-[shrunk=true]/nav:opacity-100 motion-reduce:transition-none"
+                className="absolute top-1/2 left-0 -translate-y-1/2 opacity-0 transition-opacity duration-200 group-data-[shrunk=true]/nav:opacity-100 motion-reduce:transition-none"
               >
-                {SITE_NAME}
+                <Image
+                  src="/brand/dove.png"
+                  alt={SITE_NAME}
+                  width={256}
+                  height={256}
+                  className="h-6 w-6"
+                />
               </Link>
               {/* A rule between the name and the first section. There are only
                   sixteen pixels of gap to work with — the strip needs the rest
