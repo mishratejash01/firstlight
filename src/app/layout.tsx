@@ -8,6 +8,7 @@ import {
 import type { Metadata, Viewport } from "next";
 import { Inter, Libre_Franklin, Newsreader } from "next/font/google";
 
+import { Analytics } from "@vercel/analytics/next";
 import { AnalyticsProvider } from "@/components/analytics/analytics-provider";
 import { JsonLd } from "@/components/seo/json-ld";
 import { siteGraphJsonLd } from "@/lib/seo/json-ld";
@@ -129,6 +130,7 @@ export default function RootLayout({
         <AnalyticsProvider
           measurementId={process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID}
         />
+        <Analytics />
       </body>
     </html>
   );
