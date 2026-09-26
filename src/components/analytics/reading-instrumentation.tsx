@@ -3,7 +3,11 @@
 import { useEffect, useRef } from "react";
 
 import { createClient } from "@/lib/supabase/client";
-import { readConsentCookie } from "@/lib/analytics/consent";
+import {
+  ANON_ID_KEY,
+  SESSION_ID_KEY,
+  readConsentCookie,
+} from "@/lib/analytics/consent";
 import type { Json } from "@/lib/supabase/database.types";
 
 /**
@@ -19,8 +23,6 @@ import type { Json } from "@/lib/supabase/database.types";
  * would be the tracking the reader declined, performed in advance.
  */
 
-const ANON_ID_KEY = "nw_anon_id";
-const SESSION_ID_KEY = "nw_session_id";
 /** Dwell required before a full-scroll counts as actually reading it. */
 const COMPLETE_DWELL_MS = 20_000;
 
