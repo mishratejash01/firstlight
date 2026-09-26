@@ -33,6 +33,18 @@ async function isIndexable(slug: string, storyCount: number) {
   return !sections.some((section) => section.slug === slug);
 }
 
+/**
+ * The topic's title in search results, in the words news searches use:
+ * "Narendra Modi News Today: Latest Updates". A long name gets a shorter form,
+ * so the result is not cut off mid-phrase, and a name that already ends in
+ * "news" does not get the word twice.
+ */
+function searchTitle(name: string): string {
+  const base = /\bnews$/i.test(name) ? name : `${name} News`;
+  const options = [`${base} Today: Latest Updates`, `${base} Today`, base];
+  return options.find((title) => title.length <= 45) ?? base;
+}
+
 export async function generateMetadata(
   props: PageProps<"/topic/[slug]">,
 ): Promise<Metadata> {
@@ -42,9 +54,10 @@ export async function generateMetadata(
 
   const name = displayTopicName(tag.name);
   return pageMetadata({
-    title: `${name}: latest news`,
+    title: searchTitle(name),
     description:
-      tag.description ?? `The latest news and reporting on ${name} from ${SITE_NAME}.`,
+      tag.description ??
+      `Latest ${name} news and updates from ${SITE_NAME}, with the newest stories on ${name} in one place.`,
     path: `/topic/${tag.slug}`,
     noindex: !(await isIndexable(tag.slug, articles.length)),
   });
@@ -69,7 +82,7 @@ export default async function TopicPage(props: PageProps<"/topic/[slug]">) {
           <JsonLd
             data={collectionPageJsonLd({
               url,
-              name: `${name}: latest news`,
+              name: searchTitle(name),
               description: tag.description,
               about: { name },
               items: articles.map((article) => ({
