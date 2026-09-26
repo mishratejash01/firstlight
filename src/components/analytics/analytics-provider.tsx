@@ -1,26 +1,27 @@
 "use client";
 
 import Script from "next/script";
-import { useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { ConsentBanner } from "./consent-banner";
 import {
   CONSENT_SERVER_SNAPSHOT,
-  clearTrackingStorage,
   getConsentServerSnapshot,
-  notifyConsentChanged,
-  readConsentCookie,
+  measurementAllowed,
+  readTrackingMode,
+  recordChoice,
+  subscribeToChoiceRequests,
   subscribeToConsent,
-  writeConsentCookie,
 } from "@/lib/analytics/consent";
 
 /**
- * Gates all non-essential tracking behind an explicit decision.
+ * Gates all non-essential tracking on the reader's choice.
  *
- * GA4 is not loaded at all until consent is granted — not loaded-with-consent-
- * mode-denied. Google's Consent Mode still sends cookieless pings in that
- * state, and while Google considers that compliant, "no request is made" is a
- * position that needs no interpretation to defend.
+ * GA4 is not loaded at all unless measurement is allowed: the reader agreed,
+ * or reads from India while measurement there is on by default (see
+ * lib/analytics/consent for why, and until when). It is never loaded with
+ * Consent Mode set to denied, because Consent Mode still sends cookieless pings
+ * in that state; "no request is made" needs no interpretation to defend.
  *
  * The cookie is read through useSyncExternalStore rather than copied into
  * component state, so there is exactly one source of truth. On the server the
@@ -28,30 +29,32 @@ import {
  * server-rendered HTML and prevents it flashing at readers who already decided.
  *
  * First-party analytics is unaffected by this component: the server logs an
- * actorless page tally regardless, which identifies nobody. Consent is what
- * upgrades that to an attributable session.
+ * actorless page tally regardless, which identifies nobody. Measurement being
+ * allowed is what upgrades that to an attributable session.
  */
 export function AnalyticsProvider({ measurementId }: { measurementId?: string }) {
-  const consent = useSyncExternalStore(
+  const mode = useSyncExternalStore(
     subscribeToConsent,
-    readConsentCookie,
+    readTrackingMode,
     getConsentServerSnapshot,
   );
+  // Set when the reader opens Privacy settings: the full question, whatever
+  // the current state, until they answer it.
+  const [choosing, setChoosing] = useState(false);
+  useEffect(() => subscribeToChoiceRequests(() => setChoosing(true)), []);
 
-  function decide(state: "granted" | "denied") {
-    writeConsentCookie(state);
-    // Declining clears anything an earlier "agree" left in the browser.
-    if (state === "denied") clearTrackingStorage();
-    notifyConsentChanged();
+  function decide(state: "granted" | "denied" | "noted") {
+    setChoosing(false);
+    recordChoice(state);
   }
 
-  const analyticsAllowed = consent === "granted";
-  const shouldAsk = consent === "unset";
-  const isServerRender = consent === CONSENT_SERVER_SNAPSHOT;
+  if (mode === CONSENT_SERVER_SNAPSHOT) return null;
+
+  const banner = choosing ? "ask" : mode === "ask" || mode === "notice" ? mode : null;
 
   return (
     <>
-      {analyticsAllowed && measurementId ? (
+      {measurementAllowed(mode) && measurementId ? (
         <>
           <Script
             src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
@@ -74,7 +77,7 @@ export function AnalyticsProvider({ measurementId }: { measurementId?: string })
         </>
       ) : null}
 
-      {shouldAsk && !isServerRender ? <ConsentBanner onDecision={decide} /> : null}
+      {banner ? <ConsentBanner variant={banner} onDecision={decide} /> : null}
     </>
   );
 }
