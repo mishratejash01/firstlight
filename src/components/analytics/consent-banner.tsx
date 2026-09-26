@@ -26,8 +26,10 @@ export function ConsentBanner({
           </h2>
           <p className="mt-1 max-w-prose text-meta text-muted">
             With your agreement we record which articles you read and how far
-            you get, to decide what to cover next. We never store your IP
-            address. You can change this at any time.
+            you get, using a random identifier stored in your browser, and we
+            load Google Analytics, to decide what to cover next. You can change
+            your choice at any time from Privacy settings at the foot of every
+            page.
           </p>
         </div>
 
