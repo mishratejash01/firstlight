@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
+import { EmailLink } from "@/components/site/email-link";
+import { GrievanceOfficer } from "@/components/site/grievance-officer";
 import { StaticPage } from "@/components/site/static-page";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { PUBLISHER } from "@/lib/site";
@@ -14,7 +16,10 @@ export const metadata: Metadata = pageMetadata({
 const link = "text-accent underline underline-offset-4";
 
 export default function CorrectionsPage() {
-  const reportTo = PUBLISHER.email || PUBLISHER.grievanceOfficer.email;
+  // Errors go to the editor, who can fix them; the general inbox only when
+  // there is no editor's address to send them to.
+  const reportTo = PUBLISHER.editor.email || PUBLISHER.email;
+  const officer = PUBLISHER.grievanceOfficer;
 
   return (
     <StaticPage
@@ -50,20 +55,21 @@ export default function CorrectionsPage() {
               Telling us about an error
             </h2>
             <p>
-              Write to {reportTo} with the address of the story and what you
-              believe is wrong. If you can, tell us where the correct
-              information can be found.
-              {PUBLISHER.grievanceOfficer.name ? (
-                <>
-                  {" "}Formal complaints about our content are handled by our
-                  grievance officer, whose details are on the{" "}
-                  <Link href="/contact" className={link}>
-                    contact page
-                  </Link>
-                  .
-                </>
-              ) : null}
+              Write to <EmailLink address={reportTo} /> with the address of the
+              story and what you believe is wrong. If you can, tell us where the
+              correct information can be found.
             </p>
+            {officer.name || officer.email ? (
+              <p>
+                To make a formal complaint about our content, write to{" "}
+                <GrievanceOfficer />. How complaints are handled is set out on
+                our{" "}
+                <Link href="/contact#grievance" className={link}>
+                  contact page
+                </Link>
+                .
+              </p>
+            ) : null}
           </>
         ) : null}
       </div>
