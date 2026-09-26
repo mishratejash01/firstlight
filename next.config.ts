@@ -80,6 +80,14 @@ const nextConfig: NextConfig = {
     },
   },
   images: {
+    // Cloudinary resizes and picks the format; Vercel's image optimiser is not
+    // used at all (see src/lib/media/cloudinary-loader.ts for why).
+    loader: "custom",
+    loaderFile: "./src/lib/media/cloudinary-loader.ts",
+    // The widths a browser may ask for. Fewer, better-chosen steps mean fewer
+    // distinct renditions for Cloudinary to make and cache.
+    deviceSizes: [360, 480, 640, 768, 1024, 1280, 1600],
+    imageSizes: [96, 160, 240, 320],
     // Hero images are stored as absolute URLs in the database so the source can
     // change without a migration. Only hosts listed here are optimisable, which
     // stops an editor pasting a URL that turns our image pipeline into an open
