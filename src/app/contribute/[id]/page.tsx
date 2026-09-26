@@ -25,7 +25,7 @@ export default async function EditDraftPage(props: PageProps<"/contribute/[id]">
   const [{ data: article }, { data: categories }] = await Promise.all([
     supabase
       .from("articles")
-      .select("id, slug, headline, standfirst, body, summary, status, category_id, updated_at, hero_image_url, hero_image_alt, hero_image_credit, ai_assisted, ai_model, ai_unverified_claims, categories ( slug, name )")
+      .select("id, slug, headline, standfirst, body, summary, status, category_id, updated_at, hero_image_url, hero_image_alt, hero_image_credit, ai_assisted, ai_model, ai_unverified_claims, search_keywords, categories ( slug, name )")
       .eq("id", id)
       .maybeSingle(),
     supabase
@@ -57,6 +57,14 @@ export default async function EditDraftPage(props: PageProps<"/contribute/[id]">
       actions={<StatusBadge status={article.status} />}
     >
       <UnverifiedClaims claims={article.ai_unverified_claims ?? []} />
+
+      {/* What the drafting step researched this story to be found for, so
+          the editor can see it before touching the headline. */}
+      {article.search_keywords?.length ? (
+        <p className="mb-6 max-w-measure text-meta leading-relaxed text-muted">
+          Written to be found for: {article.search_keywords.join(", ")}
+        </p>
+      ) : null}
 
       {editable ? (
         <ArticleEditor article={article} categories={categories ?? []} />
