@@ -7,6 +7,8 @@ import { SearchBox } from "@/components/site/search-box";
 import { SocialLinks } from "@/components/site/social-links";
 import { BreakingStrip } from "@/components/article/breaking-strip";
 import { SectionsDrawer } from "@/components/site/sections-drawer";
+import { SectionMark } from "@/components/site/section-mark";
+import { inSentence } from "@/lib/format/section-name";
 import { StickyNav } from "@/components/site/sticky-nav";
 import { getAllSections, getNavCategories } from "@/lib/queries/navigation";
 import {
@@ -56,15 +58,8 @@ import { cloudinaryImage } from "@/lib/media/transform";
 export async function SiteHeader({
   activeSlug,
   excludeId,
-  isFrontPage = false,
 }: {
   activeSlug?: string;
-  /**
-   * The front page has no headline of its own; the paper's name is its
-   * heading. Set here, the nameplate becomes the page's one h1 there and stays
-   * a plain link everywhere else, where the story or section title is the h1.
-   */
-  isFrontPage?: boolean;
   /**
    * A story this page is already leading on — the front page's splash, or the
    * article being read. The bar exists to point at things a reader would
@@ -150,20 +145,15 @@ export async function SiteHeader({
           </div>
 
           <div className="col-span-2 text-center lg:order-2 lg:col-span-1">
-            {isFrontPage ? (
-              // font-sans because headings default to the serif; the
-              // nameplate is set in the grotesque on every page.
-              <h1 className="font-sans text-nameplate font-extrabold tracking-[-0.04em] text-ink sm:text-nameplate-lg">
-                <Link href="/">{SITE_NAME}</Link>
-              </h1>
-            ) : (
-              <Link
-                href="/"
-                className="text-nameplate font-extrabold tracking-[-0.04em] text-ink sm:text-nameplate-lg"
-              >
-                {SITE_NAME}
-              </Link>
-            )}
+            {/* The paper's name, never the page's heading: every page, the
+                front included, has a heading of its own that says what is on
+                it, and the name is the same on all of them. */}
+            <Link
+              href="/"
+              className="text-nameplate font-extrabold tracking-[-0.04em] text-ink sm:text-nameplate-lg"
+            >
+              {SITE_NAME}
+            </Link>
           </div>
         </div>
       </header>
@@ -256,18 +246,14 @@ export async function SiteHeader({
                           visible in it. */}
                       <span className="flex h-9 w-9 items-end justify-center overflow-hidden transition-[height,width] duration-200 group-data-[shrunk=true]/nav:h-0 group-data-[shrunk=true]/nav:w-0 motion-reduce:transition-none">
                         {category.icon_url ? (
-                          <Image
+                          <SectionMark
                             src={category.icon_url}
-                            alt=""
-                            aria-hidden="true"
-                            width={72}
-                            height={72}
                             // Fades in half the time the box takes to close.
                             // Run at the same speed, the last frames of the
                             // collapse are a still-opaque sliver of artwork one
                             // or two pixels tall, which flickers along the top
                             // of the bar on every scroll.
-                            className="h-9 w-9 object-contain transition-opacity duration-100 group-data-[shrunk=true]/nav:opacity-0 motion-reduce:transition-none"
+                            className="h-9 w-9 transition-opacity duration-100 group-data-[shrunk=true]/nav:opacity-0 motion-reduce:transition-none"
                           />
                         ) : null}
                       </span>
@@ -312,14 +298,7 @@ export async function SiteHeader({
                           <div className="w-48 shrink-0 pr-6">
                             <p className="flex items-center gap-2.5">
                               {category.icon_url ? (
-                                <Image
-                                  src={category.icon_url}
-                                  alt=""
-                                  aria-hidden="true"
-                                  width={72}
-                                  height={72}
-                                  className="h-8 w-8 shrink-0 object-contain"
-                                />
+                                <SectionMark src={category.icon_url} className="h-8 w-8" />
                               ) : null}
                               <span className="font-label text-[1rem] font-semibold text-ink">
                                 {category.name}
@@ -329,7 +308,7 @@ export async function SiteHeader({
                               href={`/${category.slug}`}
                               className="mt-2 inline-block text-meta text-accent underline-offset-4 hover:underline"
                             >
-                              More {category.name.toLowerCase()}
+                              More {inSentence(category.name)}
                             </Link>
                           </div>
 
@@ -359,8 +338,7 @@ export async function SiteHeader({
                                             "card",
                                           ) ?? article.hero_image_url
                                         }
-                                        alt=""
-                                        aria-hidden="true"
+                                        alt={article.hero_image_alt ?? ""}
                                         fill
                                         sizes="112px"
                                         className="object-cover"
