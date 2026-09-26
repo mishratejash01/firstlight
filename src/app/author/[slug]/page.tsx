@@ -1,6 +1,9 @@
-import { SITE_NAME } from "@/lib/site";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+
+import { profilePageJsonLd } from "@/lib/seo/json-ld";
+import { pageMetadata } from "@/lib/seo/metadata";
+import { SITE_NAME, absoluteUrl } from "@/lib/site";
 
 import { ArticleCard } from "@/components/article/article-card";
 import { JsonLd } from "@/components/seo/json-ld";
@@ -13,7 +16,6 @@ import { createClient } from "@/lib/supabase/server";
 
 export const revalidate = 300;
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 async function getAuthor(slug: string) {
   const supabase = await createClient();
@@ -32,12 +34,26 @@ export async function generateMetadata(
   const { slug } = await props.params;
   const author = await getAuthor(slug);
   if (!author) return { title: "Not found" };
+  const published = await getArticlesByAuthor(slug, 1);
 
-  return {
-    title: `${author.display_name} — ${SITE_NAME}`,
-    description: author.bio ?? `Articles by ${author.display_name}.`,
-    alternates: { canonical: `/author/${author.slug}` },
-  };
+  return pageMetadata({
+    title: author.display_name,
+    description:
+      author.bio ??
+      `${author.display_name}${author.title ? `, ${author.title}` : ""}: stories for ${SITE_NAME}.`,
+    path: `/author/${author.slug}`,
+    // A writer with nothing published has an empty page; it stays reachable
+    // but is not offered to search engines until there is work on it.
+    noindex: published.length === 0,
+  });
+}
+
+/** Profile links stored on the author, as a flat list of URLs for sameAs. */
+function profileLinks(links: unknown): string[] {
+  if (!links || typeof links !== "object") return [];
+  return Object.values(links as Record<string, unknown>).filter(
+    (value): value is string => typeof value === "string" && /^https?:\/\//.test(value),
+  );
 }
 
 export default async function AuthorPage(props: PageProps<"/author/[slug]">) {
@@ -55,17 +71,14 @@ export default async function AuthorPage(props: PageProps<"/author/[slug]">) {
       {/* A Person node with a real bio and a body of work is what lets a search
           engine treat a byline as an author entity rather than a string. */}
       <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "ProfilePage",
-          mainEntity: {
-            "@type": "Person",
-            name: author.display_name,
-            ...(author.title ? { jobTitle: author.title } : {}),
-            ...(author.bio ? { description: author.bio } : {}),
-            url: `${SITE_URL}/author/${author.slug}`,
-          },
-        }}
+        data={profilePageJsonLd({
+          url: absoluteUrl(`/author/${author.slug}`),
+          name: author.display_name,
+          jobTitle: author.title,
+          description: author.bio,
+          image: author.avatar_url,
+          sameAs: profileLinks(author.links),
+        })}
       />
 
       <main className="route-enter mx-auto max-w-page px-4 sm:px-6">
