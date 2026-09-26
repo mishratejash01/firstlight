@@ -49,13 +49,13 @@ function MoreFace() {
           setting the width of the item with nothing visible inside it. */}
       <span
         aria-hidden="true"
-        className="flex h-9 w-9 items-end justify-center overflow-hidden transition-[height,width] duration-200 group-data-[shrunk=true]/nav:h-0 group-data-[shrunk=true]/nav:w-0 motion-reduce:transition-none"
+        className="flex h-[var(--nav-mark,2.25rem)] w-[var(--nav-mark,2.25rem)] items-end justify-center overflow-hidden transition-[height,width] duration-200 group-data-[shrunk=true]/nav:h-0 group-data-[shrunk=true]/nav:w-0 motion-reduce:transition-none"
       >
         <svg
           viewBox="0 0 24 24"
           width="28"
           height="28"
-          className="h-7 w-7 text-ink transition-opacity duration-100 group-hover/more:text-accent group-data-[shrunk=true]/nav:opacity-0 motion-reduce:transition-none"
+          className="h-7 w-7 text-ink transition-opacity xl:h-8 xl:w-8 duration-100 group-hover/more:text-accent group-data-[shrunk=true]/nav:opacity-0 motion-reduce:transition-none"
           fill="currentColor"
         >
           <circle cx="5" cy="5" r="1.9" />
@@ -84,7 +84,12 @@ function MoreFace() {
   );
 }
 
-export function SectionsDrawer({ sections }: { sections: NavCategory[] }) {
+export function SectionsDrawer({
+  sections,
+}: {
+  /** hideFrom: a class that hides the entry at the width where the bar itself carries it. */
+  sections: (NavCategory & { hideFrom?: string })[];
+}) {
   const [open, setOpen] = useState(false);
   const openerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -180,7 +185,7 @@ export function SectionsDrawer({ sections }: { sections: NavCategory[] }) {
 
             <ul className="mt-5 grid grid-cols-2 gap-3">
               {sections.map((section) => (
-                <li key={section.slug}>
+                <li key={section.slug} className={section.hideFrom}>
                   <Link
                     href={`/${section.slug}`}
                     onClick={() => setOpen(false)}
