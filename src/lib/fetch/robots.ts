@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { CRAWLER_TOKEN, CRAWLER_USER_AGENT } from "@/lib/site";
 
 /**
  * robots.txt, checked before anything is fetched.
@@ -16,7 +17,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * not to burden.
  */
 
-const USER_AGENT = "TheFederalPostBot";
+const USER_AGENT = CRAWLER_TOKEN;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 8_000;
 
@@ -149,7 +150,7 @@ async function loadPolicy(host: string): Promise<RobotsPolicy> {
   try {
     const response = await fetch(`https://${host}/robots.txt`, {
       signal: controller.signal,
-      headers: { "User-Agent": `${USER_AGENT}/1.0 (+https://newswebsite-pi.vercel.app)` },
+      headers: { "User-Agent": CRAWLER_USER_AGENT },
       cache: "no-store",
     });
 
