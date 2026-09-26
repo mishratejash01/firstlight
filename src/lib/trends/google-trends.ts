@@ -1,5 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 
+import { CRAWLER_USER_AGENT } from "@/lib/site";
+
 /**
  * Google Trends daily search RSS.
  *
@@ -113,7 +115,7 @@ export async function fetchTrends(region: string): Promise<TrendingTerm[]> {
       {
         signal: controller.signal,
         headers: {
-          "User-Agent": "TheFederalPostTrendsBot/1.0 (+https://newswebsite-pi.vercel.app)",
+          "User-Agent": CRAWLER_USER_AGENT,
           Accept: "application/rss+xml, application/xml, text/xml",
         },
         cache: "no-store",
