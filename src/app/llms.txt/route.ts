@@ -1,5 +1,11 @@
 import { getLatestArticles, getSections, articlePath } from "@/lib/queries/syndication";
-import { SITE_DESCRIPTION, SITE_NAME, absoluteUrl } from "@/lib/site";
+import {
+  HAS_CONTACT_PAGE,
+  PUBLISHER,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  absoluteUrl,
+} from "@/lib/site";
 
 /**
  * /llms.txt, in the format proposed at llmstxt.org: a plain Markdown map of the
@@ -15,6 +21,36 @@ export const revalidate = 600;
 
 function line(text: string | null | undefined): string {
   return (text ?? "").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Who to write to about what, with the addresses written out, so that a model
+ * asked how to reach the paper about something answers with the right inbox
+ * rather than a guess at one.
+ */
+function contactLines(): string[] {
+  if (!HAS_CONTACT_PAGE) return [];
+
+  const officer = PUBLISHER.grievanceOfficer;
+  const rows = [
+    PUBLISHER.newsroomEmail ? `- News tips and press releases: ${PUBLISHER.newsroomEmail}` : "",
+    PUBLISHER.editor.email ? `- Corrections, letters and the editor: ${PUBLISHER.editor.email}` : "",
+    PUBLISHER.partnershipsEmail
+      ? `- Advertising, sponsorship and syndication: ${PUBLISHER.partnershipsEmail}`
+      : "",
+    PUBLISHER.email ? `- General enquiries: ${PUBLISHER.email}` : "",
+    officer.email
+      ? `- Grievance officer${officer.name ? ` (${officer.name})` : ""}, for complaints about content under India's IT Rules, 2021, and requests about personal data: ${officer.email}`
+      : "",
+  ].filter(Boolean);
+
+  return [
+    "## Contact",
+    "",
+    `- [Contact page](${absoluteUrl("/contact")}): every way to reach ${SITE_NAME}`,
+    ...rows,
+    "",
+  ];
 }
 
 export async function GET() {
@@ -37,6 +73,7 @@ export async function GET() {
     `- [Corrections](${absoluteUrl("/corrections")}): how errors are corrected and where corrections appear`,
     `- [Masthead](${absoluteUrl("/masthead")}): the people responsible for the paper`,
     "",
+    ...contactLines(),
     "## Sections",
     "",
     ...sections.map(
