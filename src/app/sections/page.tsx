@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 import { pageMetadata } from "@/lib/seo/metadata";
-import Image from "next/image";
 import Link from "next/link";
+import { SectionMark } from "@/components/site/section-mark";
 
 import { SITE_NAME } from "@/lib/site";
 import { SiteFooter } from "@/components/site/site-footer";
@@ -61,14 +61,7 @@ export default async function SectionsPage() {
                         rather than riding up and breaking the line. */}
                     <span className="flex h-10 items-end">
                       {section.icon_url ? (
-                        <Image
-                          src={section.icon_url}
-                          alt=""
-                          aria-hidden="true"
-                          width={80}
-                          height={80}
-                          className="h-10 w-10 object-contain"
-                        />
+                        <SectionMark src={section.icon_url} className="h-10 w-10" />
                       ) : null}
                     </span>
                     <span className="font-label text-body font-semibold text-ink">
