@@ -38,6 +38,24 @@ import { SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/site";
  */
 const UPDATE_NOTICE_AFTER_MS = 15 * 60 * 1000;
 
+/**
+ * Picture libraries as their names are written, not as the picture search
+ * records them ("via wikimedia_commons").
+ */
+const LIBRARY_NAMES: Record<string, string> = {
+  wikimedia_commons: "Wikimedia Commons",
+  wikimedia: "Wikimedia Commons",
+  flickr: "Flickr",
+  rawpixel: "rawpixel",
+  geographorguk: "Geograph",
+};
+
+function readableCredit(credit: string): string {
+  return credit.replace(/ via ([a-z_]+)$/, (whole, key: string) =>
+    LIBRARY_NAMES[key] ? ` via ${LIBRARY_NAMES[key]}` : whole,
+  );
+}
+
 function modifiedTime(article: { published_at: string | null; content_updated_at: string | null }) {
   if (!article.published_at) return null;
   return lastChanged({
@@ -290,16 +308,19 @@ export default async function ArticlePage(
                     className="object-cover"
                   />
                 </div>
-                {/* The credit is set apart from the caption rather than run into
- it: a picture desk credit is an attribution, not a sentence. */}
+                {/* The credit follows the caption after a middle dot: a
+                    picture desk credit is an attribution, not a sentence. It
+                    wraps wherever it must, even inside a long file name or
+                    code in a library credit, because a caption that cannot
+                    break widens the page past a phone's screen. */}
                 {article.hero_image_alt || article.hero_image_credit ? (
-                  <figcaption className="mt-2 text-meta text-muted">
+                  <figcaption className="mt-2 text-meta text-muted [overflow-wrap:anywhere]">
                     {article.hero_image_alt}
                     {article.hero_image_credit ? (
-                      <span className="whitespace-nowrap">
+                      <>
                         {" "}
-                        &middot; {article.hero_image_credit}
-                      </span>
+                        &middot; {readableCredit(article.hero_image_credit)}
+                      </>
                     ) : null}
                   </figcaption>
                 ) : null}
