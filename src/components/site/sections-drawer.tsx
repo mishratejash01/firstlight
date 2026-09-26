@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
+import { SectionMark } from "@/components/site/section-mark";
 import { useEffect, useRef, useState } from "react";
 
 import type { NavCategory } from "@/lib/queries/navigation";
@@ -53,6 +53,8 @@ function MoreFace() {
       >
         <svg
           viewBox="0 0 24 24"
+          width="28"
+          height="28"
           className="h-7 w-7 text-ink transition-opacity duration-100 group-hover/more:text-accent group-data-[shrunk=true]/nav:opacity-0 motion-reduce:transition-none"
           fill="currentColor"
         >
@@ -186,14 +188,7 @@ export function SectionsDrawer({ sections }: { sections: NavCategory[] }) {
                   >
                     <span className="flex h-8 items-end">
                       {section.icon_url ? (
-                        <Image
-                          src={section.icon_url}
-                          alt=""
-                          aria-hidden="true"
-                          width={64}
-                          height={64}
-                          className="h-8 w-8 object-contain"
-                        />
+                        <SectionMark src={section.icon_url} className="h-8 w-8" />
                       ) : null}
                     </span>
                     <span className="font-label text-meta font-semibold text-ink">
