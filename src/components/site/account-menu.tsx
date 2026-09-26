@@ -201,7 +201,7 @@ function SignInControl() {
         onClick={() => setOpen((was) => !was)}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="rounded-control bg-signal px-3 py-1.5 text-meta font-semibold whitespace-nowrap text-paper transition-opacity hover:opacity-90"
+        className="rounded-control bg-signal px-3 py-1.5 text-meta font-semibold whitespace-nowrap text-paper transition-opacity hover:opacity-90 xl:px-4 xl:py-2 xl:text-[0.875rem]"
       >
         Sign in
       </button>
