@@ -541,6 +541,7 @@ export type Database = {
           author_id: string | null
           body: string | null
           canonical_url: string | null
+          content_updated_at: string | null
           category_id: string
           created_at: string
           created_by: string | null
@@ -577,6 +578,7 @@ export type Database = {
           author_id?: string | null
           body?: string | null
           canonical_url?: string | null
+          content_updated_at?: string | null
           category_id: string
           created_at?: string
           created_by?: string | null
@@ -613,6 +615,7 @@ export type Database = {
           author_id?: string | null
           body?: string | null
           canonical_url?: string | null
+          content_updated_at?: string | null
           category_id?: string
           created_at?: string
           created_by?: string | null
