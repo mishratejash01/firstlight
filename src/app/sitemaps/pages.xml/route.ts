@@ -5,7 +5,7 @@ import {
   getSections,
 } from "@/lib/queries/syndication";
 import { renderUrlset, sitemapResponse, type SitemapUrl } from "@/lib/seo/sitemap-xml";
-import { PUBLISHER, absoluteUrl } from "@/lib/site";
+import { HAS_CONTACT_PAGE, PUBLISHER, absoluteUrl } from "@/lib/site";
 
 /**
  * The site's standing pages: the front page, every section, live-coverage
@@ -26,6 +26,7 @@ const STANDING_PAGES = [
   "/editorial-standards",
   "/corrections",
   "/privacy",
+  "/contact",
 ];
 
 export async function GET() {
@@ -56,12 +57,15 @@ export async function GET() {
       lastmod: author.lastPublished,
     })),
     ...STANDING_PAGES
-      // The masthead is noindex until it has someone to list.
-      .filter(
-        (path) =>
-          path !== "/masthead" ||
-          Boolean(PUBLISHER.editor.name || PUBLISHER.legalName || authors.length),
-      )
+      // The masthead is noindex until it has someone to list, and the
+      // contact page does not exist until there is a way to reach us.
+      .filter((path) => {
+        if (path === "/masthead") {
+          return Boolean(PUBLISHER.editor.name || PUBLISHER.legalName || authors.length);
+        }
+        if (path === "/contact") return HAS_CONTACT_PAGE;
+        return true;
+      })
       .map((path) => ({ loc: absoluteUrl(path) })),
   ];
 
