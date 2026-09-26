@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAnonymousClient } from "@/lib/supabase/anonymous";
 
 /**
  * Shared read queries for published articles.
@@ -77,7 +77,7 @@ function nowIso() {
 export async function getBreakingArticles(
   limit = 60,
 ): Promise<RankedArticle[]> {
-  const supabase = await createClient();
+  const supabase = createAnonymousClient();
   const { data, error } = await supabase
     .from("articles")
     .select(BREAKING_FIELDS)
@@ -101,7 +101,7 @@ export async function getBreakingArticles(
  * Sydney, is a bug waiting rather than a detail.
  */
 export async function getTopOfDay(limit = 50): Promise<RankedArticle[]> {
-  const supabase = await createClient();
+  const supabase = createAnonymousClient();
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
   const { data, error } = await supabase
@@ -173,7 +173,7 @@ export function rankByConsequence(
  * would otherwise mean sixteen round trips to Sydney before the first byte.
  */
 export async function getRecentArticles(limit = 90): Promise<ArticleCardData[]> {
-  const supabase = await createClient();
+  const supabase = createAnonymousClient();
   const { data, error } = await supabase
     .from("articles")
     .select(CARD_FIELDS)
@@ -188,7 +188,7 @@ export async function getRecentArticles(limit = 90): Promise<ArticleCardData[]> 
 
 /** Live editor pins, in slot order. */
 export async function getLivePlacements() {
-  const supabase = await createClient();
+  const supabase = createAnonymousClient();
   const now = nowIso();
 
   const { data, error } = await supabase
@@ -207,7 +207,7 @@ export async function getArticlesByCategory(
   limit = 30,
   offset = 0,
 ): Promise<ArticleCardData[]> {
-  const supabase = await createClient();
+  const supabase = createAnonymousClient();
   const { data, error } = await supabase
     .from("articles")
     .select(CARD_FIELDS)
@@ -226,7 +226,7 @@ export async function getArticlesByAuthor(
   slug: string,
   limit = 30,
 ): Promise<ArticleCardData[]> {
-  const supabase = await createClient();
+  const supabase = createAnonymousClient();
   const { data, error } = await supabase
     .from("articles")
     .select(AUTHOR_JOINED_FIELDS)
@@ -241,7 +241,7 @@ export async function getArticlesByAuthor(
 }
 
 export async function getArticlesByTag(slug: string, limit = 30) {
-  const supabase = await createClient();
+  const supabase = createAnonymousClient();
 
   // Resolve the tag first: filtering across a join table in one PostgREST call
   // reads far worse than two obvious queries, and the tag lookup is indexed.
@@ -296,7 +296,7 @@ export async function suggestArticles(
     .slice(0, 6);
   if (!words.length) return [];
 
-  const supabase = await createClient();
+  const supabase = createAnonymousClient();
   const { data, error } = await supabase
     .from("articles")
     .select(CARD_FIELDS)
@@ -317,7 +317,7 @@ export async function searchArticles(
   const trimmed = query.trim();
   if (!trimmed) return [];
 
-  const supabase = await createClient();
+  const supabase = createAnonymousClient();
   const { data, error } = await supabase
     .from("articles")
     .select(CARD_FIELDS)
