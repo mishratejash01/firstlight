@@ -113,7 +113,7 @@ export const PUBLISHER: {
  * identifiers set once at launch, not editorial decisions made daily.
  */
 export const SOCIAL_LINKS: { name: string; href: string }[] = [
-  { name: "X", href: "" },
+  { name: "X", href: "https://x.com/theindiadecade" },
   { name: "Facebook", href: "" },
   { name: "Instagram", href: "https://www.instagram.com/theindiadecade/" },
 ];
