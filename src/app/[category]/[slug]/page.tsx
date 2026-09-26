@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { after } from "next/server";
 import type { Metadata } from "next";
 
 import { ArticleCard } from "@/components/article/article-card";
@@ -10,15 +9,12 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { NewsletterSignup } from "@/components/site/newsletter-signup";
+import { PageViewBeacon } from "@/components/analytics/page-view-beacon";
 import { ReadingInstrumentation } from "@/components/analytics/reading-instrumentation";
 import { getArticle, getRelatedArticles } from "@/lib/queries/article-detail";
 import { getRecentArticles } from "@/lib/queries/articles";
 import { HeadlineRail } from "@/components/article/headline-rail";
 import { ListenButton } from "@/components/article/listen-button";
-import {
-  captureRequestContext,
-  logPageView,
-} from "@/lib/analytics/server-events";
 import { renderMarkdown } from "@/lib/format/markdown";
 import { listeningMinutes, markdownToSpeech } from "@/lib/format/speech-text";
 import {
@@ -51,14 +47,20 @@ function modifiedTime(article: { published_at: string | null; content_updated_at
 }
 
 /**
- * Rendered per request rather than statically.
+ * Served from the edge cache, rebuilt at most every five minutes.
  *
- * That is a deliberate trade. A cached article page cannot log a server-side
- * view, and server-side capture is the only reach measurement an ad blocker
- * cannot switch off. Freshness matters on a news page anyway; the CDN can still
- * cache by response header later without losing the count.
+ * No article is rendered at build time: each is rendered the first time it is
+ * asked for and cached from then on, so a correction reaches readers within
+ * five minutes and a new story is there on its first request. It used to be
+ * rendered afresh for every reader so that the server could count the view;
+ * the page now reports its own view (PageViewBeacon), and a reader no longer
+ * waits for a render and two database round trips before the story arrives.
  */
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
+
+export function generateStaticParams() {
+  return [];
+}
 
 export async function generateMetadata(
   props: PageProps<"/[category]/[slug]">,
@@ -153,18 +155,6 @@ export default async function ArticlePage(
       ? modified
       : null;
 
-  // Request context must be read here, during render: cookies() and headers()
-  // are unavailable inside an after() callback. The write itself is deferred so
-  // the counter never delays the read.
-  const requestContext = await captureRequestContext();
-  after(() =>
-    logPageView({
-      articleId: article.id,
-      path: `/${category}/${slug}`,
-      context: requestContext,
-    }),
-  );
-
   const primaryEntities = entities.filter((e) => e.relation === "about");
   const faqSchema = faqJsonLd(faqs);
 
@@ -196,6 +186,7 @@ export default async function ArticlePage(
         ])}
       />
 
+      <PageViewBeacon articleId={article.id} />
       <ReadingInstrumentation articleId={article.id} />
 
       <main className="route-enter mx-auto max-w-page px-4 sm:px-6">
