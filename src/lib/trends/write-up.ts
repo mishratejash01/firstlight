@@ -6,6 +6,7 @@ import { submitToIndexNow } from "@/lib/seo/indexnow";
 import { draftingModelId } from "@/lib/ai/config";
 import { attachStructuredData } from "@/lib/ai/attach-structure";
 import { draftFromTrend } from "@/lib/ai/draft";
+import { researchSearch } from "@/lib/seo/search-research";
 import { getSourceDocuments } from "@/lib/fetch/extract";
 import { illustrateArticle } from "@/lib/media/illustrate";
 import type { TrendNewsItem } from "./google-trends";
@@ -187,6 +188,10 @@ export async function writeUpTrends(limit = 3): Promise<WriteUpReport> {
       term: trend.term,
       newsItems,
       documents,
+      searchResearch: await researchSearch({
+        title: trend.term,
+        headlines: newsItems.map((item) => item.title),
+      }),
       sectionName: undefined,
       angle: trend.triage_reason ?? undefined,
     });
