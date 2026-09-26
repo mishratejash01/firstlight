@@ -1,80 +1,118 @@
 import Link from "next/link";
-
-import { SITE_NAME } from "@/lib/site";
 import type { Metadata } from "next";
 
-import { EditorialNotice } from "@/components/site/editorial-notice";
 import { StaticPage } from "@/components/site/static-page";
+import { pageMetadata } from "@/lib/seo/metadata";
+import { PUBLISHER, SITE_NAME } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: `Editorial standards — ${SITE_NAME}`,
-  description: "How we source, verify, review and label what we publish.",
-  alternates: { canonical: "/editorial-standards" },
-};
+export const metadata: Metadata = pageMetadata({
+  title: "Editorial standards",
+  description: "How we source, verify, attribute, illustrate and correct what we publish.",
+  path: "/editorial-standards",
+});
 
+const link = "text-accent underline underline-offset-4";
+
+/**
+ * The rules the newsroom works to. Every statement here describes how the site
+ * actually behaves; where a rule is enforced in code, the thresholds quoted
+ * are the ones configured.
+ */
 export default function EditorialStandardsPage() {
   return (
     <StaticPage
       title="Editorial standards"
-      standfirst="How we source, verify, review and label what we publish."
+      standfirst="How we source, verify, attribute, illustrate and correct what we publish."
     >
-      <EditorialNotice>
-        This page has been updated to describe autonomous AI publishing, which
-        is now part of how this site operates. The description is accurate as
-        built. Whether you want to disclose it in these terms — and what your
-        obligations are where readers are — needs a decision from you and, given
-        it concerns published accuracy, likely legal advice. The complaints
-        route and the named accountable editor are still placeholders.
-      </EditorialNotice>
-
       <div className="space-y-4 text-body leading-relaxed text-ink">
-        <h2 className="text-section text-ink">Human review</h2>
+        <h2 id="sourcing" className="text-section text-ink">
+          Sourcing and attribution
+        </h2>
         <p>
-          Reporting filed by our journalists, licensed wire copy and curated
-          summaries all enter the same review queue and are published by a named
-          editor. Contributors and the wire ingestion worker cannot move a story
-          into a published state; that is enforced by the database, not by
-          convention.
+          We report from the documents, statements, data and published reports
+          behind each story, and we attribute every fact to the person,
+          organisation or document it comes from. Where our reporting draws on
+          another publication&rsquo;s work, we say so and we write our own
+          account; we do not reproduce another outlet&rsquo;s article.
         </p>
 
-        <h2 className="mt-8 text-section text-ink">How we use software</h2>
+        <h2 id="verification" className="mt-8 text-section text-ink">
+          Verification
+        </h2>
         <p>
-          We use automated systems to find developing stories across search,
-          social and news sources, and to draft coverage from what other outlets
-          have reported. Some articles are produced this way and published
-          without individual review. Every automatically produced article is
-          written from named sources, attributes its claims to them in the text,
-          and records which statements could not be verified against a source.
+          A story&rsquo;s central claims are checked against independent sources
+          before it is published, and the more serious the claim, the more
+          sources it needs. Deaths, injuries, crimes, allegations against named
+          people and market-moving figures need at least three independent
+          sources. Policy, disputes, significant sums of money and court cases
+          need at least two. A serious claim that one of our sources
+          contradicts is not published as fact.
         </p>
+
+        <h2 id="timeliness" className="mt-8 text-section text-ink">
+          Timeliness
+        </h2>
         <p>
-          If you find an error in any article, tell us and we will correct it
-          under the same{" "}
-          <Link href="/corrections" className="text-accent underline underline-offset-4">
+          We publish news while it is news: we do not publish a news report
+          whose newest source is more than a day old. Every story shows when it
+          was published and, if its text has changed since, when it was last
+          updated.
+        </p>
+
+        <h2 id="bylines" className="mt-8 text-section text-ink">
+          Bylines
+        </h2>
+        <p>
+          Stories written by a named journalist carry that journalist&rsquo;s
+          name, linked to a page about them. Stories produced by the newsroom as
+          a whole are published under the name of {SITE_NAME}. We never publish
+          under an invented name.
+        </p>
+
+        <h2 id="pictures" className="mt-8 text-section text-ink">
+          Pictures
+        </h2>
+        <p>
+          We publish photographs only where their licence allows it, and we
+          credit the photographer or the source. Where no suitable photograph
+          exists we use a plain typographic card rather than an image that
+          could be mistaken for a picture of the event. We do not publish
+          synthetic images presented as photographs.
+        </p>
+
+        <h2 id="labels" className="mt-8 text-section text-ink">
+          News, analysis and opinion
+        </h2>
+        <p>
+          Opinion appears only in the Opinion section and is labelled as such.
+          Everything else we publish is news reporting or explanation.
+        </p>
+
+        <h2 id="corrections" className="mt-8 text-section text-ink">
+          Corrections
+        </h2>
+        <p>
+          We correct errors in the story itself, and every change to a
+          published story is kept in a permanent version history. How to tell
+          us about an error is set out in our{" "}
+          <Link href="/corrections" className={link}>
             corrections policy
-          </Link>{" "}
-          as anything else we publish.
+          </Link>
+          .
         </p>
 
-        <h2 className="mt-8 text-section text-ink">Sourcing and attribution</h2>
-        <p>
-          Where we summarise reporting done by another organisation, we publish a
-          short original summary and link to the original. We do not reproduce
-          another outlet&rsquo;s article in full. Where we carry licensed wire
-          copy, we credit the wire service, and we only reproduce full text where
-          the licence permits it.
-        </p>
-
-        <h2 className="mt-8 text-section text-ink">Independence</h2>
-        <p>
-          [Placeholder: state the separation between commercial and editorial
-          decisions, and how conflicts of interest are declared and handled.]
-        </p>
-
-        <h2 className="mt-8 text-section text-ink">Complaints</h2>
-        <p>
-          [Placeholder: name the editor responsible for complaints, give the
-          contact route, and state the response time you commit to.]
-        </p>
+        {PUBLISHER.editor.name ? (
+          <>
+            <h2 id="responsibility" className="mt-8 text-section text-ink">
+              Responsibility
+            </h2>
+            <p>
+              {PUBLISHER.editor.name}
+              {PUBLISHER.editor.title ? `, ${PUBLISHER.editor.title},` : ""} is
+              responsible for everything {SITE_NAME} publishes.
+            </p>
+          </>
+        ) : null}
       </div>
     </StaticPage>
   );
