@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -23,6 +25,8 @@ export type ArticleDetail = {
   hero_image_credit: string | null;
   published_at: string | null;
   updated_at: string;
+  /** When the headline, standfirst, body or summary last changed. */
+  content_updated_at: string | null;
   is_breaking: boolean;
   ai_assisted: boolean;
   ai_unverified_claims: string[] | null;
@@ -39,7 +43,14 @@ export type ArticleDetail = {
   } | null;
 };
 
-export async function getArticle(categorySlug: string, slug: string) {
+/**
+ * Wrapped in React's cache so generateMetadata and the page share one fetch
+ * per request instead of each making the round trips to the database.
+ */
+export const getArticle = cache(async function getArticle(
+  categorySlug: string,
+  slug: string,
+) {
   const supabase = await createClient();
 
   const { data: article } = await supabase
@@ -49,7 +60,7 @@ export async function getArticle(categorySlug: string, slug: string) {
       id, slug, headline, standfirst, body, summary, origin,
       attribution_url, attribution_label,
       hero_image_url, hero_image_alt, hero_image_credit,
-      published_at, updated_at, is_breaking,
+      published_at, updated_at, content_updated_at, is_breaking,
       ai_assisted, ai_unverified_claims, reviewed_by,
       meta_title, meta_description, canonical_url,
       categories!inner ( slug, name ),
@@ -121,7 +132,7 @@ export async function getArticle(categorySlug: string, slug: string) {
       } | null)
       .filter((e): e is { slug: string; title: string; is_live: boolean } => Boolean(e)),
   };
-}
+});
 
 /** Ranked related coverage, from the recommendation function. */
 export async function getRelatedArticles(articleId: string, limit = 4) {
