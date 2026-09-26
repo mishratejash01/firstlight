@@ -7,7 +7,7 @@
  * twenty, and so the name in a search result can never drift from the name at
  * the top of the page.
  */
-export const SITE_NAME = "The India Front";
+export const SITE_NAME = "The India Decade";
 
 /**
  * What the paper covers, in one line.
