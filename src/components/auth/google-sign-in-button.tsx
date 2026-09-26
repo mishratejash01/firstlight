@@ -1,44 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 /**
- * Starts the Google OAuth redirect.
+ * Starts Sign in with Google.
  *
- * `next` is passed through to /auth/callback so a reader who was sent to sign
- * in from a protected page returns to it. It is validated server-side in the
- * callback, never trusted here.
+ * A plain navigation to this site's own /auth/google, which sends the reader
+ * to Google and brings them back to theindiadecade.com (see lib/auth/google).
+ * `next` is passed along so a reader sent to sign in from a protected page
+ * returns to it; it is validated on the server, never trusted here.
  */
 export function GoogleSignInButton({ next }: { next?: string }) {
   const [pending, setPending] = useState(false);
-  const [failed, setFailed] = useState(false);
 
-  async function signIn() {
+  // A reader who backs out of Google's page returns to this page restored
+  // from the browser's cache, button still disabled; re-enable it.
+  useEffect(() => {
+    const onShow = (event: PageTransitionEvent) => {
+      if (event.persisted) setPending(false);
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
+
+  function signIn() {
     setPending(true);
-    setFailed(false);
-
-    const callback = new URL("/auth/callback", window.location.origin);
-    if (next) callback.searchParams.set("next", next);
-
-    // The auth library is loaded on the click, not with the page.
-    let failedToStart = false;
-    try {
-      const { createClient } = await import("@/lib/supabase/client");
-      const { error } = await createClient().auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: callback.toString() },
-      });
-      failedToStart = Boolean(error);
-    } catch {
-      failedToStart = true;
-    }
-
-    // On success the browser is already navigating away, so this only runs when
-    // the redirect could not be started at all.
-    if (failedToStart) {
-      setPending(false);
-      setFailed(true);
-    }
+    const start = new URL("/auth/google", window.location.origin);
+    if (next) start.searchParams.set("next", next);
+    window.location.assign(start.toString());
   }
 
   return (
@@ -52,12 +41,6 @@ export function GoogleSignInButton({ next }: { next?: string }) {
         <GoogleMark />
         {pending ? "Opening Google…" : "Continue with Google"}
       </button>
-
-      {failed ? (
-        <p role="alert" className="mt-3 text-meta text-signal">
-          Could not reach Google. Check your connection and try again.
-        </p>
-      ) : null}
     </div>
   );
 }
