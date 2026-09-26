@@ -3,8 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { createClient } from "@/lib/supabase/client";
-
 /**
  * Follow or unfollow a topic, writer or section.
  *
@@ -50,7 +48,15 @@ export function FollowButton({
 
   async function toggle() {
     setPending(true);
-    const supabase = createClient();
+    // The database library is loaded on the click, not with the page.
+    let supabase;
+    try {
+      const { createClient } = await import("@/lib/supabase/client");
+      supabase = createClient();
+    } catch {
+      setPending(false);
+      return;
+    }
 
     if (following && currentId) {
       await supabase.from("follows").delete().eq("id", currentId);
