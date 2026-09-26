@@ -3,6 +3,8 @@ import "server-only";
 import { Output, generateText } from "ai";
 import type { z } from "zod";
 
+import type { SearchResearch } from "@/lib/seo/search-research";
+
 import { AI_UNAVAILABLE_MESSAGE, aiIsConfigured, runWithChain } from "./config";
 import {
   draftedArticleSchema,
@@ -84,6 +86,57 @@ Before you finish: read it back as an editor about to publish it. Any sentence
 that sounds robotic, over-formal, repetitive, or like something a model would
 produce, rewrite until it reads like a person wrote it.
 `.trim();
+
+/**
+ * How a piece is made findable. Readers find news by typing the names in it
+ * into a search engine, and the story that uses those names, in the form
+ * people use, is the one they find. That is a matter of choosing words, not of
+ * adding any: nothing here asks for a word the reporting would not use anyway.
+ */
+const SEARCH_RULE = `
+Search
+- Readers find news by typing its key names into a search engine. The headline
+  names the main person, organisation, place or event near the start, in the
+  form people search for it ("RBI", "Sensex", "IPL", "Virat Kohli"), in plain,
+  natural English.
+- The standfirst and the first paragraph use the same key names where they
+  belong anyway, so a reader arriving from a search sees at once that this is
+  the story they looked for.
+- Never repeat a phrase for its own sake, never add a word the story does not
+  support, and never borrow another outlet's headline: take the words people
+  search with, not anyone's sentence.
+- searchKeywords: the three to eight searches this piece answers, most
+  important first.
+`.trim();
+
+/**
+ * The search research for a story, as the drafter reads it. Evidence of the
+ * words readers use, which is all it is offered as: the facts still come only
+ * from the sources.
+ */
+function researchBlock(research: SearchResearch | null | undefined): string {
+  if (!research) return "";
+  const lines = ["\nSearch research for this story, gathered just now:"];
+  if (research.searches.length) {
+    const searches = research.searches
+      .map((search) => (search.traffic ? `"${search.term}" (${search.traffic} searches)` : `"${search.term}"`))
+      .join(", ");
+    lines.push(`Searches rising in India that match it: ${searches}`);
+  }
+  if (research.ranking.length) {
+    lines.push(
+      "Headlines ranking in Google News for it:",
+      ...research.ranking.map((hit) => `- ${hit.source}: "${hit.title}"`),
+    );
+  }
+  if (research.phrases.length) {
+    lines.push(`Names and phrases most of the coverage uses: ${research.phrases.join(", ")}`);
+  }
+  lines.push(
+    "Word the headline, standfirst and opening the way readers are searching for this story, and choose searchKeywords from these where they fit the piece. They show which words people use; they are not facts. Write only what the sources support.",
+  );
+  return lines.join("\n");
+}
 
 const HONESTY_RULE = `
 You have no access to sources, documents, interviews or the live web. You cannot
@@ -235,6 +288,7 @@ export async function draftArticle({
 
     const system = [
       HOUSE_STYLE,
+      SEARCH_RULE,
       grounded
         ? `Work ONLY from the source material provided. Do not add facts that are not in it. Anything you infer rather than read belongs in unverifiedClaims.`
         : HONESTY_RULE,
@@ -291,7 +345,7 @@ export async function suggestHeadlines(input: {
 }): Promise<AiResult<string[]>> {
   return guarded(async () => {
     const output = await generateStructured("assist", {
-      system: `${HOUSE_STYLE}\n\nSuggest headlines only. Every one must be supported by the body copy — do not promise anything the piece does not deliver.`,
+      system: `${HOUSE_STYLE}\n\nSuggest headlines only. Every one must be supported by the body copy — do not promise anything the piece does not deliver. Each names the main subject near the start, in the form people search for it.`,
       prompt: `Current headline: ${input.headline}\n\nBody:\n${input.body.slice(0, 6000)}`,
       schema: headlineSuggestionSchema,
     });
@@ -330,12 +384,20 @@ export async function summariseForQueue(input: {
  */
 export async function draftFromTrend({
   term,
+  termKind = "search",
   newsItems,
   documents,
   sectionName,
   angle,
+  searchResearch,
 }: {
   term: string;
+  /**
+   * What `term` is: a search people are making (a trend), or a one-line
+   * account of the story (the engine's events). The prompt says which, so the
+   * model is never told a summary sentence is what readers are typing.
+   */
+  termKind?: "search" | "story";
   newsItems: { title: string; source: string; url: string }[];
   /**
    * Full text read from the linked articles, where it could be fetched. This is
@@ -351,6 +413,8 @@ export async function draftFromTrend({
   }[];
   sectionName?: string;
   angle?: string;
+  /** How readers are searching for the story now; see lib/seo/search-research. */
+  searchResearch?: SearchResearch | null;
 }): Promise<AiResult<DraftedArticle>> {
   return guarded(async () => {
     const sourced = documents?.filter((doc) => doc.content.trim().length > 0) ?? [];
@@ -402,7 +466,7 @@ Rules, without exception:
 - List in unverifiedClaims anything you inferred rather than read.
         `.trim();
 
-    const system = [HOUSE_STYLE, groundingRule].join("\n\n");
+    const system = [HOUSE_STYLE, SEARCH_RULE, groundingRule].join("\n\n");
 
     const coverage = newsItems
       .map((item) => `- ${item.source}: "${item.title}"  ${item.url}`)
@@ -425,13 +489,14 @@ Rules, without exception:
       .join("\n\n---\n\n");
 
     const prompt = [
-      `People are searching for: ${term}`,
+      termKind === "search" ? `People are searching for: ${term}` : `The story: ${term}`,
       sectionName ? `Section: ${sectionName}` : "",
       angle ? `Angle: ${angle}` : "",
       coverage ? `\nHeadlines matched to this story:\n${coverage}` : "",
       hasFullText
         ? `\nFull text of what those outlets published:\n\n${fullText}`
         : "",
+      researchBlock(searchResearch),
       hasFullText
         ? `\nWrite the piece. 400-650 words. You have real material — use the specifics.`
         : `\nWrite the piece. 200-350 words. You have headlines, not documents, so keep it short and honest.`,
