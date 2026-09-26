@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 
-import { createClient } from "@/lib/supabase/client";
-
 /**
  * Starts the Google OAuth redirect.
  *
@@ -19,18 +17,25 @@ export function GoogleSignInButton({ next }: { next?: string }) {
     setPending(true);
     setFailed(false);
 
-    const supabase = createClient();
     const callback = new URL("/auth/callback", window.location.origin);
     if (next) callback.searchParams.set("next", next);
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: callback.toString() },
-    });
+    // The auth library is loaded on the click, not with the page.
+    let failedToStart = false;
+    try {
+      const { createClient } = await import("@/lib/supabase/client");
+      const { error } = await createClient().auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: callback.toString() },
+      });
+      failedToStart = Boolean(error);
+    } catch {
+      failedToStart = true;
+    }
 
     // On success the browser is already navigating away, so this only runs when
     // the redirect could not be started at all.
-    if (error) {
+    if (failedToStart) {
       setPending(false);
       setFailed(true);
     }
