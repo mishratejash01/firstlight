@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { categorySlugOf, revalidateStory } from "@/lib/cache/revalidate-story";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/roles";
 import { slugify, withUniqueSuffix } from "@/lib/format/slug";
@@ -65,7 +66,7 @@ export async function saveDraft(formData: FormData): Promise<ActionResult> {
   if (!id) return { error: "Missing article." };
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("articles")
     .update({
       headline: String(formData.get("headline") ?? "").trim(),
@@ -77,12 +78,19 @@ export async function saveDraft(formData: FormData): Promise<ActionResult> {
       hero_image_alt: String(formData.get("hero_image_alt") ?? "").trim() || null,
       hero_image_credit: String(formData.get("hero_image_credit") ?? "").trim() || null,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .select("slug, status, categories ( slug )")
+    .maybeSingle();
 
   if (error) return { error: error.message };
 
   revalidatePath(`/contribute/${id}`);
   revalidatePath("/contribute");
+  // An editor correcting a live story: readers get the correction on their
+  // next request, not when the page's hour in the cache runs out.
+  if (data && (data.status === "published" || data.status === "scheduled")) {
+    revalidateStory(categorySlugOf(data), data.slug);
+  }
   return { ok: true };
 }
 
