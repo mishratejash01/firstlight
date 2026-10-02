@@ -17,10 +17,20 @@ import { ArticleCard } from "@/components/article/article-card";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { getArticlesByTag } from "@/lib/queries/articles";
-import { getFollowState } from "@/lib/queries/follows";
 import { FollowButton } from "@/components/follow/follow-button";
 
-export const revalidate = 300;
+/**
+ * Cached like any other public page, and rebuilt at most once an hour. The
+ * follow button finds out who is reading in the browser, so the page is the
+ * same for everyone and can be served from the cache; it used to be built
+ * afresh for every visitor, and there are well over a thousand topics for
+ * crawlers to walk.
+ */
+export const revalidate = 3600;
+
+export function generateStaticParams() {
+  return [];
+}
 
 /**
  * Whether a topic page is offered to search engines: it needs enough stories
@@ -68,7 +78,6 @@ export default async function TopicPage(props: PageProps<"/topic/[slug]">) {
   const { tag, articles } = await getArticlesByTag(slug, 40);
   if (!tag) notFound();
 
-  const follow = await getFollowState("tag", tag.id);
   const name = displayTopicName(tag.name);
   const url = absoluteUrl(`/topic/${tag.slug}`);
   const indexable = await isIndexable(tag.slug, articles.length);
@@ -112,9 +121,6 @@ export default async function TopicPage(props: PageProps<"/topic/[slug]">) {
               targetType="tag"
               targetId={tag.id}
               label={name}
-              isSignedIn={follow.isSignedIn}
-              initiallyFollowing={follow.following}
-              followId={follow.followId}
               returnTo={`/topic/${tag.slug}`}
             />
           </div>
