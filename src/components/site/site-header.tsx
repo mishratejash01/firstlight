@@ -5,19 +5,18 @@ import Link from "next/link";
 import { AccountMenu } from "@/components/site/account-menu";
 import { SearchBox } from "@/components/site/search-box";
 import { SocialLinks } from "@/components/site/social-links";
-import { BreakingStrip } from "@/components/article/breaking-strip";
+import { BREAKING_IN_BAR, BreakingStrip } from "@/components/article/breaking-strip";
 import { SectionsDrawer } from "@/components/site/sections-drawer";
 import { SectionMark } from "@/components/site/section-mark";
-import { inSentence } from "@/lib/format/section-name";
 import { StickyNav } from "@/components/site/sticky-nav";
+import { LiveDateline } from "@/components/site/live-dateline";
+import { LiveBreakingStrip, SectionPeek } from "@/components/site/live-headlines";
 import { getAllSections, getNavCategories } from "@/lib/queries/navigation";
 import {
+  BREAKING_BANNER_HOURS,
   getBreakingArticles,
-  getRecentArticles,
   rankByConsequence,
-  type ArticleCardData,
 } from "@/lib/queries/articles";
-import { cloudinaryImage } from "@/lib/media/transform";
 
 /**
  * The flag: dateline, nameplate, section navigation.
@@ -40,12 +39,16 @@ import { cloudinaryImage } from "@/lib/media/transform";
  * needing to scroll and centres itself — no second layout, no duplicated markup.
  *
  * Hovering a section opens its three latest stories underneath the strip, with
- * the section named down the left so the panel says what it belongs to. It is
- * built from CSS hover on the list item, with the panel a child of it — so the
- * pointer can travel from the name down into the panel without it closing, and
- * so the whole thing works server-rendered with no client JavaScript. The panel
- * is desktop-only: there is no hover on a phone, and a tap there should go to
- * the section rather than open a menu the reader has to dismiss.
+ * the section named down the left so the panel says what it belongs to (see
+ * SectionPeek).
+ *
+ * What changes with every new story — those panels, the breaking banner — and
+ * the date, which changes at midnight, are not built into the page. They come
+ * from the site's one live headlines file and the reader's browser, so a cached
+ * page stays as it is until its own story changes rather than every page on
+ * the site being stored again for each story published. The one exception is
+ * the front page, which changes with every story anyway and carries its
+ * banner in its own markup (serverBreaking).
  *
  * The sections and the breaking bar stick to the top of the window while the
  * dateline and the nameplate scroll away. A reader thirty paragraphs down a
@@ -111,8 +114,15 @@ function panelClasses(index: number | undefined): string | undefined {
 export async function SiteHeader({
   activeSlug,
   excludeId,
+  serverBreaking = false,
 }: {
   activeSlug?: string;
+  /**
+   * Build the breaking banner into this page rather than fetch it in the
+   * browser. Only for pages that are rebuilt with every story anyway, where
+   * it costs nothing and the banner is there from the first paint.
+   */
+  serverBreaking?: boolean;
   /**
    * A story this page is already leading on — the front page's splash, or the
    * article being read. The bar exists to point at things a reader would
@@ -121,25 +131,15 @@ export async function SiteHeader({
    */
   excludeId?: string;
 }) {
-  // One query feeds every section's hover panel. Asking per section would mean
-  // a round trip per item in the navigation, on every page of the site.
-  //
-  // Alerts are fetched here rather than handed down by each page. Breaking news
-  // is breaking everywhere, and requiring twelve callers to remember to pass it
-  // is how eleven of them quietly end up without it. The extra query costs no
-  // wall time: it runs alongside the three already here.
-  const [navCategories, allSections, recent, breakingAll] = await Promise.all([
+  // Breaking news is breaking everywhere, so the header finds it rather than
+  // each page: requiring twelve callers to remember to pass it is how eleven
+  // of them quietly end up without it.
+  const [navCategories, allSections, breakingAll] = await Promise.all([
     getNavCategories(),
     getAllSections(),
-    getRecentArticles(60),
-    getBreakingArticles(),
+    serverBreaking ? getBreakingArticles(60, BREAKING_BANNER_HOURS) : Promise.resolve([]),
   ]);
 
-  // Capped at ten. The bar shows one at a time and holds each for five seconds,
-  // so ten is already most of a minute before the first comes round again; past
-  // that the rota stops being a bulletin and becomes a section front that
-  // happens to move.
-  const BREAKING_IN_BAR = 10;
   const breaking = rankByConsequence(breakingAll)
     .filter((article) => article.id !== excludeId)
     .slice(0, BREAKING_IN_BAR);
@@ -161,31 +161,6 @@ export async function SiteHeader({
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((section) => ({ ...section, hideFrom: panelClasses(place.get(section.slug)) }));
 
-  const latestBySection = new Map<string, ArticleCardData[]>();
-  for (const article of recent) {
-    const list = latestBySection.get(article.categories.slug) ?? [];
-    if (list.length < 3) list.push(article);
-    latestBySection.set(article.categories.slug, list);
-  }
-  // The paper's day is India's day. Formatted on the server, which runs on
-  // UTC, the dateline showed yesterday's date until 5.30 in the morning.
-  const now = new Date();
-  const today = now.toLocaleDateString("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "Asia/Kolkata",
-  });
-  const todayShort = now.toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "Asia/Kolkata",
-  });
-  const isoToday = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(now);
-
   return (
     // The sticky block is a sibling of <header>, not a child of it. A sticky
     // element can only travel inside its own parent's box, and as the last
@@ -202,13 +177,8 @@ export async function SiteHeader({
             reading order a screen reader should hear: date, then controls,
             then the paper's name. */}
         <div className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-4 lg:grid-cols-[1fr_auto_1fr]">
-          {/* The short form on a phone, where the same line also has to hold
-              the controls and the sign-in button. */}
           <p className="text-kicker text-muted lg:order-1">
-            <time dateTime={isoToday}>
-              <span className="sm:hidden">{todayShort}</span>
-              <span className="hidden sm:inline">{today}</span>
-            </time>
+            <LiveDateline />
           </p>
 
           <div className="flex items-center justify-end gap-3.5 sm:gap-4 lg:order-3">
@@ -332,7 +302,6 @@ export async function SiteHeader({
             <ul className="-mx-4 flex min-w-0 flex-1 gap-6 overflow-x-auto px-4 [--nav-mark:2.25rem] group-data-[shrunk=true]/nav:pt-3 sm:mx-0 sm:flex-wrap sm:justify-center sm:gap-y-2 sm:overflow-visible sm:px-0 xl:gap-x-5 xl:[--nav-mark:2.5rem] xl:[--text-kicker:0.75rem] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {categories.map((category, index) => {
                 const active = category.slug === activeSlug;
-                const latest = latestBySection.get(category.slug) ?? [];
                 return (
                   <li key={category.slug} className={`group shrink-0 pb-3 ${barClasses(index)}`}>
                     <Link
@@ -393,86 +362,11 @@ export async function SiteHeader({
                       />
                     </Link>
 
-                    {/* Sits inside the item so the pointer can move from the
-                        name into the panel without dropping the hover, but is
-                        positioned against the nav row so it spans the full
-                        width rather than the width of one name.
-
-                        Pulled up over the row's last few pixels. The strip is
-                        centred against the taller sign-in slot beside it, which
-                        leaves a sliver of nav below the names belonging to no
-                        item; a pointer crossing it lost the hover and shut the
-                        panel. The top padding grows by the same amount, so what
-                        a reader sees has not moved — only the hit area. */}
-                    {latest.length ? (
-                      <div className="absolute inset-x-0 top-full -mt-3 z-50 hidden border-t border-hairline bg-paper pt-8 pb-6 shadow-[0_10px_24px_-18px_rgba(20,22,28,0.45)] sm:group-hover:block">
-                        {/* The ground runs the width of the window; the stories
-                            inside it line up with the section strip above. */}
-                        <div className="mx-auto flex max-w-wide items-start px-4 sm:px-6">
-                          {/* Which section this belongs to. The panel is full
-                              width and looks identical whichever name opened
-                              it, so without this the reader has to remember
-                              what their pointer was over. */}
-                          <div className="w-48 shrink-0 pr-6">
-                            <p className="flex items-center gap-2.5">
-                              {category.icon_url ? (
-                                <SectionMark src={category.icon_url} className="h-8 w-8" />
-                              ) : null}
-                              <span className="font-label text-[1rem] font-semibold text-ink">
-                                {category.name}
-                              </span>
-                            </p>
-                            <Link
-                              href={`/${category.slug}`}
-                              className="mt-2 inline-block text-meta text-accent underline-offset-4 hover:underline"
-                            >
-                              More {inSentence(category.name)}
-                            </Link>
-                          </div>
-
-                          <div className="grid min-w-0 flex-1 grid-cols-3">
-                            {latest.map((article) => (
-                              <div key={article.id} className="relative px-6">
-                                {/* Dashed rather than solid, and in the mid
-                                    grey rather than the hairline: a hairline
-                                    this short reads as a smudge, while a solid
-                                    dark line reads as a border round the story.
-                                    Inset top and bottom so it separates the
-                                    columns without ruling a grid around them. */}
-                                <span
-                                  aria-hidden="true"
-                                  className="absolute top-2 bottom-2 left-0 border-l border-dashed border-muted"
-                                />
-                                <Link
-                                  href={`/${article.categories.slug}/${article.slug}`}
-                                  className="flex items-start gap-3"
-                                >
-                                  {article.hero_image_url ? (
-                                    <span className="relative block h-20 w-28 shrink-0 overflow-hidden rounded-media bg-hairline">
-                                      <Image
-                                        src={
-                                          cloudinaryImage(
-                                            article.hero_image_url,
-                                            "card",
-                                          ) ?? article.hero_image_url
-                                        }
-                                        alt={article.hero_image_alt ?? ""}
-                                        fill
-                                        sizes="112px"
-                                        className="object-cover"
-                                      />
-                                    </span>
-                                  ) : null}
-                                  <span className="min-w-0 text-[0.9375rem] leading-[1.3] font-medium text-ink hover:text-accent">
-                                    {article.headline}
-                                  </span>
-                                </Link>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    ) : null}
+                    <SectionPeek
+                      slug={category.slug}
+                      name={category.name}
+                      iconUrl={category.icon_url}
+                    />
                   </li>
                 );
               })}
@@ -489,7 +383,11 @@ export async function SiteHeader({
           </div>
         </nav>
 
-        {breaking?.length ? <BreakingStrip articles={breaking} /> : null}
+        {serverBreaking ? (
+          breaking.length ? <BreakingStrip articles={breaking} /> : null
+        ) : (
+          <LiveBreakingStrip excludeId={excludeId} />
+        )}
       </StickyNav>
     </>
   );
