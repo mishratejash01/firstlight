@@ -16,8 +16,10 @@ export const config = {
   matcher: [
     /*
      * Only the pages that act as the signed-in reader: the newsroom's own
-     * areas, sign-in and its callback, the account page, and the topic and
-     * writer pages whose follow buttons show the reader's own state.
+     * areas, sign-in and its callback, and the account page. Topic and writer
+     * pages used to be here because their follow buttons read the reader's
+     * state on the server; the buttons now read it in the browser, so those
+     * pages are cached like the rest.
      *
      * Public pages read nothing about the reader on the server, and running
      * this in front of them cost a function call and an auth check on every
@@ -32,7 +34,5 @@ export const config = {
     "/account/:path*",
     "/auth/:path*",
     "/login",
-    "/topic/:path*",
-    "/author/:path*",
   ],
 };
