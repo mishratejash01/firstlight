@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { runWithChain } from "@/lib/ai/config";
 import { commonsLogo, findWikidataItem } from "@/lib/engine/wikidata";
 import { triageCandidates } from "@/lib/engine/triage";
+import { announceNewlyLive } from "@/lib/engine/announce";
 import { redraftEvent, reillustrateCards, writeEvents } from "@/lib/engine/write";
 import { metered } from "@/lib/engine/metered";
 
@@ -71,12 +72,20 @@ async function handle(request: Request) {
     return Response.json({ ok: outcome.ok, redraft: outcome }, { status: outcome.ok ? 200 : 422 });
   }
 
+  // Stories whose publish delay ran out since the last call: pages rebuilt,
+  // search engines told (see lib/engine/announce). Before the lock, so it runs
+  // every two minutes even while a long pass still holds the desk.
+  const announced = await announceNewlyLive().catch((error) => {
+    console.error("[engine-write] announce failed", error);
+    return { rebuilt: 0, announced: 0 };
+  });
+
   const supabase = createAdminClient();
   const { data: leased } = await supabase.rpc("engine_try_lock", {
     p_name: "desk",
     p_ttl_seconds: 320,
   });
-  if (!leased) return Response.json({ ok: true, skipped: true });
+  if (!leased) return Response.json({ ok: true, skipped: true, announced });
 
   try {
     // Two minutes for triage, the rest for writing one story.
@@ -91,7 +100,7 @@ async function handle(request: Request) {
       new Date().getUTCMinutes() < 2
         ? await reillustrateCards(2)
         : { considered: 0, replaced: 0, titles: [] };
-    return Response.json({ ok: true, triage, write, reillustrated });
+    return Response.json({ ok: true, triage, write, reillustrated, announced });
   } catch (error) {
     console.error("[engine-write] failed", error);
     return Response.json(
