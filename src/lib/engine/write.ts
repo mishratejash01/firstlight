@@ -665,6 +665,11 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
         origin: "original",
         status: publishing ? (delayMinutes > 0 ? "scheduled" : "published") : "draft",
         published_at: publishing ? publishedAt : null,
+        // Flagged on the same rule that put it at the head of the queue:
+        // triaged as breaking and first seen within three hours. The flag
+        // runs it in the breaking banner, and the expire-breaking job clears
+        // it once the story is past the banner's window.
+        is_breaking: breaking(event) === 1,
         ai_assisted: true,
         ai_model: draftingModelId(),
         ai_generated_at: new Date().toISOString(),
