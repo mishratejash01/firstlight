@@ -59,11 +59,17 @@ export const CRAWLER_USER_AGENT = `${CRAWLER_TOKEN}/1.0 (+${SITE_URL})`;
 export const SITE_LANGUAGE = "en-IN";
 export const SITE_LOCALE = "en_IN";
 
-/** An absolute URL on the canonical host for a site path such as "/politics". */
+/**
+ * An absolute URL on the canonical host for a site path such as "/politics".
+ * The front page keeps its slash ("https://www.theindiadecade.com/"), the
+ * address a browser and a crawler actually request: written without it, the
+ * home page's canonical named a URL that differed from the page's own by one
+ * character, which some search tools report as a different, redirected page.
+ */
 export function absoluteUrl(path = "/"): string {
   if (/^https?:\/\//i.test(path)) return path;
   const normalized = path.startsWith("/") ? path : `/${path}`;
-  return normalized === "/" ? SITE_URL : `${SITE_URL}${normalized}`;
+  return `${SITE_URL}${normalized}`;
 }
 
 /**
