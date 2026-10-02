@@ -2,8 +2,6 @@ import "server-only";
 
 import { createHash, randomBytes } from "node:crypto";
 
-import { SITE_URL } from "@/lib/site";
-
 /**
  * Sign in with Google, run from this site rather than from Supabase's.
  *
@@ -38,13 +36,14 @@ export function googleClient(): { id: string; secret: string } | null {
 }
 
 /**
- * Where Google sends the reader back to. It must match a redirect URI
- * registered on the Google client exactly, so it is always the canonical
- * address, except on this machine during development.
+ * Where Google sends the reader back to: the address they started on, so the
+ * sign-in cookie set on the way out is there on the way back. Takes the
+ * origin from publicOrigin (lib/auth/origin), which only ever returns the
+ * canonical address, a listed alias or localhost. Each one's callback must
+ * be registered on the Google client as a redirect URI, exactly.
  */
 export function googleCallbackUrl(requestOrigin: string): string {
-  const local = /^http:\/\/localhost(:\d+)?$/.test(requestOrigin);
-  return `${local ? requestOrigin : SITE_URL}/auth/google/callback`;
+  return `${requestOrigin}/auth/google/callback`;
 }
 
 export function randomToken(bytes = 32): string {
