@@ -542,7 +542,9 @@ export type ScoreReport = { scored: number; top: { title: string; score: number 
 export async function scoreLiveEvents(): Promise<ScoreReport> {
   const supabase = createAdminClient();
 
-  const { data: rows } = await supabase.rpc("engine_event_aggregates", { p_window_hours: 48 });
+  // Read as one JSON document: through PostgREST's thousand-row cap, about half
+  // of the live events were never scored at all (see the _json migration).
+  const { data: rows } = await supabase.rpc("engine_event_aggregates_json", { p_window_hours: 48 });
   const aggregates = (rows ?? []) as unknown as Aggregate[];
   if (!aggregates.length) return { scored: 0, top: [] };
 
@@ -558,7 +560,7 @@ export async function scoreLiveEvents(): Promise<ScoreReport> {
   );
 
   const allEntities = [...new Set(aggregates.flatMap((a) => a.entities))];
-  const { data: baselineRows } = await supabase.rpc("engine_entity_baselines", {
+  const { data: baselineRows } = await supabase.rpc("engine_entity_baselines_json", {
     p_entities: allEntities,
   });
   const baselines = (baselineRows ?? []) as unknown as Baseline[];
