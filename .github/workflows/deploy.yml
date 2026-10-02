@@ -1,0 +1,29 @@
+name: Deploy to the server
+
+# Every push to main updates the live site, as Vercel did. The job only tells
+# the server to deploy: the build runs there (/srv/tid/deploy.sh), in a fresh
+# release folder, and the site switches over once it succeeds. The key in
+# VPS_DEPLOY_KEY can do nothing but start that script.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Start the deploy on the server
+        env:
+          KEY: ${{ secrets.VPS_DEPLOY_KEY }}
+          HOST: ${{ vars.VPS_HOST }}
+        run: |
+          install -m 600 /dev/null deploy_key
+          printf '%s\n' "$KEY" > deploy_key
+          ssh -i deploy_key -o StrictHostKeyChecking=accept-new -o BatchMode=yes "app@${HOST}" deploy
+          rm -f deploy_key
