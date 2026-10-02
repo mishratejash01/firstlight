@@ -13,8 +13,7 @@ import { NewsletterSignup } from "@/components/site/newsletter-signup";
 import { PageViewBeacon } from "@/components/analytics/page-view-beacon";
 import { ReadingInstrumentation } from "@/components/analytics/reading-instrumentation";
 import { getArticle, getRelatedArticles } from "@/lib/queries/article-detail";
-import { getRecentArticles } from "@/lib/queries/articles";
-import { HeadlineRail } from "@/components/article/headline-rail";
+import { LatestRail } from "@/components/site/live-headlines";
 import { ListenButton } from "@/components/article/listen-button";
 import { renderMarkdown } from "@/lib/format/markdown";
 import { listeningMinutes, markdownToSpeech } from "@/lib/format/speech-text";
@@ -66,16 +65,20 @@ function modifiedTime(article: { published_at: string | null; content_updated_at
 }
 
 /**
- * Served from the edge cache, rebuilt at most every five minutes.
+ * Served from the edge cache, rebuilt at most once an hour, and at once when
+ * the desk changes the story (revalidateStory).
  *
  * No article is rendered at build time: each is rendered the first time it is
- * asked for and cached from then on, so a correction reaches readers within
- * five minutes and a new story is there on its first request. It used to be
+ * asked for and cached from then on, so a new story is there on its first
+ * request. Nothing on the page changes unless the story does: the latest
+ * headlines beside it, the breaking banner and the date come from the
+ * browser, so a page is stored once rather than again for every story
+ * published elsewhere. It used to be
  * rendered afresh for every reader so that the server could count the view;
  * the page now reports its own view (PageViewBeacon), and a reader no longer
  * waits for a render and two database round trips before the story arrives.
  */
-export const revalidate = 300;
+export const revalidate = 3600;
 
 export function generateStaticParams() {
   return [];
@@ -153,14 +156,7 @@ export default async function ArticlePage(
   if (!result) notFound();
 
   const { article, tags, entities, keyFacts, faqs, events } = result;
-  // Fired together rather than in sequence: the rail has nothing to do with the
-  // related ranking, and an article page should not wait for two round trips.
-  const [related, recent] = await Promise.all([
-    getRelatedArticles(article.id, 3),
-    getRecentArticles(8),
-  ]);
-  // The story being read is not "latest" to the person reading it.
-  const latest = recent.filter((item) => item.id !== article.id).slice(0, 6);
+  const related = await getRelatedArticles(article.id, 3);
   const url = absoluteUrl(`/${article.categories.slug}/${article.slug}`);
   // What the listen button will read: the body with its markup stripped,
   // computed here so the client is sent words rather than Markdown.
@@ -491,7 +487,9 @@ export default async function ArticlePage(
               it for a moment. */}
           <aside className="border-t border-hairline pt-8 lg:border-t-0 lg:border-l lg:pt-8 lg:pl-8">
             <div className="lg:sticky lg:top-20">
-              <HeadlineRail articles={latest} title="Latest" compact />
+              {/* The story being read is not "latest" to the person reading
+                  it, so the column leaves it out. */}
+              <LatestRail excludeId={article.id} title="Latest" />
             </div>
           </aside>
         </div>
