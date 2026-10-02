@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { publicOrigin } from "@/lib/auth/origin";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser, isEditorial } from "@/lib/auth/roles";
 
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const user = await getSessionUser();
-  const origin = new URL(request.url).origin;
+  const origin = publicOrigin(request);
   if (!user) return NextResponse.redirect(`${origin}/login?next=${encodeURIComponent("/review")}`);
   if (!user.roles.includes("reviewer") && !isEditorial(user)) return NextResponse.redirect(`${origin}/account`);
 
