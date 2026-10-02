@@ -4,7 +4,7 @@ import { SectionMark } from "@/components/site/section-mark";
 
 import type { ArticleCardData } from "@/lib/queries/articles";
 import { cloudinaryImage } from "@/lib/media/transform";
-import { formatTimeAgo } from "@/lib/format/datetime";
+import { TimeAgo } from "@/components/article/time-ago";
 
 /**
  * The dense grid of briefs that runs beside the splash.
@@ -60,9 +60,7 @@ function Meta({
         {article.published_at ? (
           <>
             <span aria-hidden="true">|</span>
-            <time dateTime={article.published_at}>
-              {formatTimeAgo(article.published_at)}
-            </time>
+            <TimeAgo iso={article.published_at} />
           </>
         ) : null}
       </p>
