@@ -10,7 +10,16 @@ replaces the notes a previous session kept on one Mac. Nothing here is a secret.
   other hosts send noindex). Use the name only through `SITE_NAME` in `src/lib/site.ts`; it has
   been renamed twice before.
 - Repo `github.com/mishratejash01/firstlight` (private). **Every push to `main` deploys to
-  production** (Vercel team `the-india-decade`, project `theindiadecade`, region syd1).
+  production.**
+- **Hosting since 3 Oct 2026: our own VPS** (Hostinger, Ubuntu 26.04, 2 vCPU / 8 GB, IP
+  62.72.29.5). Vercel paused the old project for exceeding Hobby limits, so Vercel is no longer used.
+  - Caddy terminates HTTPS and redirects the bare domain to www. PM2 runs the app as user `app`.
+  - The GitHub Action `.github/workflows/deploy.yml` SSHes in with a key that can only run
+    `/srv/tid/deploy.sh`. That script builds each commit in `/srv/tid/releases/<sha>`, repoints
+    `/srv/tid/current`, reloads PM2 and keeps three releases.
+  - Secrets on the server are in `/srv/tid/shared/.env.local`. Admin login is by SSH key only;
+    password login is off.
+  - With no per-request billing, the Vercel Hobby rules below now apply only as good practice.
 - Supabase project `jjucyhrrlntziuwesvfw`: Pro plan, Micro compute. The engine's schedule lives in
   pg_cron, inside the database.
 - Secrets live in `.env.local` (gitignored) and in Vercel env. Names are in `.env.local.example`.
