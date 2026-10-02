@@ -67,7 +67,7 @@ export default async function HomePage() {
   if (!articles.length) {
     return (
       <>
-        <SiteHeader />
+        <SiteHeader serverBreaking />
         <main className="route-enter mx-auto max-w-page px-4 py-20 sm:px-6">
           <h1 className="text-hero text-ink">Nothing published yet</h1>
           <p className="mt-3 max-w-measure text-lead text-muted">
@@ -164,8 +164,10 @@ export default async function HomePage() {
   return (
     <>
       {/* The splash is named so the bar does not point at the story
-          already filling the top of this page. */}
-      <SiteHeader excludeId={hero.id} />
+          already filling the top of this page. The front page is rebuilt
+          with every story anyway, so its banner is part of its own markup
+          and there from the first paint. */}
+      <SiteHeader excludeId={hero.id} serverBreaking />
 
       {/* The front page as a list of the stories it leads with, in the order
           they appear: the splash, the briefs beside it, then each section's
