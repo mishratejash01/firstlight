@@ -5,7 +5,7 @@ import { inSentence } from "@/lib/format/section-name";
 
 import type { ArticleCardData } from "@/lib/queries/articles";
 import type { NavCategory } from "@/lib/queries/navigation";
-import { formatTimeAgo } from "@/lib/format/datetime";
+import { TimeAgo } from "@/components/article/time-ago";
 import { cloudinaryImage } from "@/lib/media/transform";
 
 /**
@@ -142,9 +142,7 @@ export function SectionDigest({
 
                 {article.published_at ? (
                   <p className="mt-1.5 text-meta text-muted">
-                    <time dateTime={article.published_at}>
-                      {formatTimeAgo(article.published_at)}
-                    </time>
+                    <TimeAgo iso={article.published_at} />
                   </p>
                 ) : null}
               </article>
