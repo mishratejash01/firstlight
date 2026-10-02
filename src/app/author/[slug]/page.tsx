@@ -10,15 +10,22 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { getArticlesByAuthor } from "@/lib/queries/articles";
-import { getFollowState } from "@/lib/queries/follows";
 import { FollowButton } from "@/components/follow/follow-button";
-import { createClient } from "@/lib/supabase/server";
+import { createAnonymousClient } from "@/lib/supabase/anonymous";
 
-export const revalidate = 300;
+/**
+ * Cached like any other public page, rebuilt at most once an hour; the follow
+ * button finds out who is reading in the browser.
+ */
+export const revalidate = 3600;
+
+export function generateStaticParams() {
+  return [];
+}
 
 
 async function getAuthor(slug: string) {
-  const supabase = await createClient();
+  const supabase = createAnonymousClient();
   const { data } = await supabase
     .from("authors")
     .select("id, slug, display_name, title, bio, avatar_url, links")
@@ -62,7 +69,6 @@ export default async function AuthorPage(props: PageProps<"/author/[slug]">) {
   if (!author) notFound();
 
   const articles = await getArticlesByAuthor(slug, 40);
-  const follow = await getFollowState("author", author.id);
 
   return (
     <>
@@ -97,9 +103,6 @@ export default async function AuthorPage(props: PageProps<"/author/[slug]">) {
               targetType="author"
               targetId={author.id}
               label={author.display_name}
-              isSignedIn={follow.isSignedIn}
-              initiallyFollowing={follow.following}
-              followId={follow.followId}
               returnTo={`/author/${author.slug}`}
             />
           </div>
