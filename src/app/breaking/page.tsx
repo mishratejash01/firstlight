@@ -26,8 +26,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 // Alerts are the one thing on the site that must never be served stale for
-// long, so this page revalidates far more often than the front page does.
-export const revalidate = 30;
+// long, so this page revalidates more often than the front page does.
+export const revalidate = 120;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
