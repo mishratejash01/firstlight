@@ -82,8 +82,15 @@ async function handle(request: Request) {
     // Two minutes for triage, the rest for writing one story.
     const triage = await triageCandidates(6, Date.now() + 120_000);
     const write = await writeEvents(limit);
-    // Cards from earlier runs get another look while the sources are fresh.
-    const reillustrated = await reillustrateCards(2);
+    // Cards from earlier runs get another look while the sources are fresh —
+    // once an hour, on the run in the first two minutes of it. Run every two
+    // minutes, it searched the picture libraries for the same two stories
+    // seven hundred times a day, found the same nothing, and cost more CPU
+    // than the rest of the desk put together on a plan with four hours a month.
+    const reillustrated =
+      new Date().getUTCMinutes() < 2
+        ? await reillustrateCards(2)
+        : { considered: 0, replaced: 0, titles: [] };
     return Response.json({ ok: true, triage, write, reillustrated });
   } catch (error) {
     console.error("[engine-write] failed", error);
