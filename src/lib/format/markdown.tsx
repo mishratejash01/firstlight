@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { Fragment, type ReactNode } from "react";
 
+import { YouTubeEmbed } from "@/components/article/youtube-embed";
 import { cloudinaryImage, cloudinaryVideoPoster } from "@/lib/media/transform";
 
 /**
@@ -20,7 +21,8 @@ import { cloudinaryImage, cloudinaryVideoPoster } from "@/lib/media/transform";
  *
  * Supported: '## '/'### ' headings, paragraphs, '- ' lists, '> ' quotes,
  * **bold**, *italic*, [text](url), and ![alt](url"optional caption") for
- * images and video. Anything else renders as literal text.
+ * images, video files and YouTube videos. Anything else renders as literal
+ * text.
  */
 
 type Block =
@@ -125,6 +127,27 @@ function isSafeHref(href: string): boolean {
   }
 }
 
+/**
+ * The video id from a YouTube watch, share or embed link, or null. Only
+ * YouTube's own hosts count, so a link elsewhere that happens to carry a "v"
+ * parameter is never turned into a player.
+ */
+function youtubeIdOf(href: string): string | null {
+  try {
+    const url = new URL(href);
+    const host = url.hostname.replace(/^www\.|^m\./, "");
+    let id: string | null = null;
+    if (host === "youtube.com" || host === "youtube-nocookie.com") {
+      id = url.searchParams.get("v") ?? /^\/(?:embed|shorts|live)\/([^/?#]+)/.exec(url.pathname)?.[1] ?? null;
+    } else if (host === "youtu.be") {
+      id = url.pathname.slice(1).split("/")[0] || null;
+    }
+    return id && /^[A-Za-z0-9_-]{11}$/.test(id) ? id : null;
+  } catch {
+    return null;
+  }
+}
+
 const INLINE = /(\*\*[^*]+\*\*|\*[^*]+\*|!?\[[^\]]*\]\([^)\s]+\))/g;
 
 function renderInline(text: string, keyPrefix: string): ReactNode {
@@ -202,6 +225,20 @@ export function renderMarkdown(markdown: string | null | undefined): ReactNode {
       case "media": {
         if (!isSafeHref(block.url)) return null;
         const isVideo = /\.(mp4|webm|mov)(\?|$)/i.test(block.url);
+        const youtubeId = youtubeIdOf(block.url);
+
+        if (youtubeId) {
+          return (
+            <figure key={key} className="media-wide">
+              <YouTubeEmbed id={youtubeId} title={block.alt || "Video"} />
+              {block.caption ? (
+                <figcaption className="mt-2 text-meta leading-relaxed text-muted">
+                  {block.caption}
+                </figcaption>
+              ) : null}
+            </figure>
+          );
+        }
 
         return (
           <figure key={key} className="media-wide">
