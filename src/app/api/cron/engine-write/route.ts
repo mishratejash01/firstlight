@@ -5,6 +5,7 @@ import { runWithChain } from "@/lib/ai/config";
 import { commonsLogo, findWikidataItem } from "@/lib/engine/wikidata";
 import { triageCandidates } from "@/lib/engine/triage";
 import { redraftEvent, reillustrateCards, writeEvents } from "@/lib/engine/write";
+import { metered } from "@/lib/engine/metered";
 
 /**
  * The engine's desk: triage what the scoring surfaced, then write the best of
@@ -24,7 +25,7 @@ function isAuthorised(request: Request): boolean {
   return request.headers.get("authorization") === `Bearer ${secret}`;
 }
 
-export async function GET(request: Request) {
+async function handle(request: Request) {
   if (!isAuthorised(request)) {
     return Response.json({ error: "Unauthorised" }, { status: 401 });
   }
@@ -94,3 +95,6 @@ export async function GET(request: Request) {
     await supabase.rpc("engine_release_lock", { p_name: "desk" });
   }
 }
+
+// The reply carries what the run cost; see lib/engine/metered.
+export const GET = metered(handle);
