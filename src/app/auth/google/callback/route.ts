@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { GOOGLE_FLOW_COOKIE, googleCallbackUrl, googleClient, readGoogleFlow } from "@/lib/auth/google";
+import { publicOrigin } from "@/lib/auth/origin";
 import { dashboardHomeFor, getSessionUser } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
 
@@ -19,7 +20,7 @@ import { createClient } from "@/lib/supabase/server";
  * their account page.
  */
 export async function GET(request: NextRequest) {
-  const origin = request.nextUrl.origin;
+  const origin = publicOrigin(request);
   const params = request.nextUrl.searchParams;
   const cookieStore = await cookies();
   const flow = readGoogleFlow(cookieStore.get(GOOGLE_FLOW_COOKIE)?.value);
