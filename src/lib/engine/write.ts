@@ -733,7 +733,11 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
     });
   }
 
-  if (publishedSlugs.length && SITE_URL) {
+  // Only stories that are live this moment are announced here. A story held
+  // for the publish delay is announced by announceNewlyLive when it goes live:
+  // announced early, a search engine fetched it before it existed, and the
+  // "not found" it got stayed in the page cache for the hour stories are kept.
+  if (publishedSlugs.length && SITE_URL && delayMinutes === 0) {
     const { data: rows } = await supabase
       .from("articles")
       .select("slug, categories ( slug )")
