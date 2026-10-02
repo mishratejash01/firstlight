@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ingestTrends } from "@/lib/trends/ingest";
 import { triagePendingTrends } from "@/lib/trends/triage";
 import { writeUpTrends } from "@/lib/trends/write-up";
+import { metered } from "@/lib/engine/metered";
 
 /**
  * The trends pipeline, end to end: poll, triage, write.
@@ -22,7 +23,7 @@ function isAuthorised(request: Request): boolean {
   return request.headers.get("authorization") === `Bearer ${secret}`;
 }
 
-export async function GET(request: Request) {
+async function handle(request: Request) {
   if (!isAuthorised(request)) {
     return Response.json({ error: "Unauthorised" }, { status: 401 });
   }
@@ -62,3 +63,6 @@ export async function GET(request: Request) {
     );
   }
 }
+
+// The reply carries what the run cost; see lib/engine/metered.
+export const GET = metered(handle);
