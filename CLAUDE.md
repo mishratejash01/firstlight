@@ -1,5 +1,88 @@
 @AGENTS.md
 
+# Current state — read this first (updated 2 Oct 2026)
+
+Where this section disagrees with the original spec further down, this section wins. It
+replaces the notes a previous session kept on one Mac. Nothing here is a secret.
+
+## The site
+- **The India Decade** — canonical https://www.theindiadecade.com (the bare domain 308s to www;
+  other hosts send noindex). Use the name only through `SITE_NAME` in `src/lib/site.ts`; it has
+  been renamed twice before.
+- Repo `github.com/mishratejash01/firstlight` (private). **Every push to `main` deploys to
+  production** (Vercel team `the-india-decade`, project `theindiadecade`, region syd1).
+- Supabase project `jjucyhrrlntziuwesvfw`: Pro plan, Micro compute. The engine's schedule lives in
+  pg_cron, inside the database.
+- Secrets live in `.env.local` (gitignored) and in Vercel env. Names are in `.env.local.example`.
+  Never print or commit values. The Management API (`SUPABASE_ACCESS_TOKEN`) runs SQL.
+
+## The owner's standing rules
+- **One file per commit.** Conventional prefixes. **No Claude/AI co-author trailer or AI note in
+  any commit or PR.** Rebase before pushing. Push in batches: every push is a deploy, and every
+  deploy re-renders cached pages against the Hobby limits.
+- **Tell the owner before changing Supabase** (schema, settings, cron, data). Never delete or
+  unpublish a live article. A backlog clear sets `story_events.status='rejected'` and nothing else.
+- Never tell readers that stories are AI-written, and never claim human review that did not happen.
+  Never invent a byline: stories without a writer are credited to the paper.
+- Pictures must be licensed (Wikimedia Commons, Openverse and similar, with full credit). Never use
+  Google Images. Photos the owner supplies are credited "Special arrangement".
+- When figures conflict, use the latest attributed one. Never print an organiser's old and new
+  numbers side by side.
+- Never call Google Analytics "essential". Don't spend LLM API calls on tests.
+- Ask before running GitHub Actions as an always-on worker; their terms forbid it.
+
+## Hosting budget: Vercel Hobby (the owner cannot upgrade or start a trial)
+- Limits per rolling 30 days: **4 h Active CPU**, **200K ISR write units**, 1M invocations, 10 GB
+  Fast Origin Transfer. Going over stops that feature for 30 days, which is how the previous
+  project died.
+- **Never render anything time-dependent or site-wide-fresh into a cached page.** The date, "x min
+  ago", the latest headlines, the breaking banner and the section hover panels all come from
+  `/api/headlines` and the browser (`src/components/site/live-headlines.tsx`, `live-dateline.tsx`,
+  `src/components/article/time-ago.tsx`). The front page alone renders its banner on the server.
+- Refresh times: front page 180 s, sections 300 s, bulletin 300 s, breaking 120 s; articles, topic
+  and author pages and the root layout 3600 s. A desk edit rebuilds a story at once
+  (`revalidateStory`). After a direct database edit, call
+  `POST /api/revalidate` with `Authorization: Bearer $CRON_SECRET` and `{"paths": [...]}`.
+- Engine jobs return `x-cpu-ms` / `x-wall-ms`, which `net._http_response` stores. The engine's
+  budget is about 40 min of CPU a day. `engine-pulse-fast` runs every 2 min (was 1, changed 2 Oct).
+
+## The engine (the news pipeline)
+- Running since 2 Oct 2026, 06:56 IST: `site_settings.engine_base_url` is
+  https://www.theindiadecade.com. Auto-write and autonomous publishing are on, with a 5-minute
+  publish delay and no caps.
+- **`engine_learning_enabled` must stay false** until the old drip learner is removed from
+  `src/lib/engine/pulse.ts`, because that learner wrecked the weights. Weights are back on
+  version 4 (`model_versions` id 8).
+- The scorer reads `engine_event_aggregates_json` / `engine_entity_baselines_json`; the old
+  thousand-row PostgREST cap is gone.
+- **Breaking:** the desk sets `is_breaking` when triage says "breaking" and the story was first seen
+  within 3 h. The `expire-breaking` cron clears it after 6 h, and the banner shows 6 h.
+- Writers notify IndexNow only for stories already live. `announceNewlyLive()`
+  (`src/lib/engine/announce.ts`) runs on every desk call: it rebuilds and announces stories that
+  have just gone live, so no cached 404 outlives a story's publish time.
+- `reillustrateCards` runs once an hour, not every pass.
+- **GitHub Actions:** "Generate articles" is active (repo variable `SITE_URL`). "Ingest wire feeds"
+  and "Trending topics" are disabled, because pg_cron does the same work and Actions minutes on a
+  private repo are limited.
+- **If Supabase struggles** (PostgREST PGRST002 while the database is healthy), pause the engine
+  jobs with `cron.alter_job(jobid, active := false)`, restart the project through the Management
+  API, then turn the jobs back on.
+
+## Content and SEO
+- Contact mailboxes in `PUBLISHER` (`src/lib/site.ts`): contact@, newsroom@, editor@,
+  partnerships@ and grievance@ theindiadecade.com. Publish only these mailboxes, never aliases.
+  Still to come from the owner: the grievance officer's name, the legal entity, the address and
+  the editor's name.
+- Story bodies support `![alt](url "caption")` for images and YouTube links. YouTube embeds
+  click-to-load, through youtube-nocookie.
+- Every `@id` reference in JSON-LD must resolve. The story breadcrumb carries
+  `${url}#breadcrumb` (fixed 2 Oct after Search Console flagged 243 pages).
+- The site icon is the orange dove (`src/assets/brand/dove-512.png`, brand orange `#f85f05`), the
+  same mark as the sign-in card and the X and Instagram accounts.
+- Research notes are in `research/` (git-ignored, so they exist on the owner's Mac only).
+
+---
+
 # Newswebsite — Master Build Spec
 
 Production-grade general news media platform. Treat this as production code from commit #1.
@@ -7,12 +90,12 @@ Production-grade general news media platform. Treat this as production code from
 ## Ground rules
 
 ### Git
-- Repo: `https://github.com/mishratejash01/newswebsite`
+- Repo: `https://github.com/mishratejash01/firstlight` (was `newswebsite`)
 - Identity is fixed: `mishratejash01` / `mtejash07@gmail.com`.
 - **Never add a Claude/Anthropic co-author trailer to any commit.**
 - **One file per commit — no exceptions.** A logical change touching 5 files is 5 commits.
   Use conventional prefixes (`feat:`, `fix:`, `chore:`, `docs:`) so split commits stay traceable.
-- Push after every commit or small group of commits.
+- Push in batches; every push to `main` is a production deploy.
 
 ### Secrets
 - Supabase project: `jjucyhrrlntziuwesvfw` (region `ap-southeast-2`).
