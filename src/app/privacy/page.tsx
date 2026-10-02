@@ -42,13 +42,6 @@ export default function PrivacyPage() {
           each other, to a session, or to you. They tell us how many people read
           something and nothing about who.
         </p>
-        <p>
-          Our hosting provider, Vercel, also counts visits for us with its Web
-          Analytics service. It uses no cookies. It records the page, the site
-          you arrived from, your country, and the type of browser, operating
-          system and device, and it can tell one visitor from another only
-          within a single day.
-        </p>
 
         <h2 className="mt-8 text-section text-ink">If you agree</h2>
         <p>
