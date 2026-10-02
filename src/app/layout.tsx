@@ -118,13 +118,15 @@ export const viewport: Viewport = {
 };
 
 /**
- * The longest any page is served from the cache before it is rebuilt. Pages
- * with nothing of their own that changes (About, Privacy) still carry the
- * header's sections and breaking-news strip, which do; without this they
- * would be built once and keep the strip they were built with until the next
- * deploy. Pages that need fresher content set a shorter time themselves.
+ * The longest any page is served from the cache before it is rebuilt: an
+ * hour. Pages with nothing of their own that changes (About, Privacy) still
+ * carry the header's section names, which an editor can change; the breaking
+ * banner, the latest stories and the date come from the browser (see
+ * lib/live-headlines). A rebuild that changes nothing costs nothing to store,
+ * but each one is a function run on a plan with a monthly allowance of them.
+ * Pages that need fresher content set a shorter time themselves.
  */
-export const revalidate = 300;
+export const revalidate = 3600;
 
 export default function RootLayout({
   children,
