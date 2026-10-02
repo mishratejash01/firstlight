@@ -68,3 +68,20 @@ export function brandFonts(): Promise<BrandFont[]> {
   ]);
   return fonts;
 }
+
+/** The orange of the dove disc, measured from the mark itself. */
+export const BRAND_ORANGE = "#f85f05";
+
+let dove: Promise<string> | null = null;
+
+/**
+ * The dove mark — the orange disc with the white dove, as on the sign-in card
+ * and the paper's social accounts — as a data URI the image renderer can
+ * draw. One 512-pixel master, scaled down for every icon size.
+ */
+export function doveDataUri(): Promise<string> {
+  dove ??= readFile(join(process.cwd(), "src/assets/brand/dove-512.png")).then(
+    (png) => `data:image/png;base64,${png.toString("base64")}`,
+  );
+  return dove;
+}
