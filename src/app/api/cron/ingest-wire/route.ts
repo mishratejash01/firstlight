@@ -1,4 +1,5 @@
 import { ingestAllWireSources } from "@/lib/wire/ingest";
+import { metered } from "@/lib/engine/metered";
 
 /**
  * Scheduled wire ingestion.
@@ -27,7 +28,7 @@ function isAuthorised(request: Request): boolean {
   return request.headers.get("authorization") === `Bearer ${secret}`;
 }
 
-export async function GET(request: Request) {
+async function handle(request: Request) {
   if (!isAuthorised(request)) {
     return Response.json({ error: "Unauthorised" }, { status: 401 });
   }
@@ -55,3 +56,6 @@ export async function GET(request: Request) {
     );
   }
 }
+
+// The reply carries what the run cost; see lib/engine/metered.
+export const GET = metered(handle);
