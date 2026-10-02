@@ -191,15 +191,21 @@ export default async function ArticlePage(
         })}
       />
       {faqSchema ? <JsonLd data={faqSchema} /> : null}
+      {/* Carries the @id the article's page node points at
+          (mainEntityOfPage.breadcrumb). Without it the pointer resolved to
+          nothing, and Google read it as a breadcrumb with no items. */}
       <JsonLd
-        data={breadcrumbJsonLd([
-          { name: "Home", url: SITE_URL },
-          {
-            name: article.categories.name,
-            url: `${SITE_URL}/${article.categories.slug}`,
-          },
-          { name: article.headline, url },
-        ])}
+        data={breadcrumbJsonLd(
+          [
+            { name: "Home", url: absoluteUrl("/") },
+            {
+              name: article.categories.name,
+              url: `${SITE_URL}/${article.categories.slug}`,
+            },
+            { name: article.headline, url },
+          ],
+          `${url}#breadcrumb`,
+        )}
       />
 
       <PageViewBeacon articleId={article.id} />
