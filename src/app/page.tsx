@@ -52,9 +52,13 @@ export const metadata: Metadata = {
   },
 };
 
-// The front page changes as stories publish, so it is rendered per request and
-// cached briefly at the edge rather than baked at build time.
-export const revalidate = 60;
+// The front page changes as stories publish, so it is cached briefly at the
+// edge rather than baked at build time: rebuilt at most every three minutes,
+// and at once when the desk publishes or changes a story (revalidateStory).
+// Once a minute it was the site's busiest rebuild, on a hosting plan with four
+// hours of CPU a month; the engine's own stories go live five minutes after
+// they are written, so three minutes still shows them promptly.
+export const revalidate = 180;
 
 export default async function HomePage() {
   const [articles, placements, categories, dayTop] = await Promise.all([
