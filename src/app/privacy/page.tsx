@@ -86,6 +86,15 @@ export default function PrivacyPage() {
           declining clears the identifier and the analytics cookies.
         </p>
 
+        <h2 className="mt-8 text-section text-ink">Videos in stories</h2>
+        <p>
+          Some stories carry a YouTube video. Nothing is loaded from YouTube
+          until you press play: before that you see only the video&rsquo;s
+          picture. When you do press play, the video comes from YouTube&rsquo;s
+          privacy-enhanced service, and YouTube&rsquo;s own privacy policy
+          covers what it records from then on.
+        </p>
+
         <h2 className="mt-8 text-section text-ink">If you sign in</h2>
         <p>
           Signing in creates an account identified by the email address from your
