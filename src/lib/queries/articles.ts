@@ -67,7 +67,18 @@ function nowIso() {
 }
 
 /**
- * Everything an editor has flagged as breaking, newest first.
+ * How long a story stays in the breaking banner after it goes live.
+ *
+ * The flag itself is cleared by the database once a story is older than this
+ * (the expire-breaking job), so cards and story pages stop calling it breaking
+ * at the same moment. The banner also asks for nothing older, so it never
+ * carries a stale alert in the minutes before that job next runs.
+ */
+export const BREAKING_BANNER_HOURS = 6;
+
+/**
+ * Everything flagged as breaking, newest first: by an editor, or by the
+ * desk for a story triaged as breaking within three hours of first sighting.
  *
  * Queried directly rather than filtered out of the front page's recent slice.
  * A story flagged breaking is not necessarily among the ninety most recent —
@@ -76,14 +87,19 @@ function nowIso() {
  */
 export async function getBreakingArticles(
   limit = 60,
+  withinHours?: number,
 ): Promise<RankedArticle[]> {
   const supabase = createAnonymousClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("articles")
     .select(BREAKING_FIELDS)
     .eq("is_breaking", true)
     .in("status", VISIBLE_STATUSES)
-    .lte("published_at", nowIso())
+    .lte("published_at", nowIso());
+  if (withinHours) {
+    query = query.gte("published_at", new Date(Date.now() - withinHours * 3_600_000).toISOString());
+  }
+  const { data, error } = await query
     .order("published_at", { ascending: false })
     .limit(limit);
 
