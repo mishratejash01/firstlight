@@ -4,6 +4,11 @@ import Link from "next/link";
 import type { ArticleCardData } from "@/lib/queries/articles";
 import { cloudinaryImage } from "@/lib/media/transform";
 
+/** What a row needs, so the column can be filled from a full card or from the live headlines file. */
+type RailArticle = Pick<ArticleCardData, "id" | "slug" | "headline" | "hero_image_url" | "hero_image_alt"> & {
+  categories: { slug: string; name: string };
+};
+
 /**
  * A column of the latest headlines.
  *
@@ -27,7 +32,7 @@ export function HeadlineRail({
   showLeadImage = true,
   compact = false,
 }: {
-  articles: ArticleCardData[];
+  articles: RailArticle[];
   title: string;
   /** Off where the column already carries pictures above it — a third one here
    *  would make the block a gallery rather than a list of what has happened. */
