@@ -1,13 +1,13 @@
 import Link from "next/link";
 
-import type { RankedArticle } from "@/lib/queries/articles";
-
 /**
  * The band under the flag that a newsroom uses when something is happening.
  *
- * It renders only when an editor has actually marked a story as breaking, so on
- * an ordinary day the front page simply does not have this row. That is the
- * point: a strip that is always present stops meaning anything.
+ * It renders only while a story is marked breaking — by an editor, or by the
+ * desk for a story triaged as breaking within three hours of first sighting —
+ * and for six hours after it goes live, so on an ordinary stretch of the day
+ * the page simply does not have this row. That is the point: a strip that is
+ * always present stops meaning anything.
  *
  * Every alert runs across it in one continuous line, right to left, separated
  * by a rule. Not one headline at a time: a rota makes a reader wait to learn
@@ -40,7 +40,22 @@ const SECONDS_PER_CHARACTER = 0.075;
 const MIN_SECONDS = 24;
 const MAX_SECONDS = 150;
 
-export function BreakingStrip({ articles }: { articles: RankedArticle[] }) {
+/**
+ * Capped at ten. Ten alerts already take most of a minute to run past; beyond
+ * that the band stops being a bulletin and becomes a section front that happens
+ * to move.
+ */
+export const BREAKING_IN_BAR = 10;
+
+/** What an alert needs: its headline and where it leads. */
+type Alert = {
+  id: string;
+  slug: string;
+  headline: string;
+  categories: { slug: string };
+};
+
+export function BreakingStrip({ articles }: { articles: Alert[] }) {
   if (!articles.length) return null;
 
   const characters = articles.reduce(
