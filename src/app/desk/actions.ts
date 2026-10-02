@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { categorySlugOf, revalidateStory } from "@/lib/cache/revalidate-story";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser, isEditorial } from "@/lib/auth/roles";
 import { submitToIndexNow } from "@/lib/seo/indexnow";
@@ -58,7 +59,7 @@ export async function publishArticle(formData: FormData): Promise<ActionResult> 
   }
 
   revalidatePath("/desk");
-  revalidatePath("/");
+  revalidateStory(categorySlugOf(data), data?.slug);
   return { ok: true, note };
 }
 
@@ -127,12 +128,18 @@ export async function archiveArticle(formData: FormData): Promise<ActionResult> 
 
   const id = String(formData.get("id") ?? "");
   const supabase = await createClient();
-  const { error } = await supabase.from("articles").update({ status: "archived" }).eq("id", id);
+  const { data, error } = await supabase
+    .from("articles")
+    .update({ status: "archived" })
+    .eq("id", id)
+    .select("slug, categories ( slug )")
+    .maybeSingle();
 
   if (error) return { error: error.message };
 
+  // The story's own page has to stop serving at once, not when its hour is up.
   revalidatePath("/desk");
-  revalidatePath("/");
+  revalidateStory(categorySlugOf(data), data?.slug);
   return { ok: true };
 }
 
