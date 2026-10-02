@@ -5,11 +5,12 @@ import { SectionFront, sectionMetadata } from "../../section-front";
 
 /**
  * Older stories in a section, thirty to a page: /politics/page/2 and on.
- * Cached at the edge and rebuilt at most every five minutes, the longest the
- * site's layout allows; older pages change only as new stories push the rest
- * along.
+ * Cached at the edge and rebuilt at most once an hour. Older pages change only
+ * as new stories push the rest along, and an archive page an hour behind the
+ * section front loses a reader nothing, while each rebuild that moves every
+ * story along is a page stored again.
  */
-export const revalidate = 300;
+export const revalidate = 3600;
 
 export function generateStaticParams() {
   return [];
