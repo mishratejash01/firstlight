@@ -541,8 +541,8 @@ export type Database = {
           author_id: string | null
           body: string | null
           canonical_url: string | null
-          content_updated_at: string | null
           category_id: string
+          content_updated_at: string | null
           created_at: string
           created_by: string | null
           headline: string
@@ -579,8 +579,8 @@ export type Database = {
           author_id?: string | null
           body?: string | null
           canonical_url?: string | null
-          content_updated_at?: string | null
           category_id: string
+          content_updated_at?: string | null
           created_at?: string
           created_by?: string | null
           headline: string
@@ -617,8 +617,8 @@ export type Database = {
           author_id?: string | null
           body?: string | null
           canonical_url?: string | null
-          content_updated_at?: string | null
           category_id?: string
+          content_updated_at?: string | null
           created_at?: string
           created_by?: string | null
           headline?: string
@@ -2254,6 +2254,10 @@ export type Database = {
           source_kind: string
         }[]
       }
+      engine_entity_baselines_json: {
+        Args: { p_entities: string[] }
+        Returns: Json
+      }
       engine_event_aggregates: {
         Args: { p_window_hours?: number }
         Returns: {
@@ -2268,11 +2272,16 @@ export type Database = {
           mentions_1h: number
           mentions_24h: number
           mentions_total: number
+          p_big: number
           region_mix: Json
           sources: Json
           status: string
           title: string
         }[]
+      }
+      engine_event_aggregates_json: {
+        Args: { p_window_hours?: number }
+        Returns: Json
       }
       engine_feed_stats: {
         Args: { p_hours?: number }
