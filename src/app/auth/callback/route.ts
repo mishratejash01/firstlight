@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { publicOrigin } from "@/lib/auth/origin";
 import { safeRedirectPath } from "@/lib/auth/safe-redirect";
 import { createClient } from "@/lib/supabase/server";
 import { dashboardHomeFor, getSessionUser } from "@/lib/auth/roles";
@@ -12,7 +13,8 @@ import { dashboardHomeFor, getSessionUser } from "@/lib/auth/roles";
  * contributor on their drafts, someone with no role on their account page.
  */
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
+  const origin = publicOrigin(request);
   const code = searchParams.get("code");
   const next = searchParams.get("next");
 
