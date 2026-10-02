@@ -10,6 +10,7 @@ import {
   sha256Hex,
   type GoogleFlow,
 } from "@/lib/auth/google";
+import { publicOrigin } from "@/lib/auth/origin";
 import { safeRedirectPath } from "@/lib/auth/safe-redirect";
 
 /**
@@ -23,7 +24,7 @@ import { safeRedirectPath } from "@/lib/auth/safe-redirect";
  * useless on its own).
  */
 export async function GET(request: NextRequest) {
-  const origin = request.nextUrl.origin;
+  const origin = publicOrigin(request);
   const client = googleClient();
   if (!client) {
     return NextResponse.redirect(`${origin}/auth/error?reason=unavailable`);
