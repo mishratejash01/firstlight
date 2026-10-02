@@ -22,8 +22,9 @@ export const metadata: Metadata = pageMetadata({
   path: "/bulletin",
 });
 
-// A bulletin is only worth listening to if it is current.
-export const revalidate = 60;
+// A bulletin is only worth listening to if it is current: rebuilt at most every
+// five minutes, which is as often as the stories in it change.
+export const revalidate = 300;
 
 /** Stories in the bulletin. Eight runs about two and a half minutes. */
 const STORY_COUNT = 8;
