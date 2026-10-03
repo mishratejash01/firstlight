@@ -10,14 +10,17 @@ import { useState } from "react";
  * it loads, and most readers of a story never press play. Pressing play swaps
  * in the player from YouTube's privacy-enhanced domain, already playing, so it
  * still takes a single press.
+ *
+ * `start` (seconds) opens a long recording, such as a four-hour live stream,
+ * at the moment a story quotes, rather than at its first minute.
  */
-export function YouTubeEmbed({ id, title }: { id: string; title: string }) {
+export function YouTubeEmbed({ id, title, start }: { id: string; title: string; start?: number }) {
   const [playing, setPlaying] = useState(false);
 
   if (playing) {
     return (
       <iframe
-        src={`https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`}
+        src={`https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0${start ? `&start=${start}` : ""}`}
         title={title}
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         referrerPolicy="strict-origin-when-cross-origin"
