@@ -14,6 +14,10 @@ replaces the notes a previous session kept on one Mac. Nothing here is a secret.
 - **Hosting since 3 Oct 2026: our own VPS** (Hostinger, Ubuntu 26.04, 2 vCPU / 8 GB, IP
   62.72.29.5). Vercel paused the old project for exceeding Hobby limits, so Vercel is no longer used.
   - Caddy terminates HTTPS and redirects the bare domain to www. PM2 runs the app as user `app`.
+  - www.theindiadecade.tech is a second domain on the same server (Hostinger DNS). With
+    `CANONICAL_REDIRECT=1` its pages redirect to the .com; its API routes still answer. Redirects
+    are built with `publicOrigin()` (`src/lib/auth/origin.ts`), because behind Caddy `request.url`
+    says https://localhost:3000; it trusts only SITE_URL and `SITE_ALIAS_ORIGINS`.
   - The GitHub Action `.github/workflows/deploy.yml` SSHes in with a key that can only run
     `/srv/tid/deploy.sh`. That script builds each commit in `/srv/tid/releases/<sha>`, repoints
     `/srv/tid/current`, reloads PM2 and keeps three releases.
@@ -22,7 +26,7 @@ replaces the notes a previous session kept on one Mac. Nothing here is a secret.
   - With no per-request billing, the Vercel Hobby rules below now apply only as good practice.
 - Supabase project `jjucyhrrlntziuwesvfw`: Pro plan, Micro compute. The engine's schedule lives in
   pg_cron, inside the database.
-- Secrets live in `.env.local` (gitignored) and in Vercel env. Names are in `.env.local.example`.
+- Secrets live in `.env.local` (gitignored) and in the server's `/srv/tid/shared/.env.local`. Names are in `.env.local.example`.
   Never print or commit values. The Management API (`SUPABASE_ACCESS_TOKEN`) runs SQL.
 
 ## The owner's standing rules
