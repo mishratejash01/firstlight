@@ -148,6 +148,26 @@ function youtubeIdOf(href: string): string | null {
   }
 }
 
+/**
+ * Where a YouTube link asks the video to start, in whole seconds: the "t" or
+ * "start" parameter, as "754", "754s" or "12m34s". Undefined when there is
+ * none or it cannot be read, and the video starts at the beginning.
+ */
+function youtubeStartOf(href: string): number | undefined {
+  try {
+    const url = new URL(href);
+    const raw = url.searchParams.get("t") ?? url.searchParams.get("start");
+    if (!raw) return undefined;
+    if (/^\d+s?$/.test(raw)) return Number.parseInt(raw, 10) || undefined;
+    const parts = /^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/.exec(raw);
+    if (!parts || !parts[0]) return undefined;
+    const seconds = Number(parts[1] ?? 0) * 3600 + Number(parts[2] ?? 0) * 60 + Number(parts[3] ?? 0);
+    return seconds || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 const INLINE = /(\*\*[^*]+\*\*|\*[^*]+\*|!?\[[^\]]*\]\([^)\s]+\))/g;
 
 function renderInline(text: string, keyPrefix: string): ReactNode {
@@ -230,7 +250,7 @@ export function renderMarkdown(markdown: string | null | undefined): ReactNode {
         if (youtubeId) {
           return (
             <figure key={key} className="media-wide">
-              <YouTubeEmbed id={youtubeId} title={block.alt || "Video"} />
+              <YouTubeEmbed id={youtubeId} title={block.alt || "Video"} start={youtubeStartOf(block.url)} />
               {block.caption ? (
                 <figcaption className="mt-2 text-meta leading-relaxed text-muted">
                   {block.caption}
