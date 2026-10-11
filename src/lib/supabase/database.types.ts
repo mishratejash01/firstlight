@@ -762,6 +762,68 @@ export type Database = {
         }
         Relationships: []
       }
+      commissioned_posts: {
+        Row: {
+          article_id: string | null
+          attempts: number
+          brief: Json | null
+          claimed_at: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          images: Json
+          last_error: string | null
+          prompt: string
+          status: string
+          transcript: Json
+          understanding: string | null
+          updated_at: string
+        }
+        Insert: {
+          article_id?: string | null
+          attempts?: number
+          brief?: Json | null
+          claimed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          images?: Json
+          last_error?: string | null
+          prompt: string
+          status?: string
+          transcript?: Json
+          understanding?: string | null
+          updated_at?: string
+        }
+        Update: {
+          article_id?: string | null
+          attempts?: number
+          brief?: Json | null
+          claimed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          images?: Json
+          last_error?: string | null
+          prompt?: string
+          status?: string
+          transcript?: Json
+          understanding?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commissioned_posts_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       desk_decisions: {
         Row: {
           decided_at: string
@@ -805,6 +867,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      engine_directives: {
+        Row: {
+          activated_at: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          expires_at: string | null
+          id: string
+          prompt: string
+          rules: Json | null
+          status: string
+          transcript: Json
+          ttl_hours: number | null
+          understanding: string | null
+          updated_at: string
+        }
+        Insert: {
+          activated_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          expires_at?: string | null
+          id?: string
+          prompt: string
+          rules?: Json | null
+          status?: string
+          transcript?: Json
+          ttl_hours?: number | null
+          understanding?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activated_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          expires_at?: string | null
+          id?: string
+          prompt?: string
+          rules?: Json | null
+          status?: string
+          transcript?: Json
+          ttl_hours?: number | null
+          understanding?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       engine_locks: {
         Row: {
@@ -1742,6 +1852,9 @@ export type Database = {
           corroborated_at: string | null
           corroboration: number
           created_at: string
+          directive_checked_at: string | null
+          directive_match: boolean | null
+          directive_topic: string | null
           entities: string[]
           fast_lane_at: string | null
           first_seen_at: string
@@ -1788,6 +1901,9 @@ export type Database = {
           corroborated_at?: string | null
           corroboration?: number
           created_at?: string
+          directive_checked_at?: string | null
+          directive_match?: boolean | null
+          directive_topic?: string | null
           entities?: string[]
           fast_lane_at?: string | null
           first_seen_at?: string
@@ -1834,6 +1950,9 @@ export type Database = {
           corroborated_at?: string | null
           corroboration?: number
           created_at?: string
+          directive_checked_at?: string | null
+          directive_match?: boolean | null
+          directive_topic?: string | null
           entities?: string[]
           fast_lane_at?: string | null
           first_seen_at?: string
