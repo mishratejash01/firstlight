@@ -37,7 +37,8 @@ export function SteerDialog({
   doneDetail: string;
 }) {
   const [turn, setTurn] = useState<EngineTurn>(initial);
-  const [history, setHistory] = useState<{ question: string; answer: string }[]>([]);
+  const [history, setHistory] = useState<{ question: string; answer: string }[]>(initial.history ?? []);
+  const [stale, setStale] = useState(false);
   const [chosen, setChosen] = useState<Record<string, string[]>>({});
   const [typed, setTyped] = useState<Record<string, string>>({});
   const [note, setNote] = useState("");
@@ -72,13 +73,21 @@ export function SteerDialog({
 
   const unanswered = turn.questions.filter((q) => !answerFor(q));
 
+  // A deploy while the dialogue is open leaves the page holding action ids
+  // the new server does not know. The dialogue itself is saved on every turn,
+  // so the way out is a reload and Resume, not a retry.
+  function isStale(message: string): boolean {
+    return /not found on the server|failed to find server action|Server Action ".*" was not found/i.test(message);
+  }
+
   async function send(payload: { answers: { questionId: string; question: string; answer: string }[]; note: string }) {
     setPending(true);
     setError(null);
     try {
       const reply = await onAnswer(payload);
       if (!reply.ok) {
-        setError(reply.error);
+        if (isStale(reply.error)) setStale(true);
+        else setError(reply.error);
         return;
       }
       setHistory((h) => [...h, ...payload.answers.map((a) => ({ question: a.question, answer: a.answer })), ...(payload.note ? [{ question: "Added", answer: payload.note }] : [])]);
@@ -88,7 +97,9 @@ export function SteerDialog({
       setNote("");
       setCorrecting(false);
     } catch (cause) {
-      setError(cause instanceof Error ? `That did not go through: ${cause.message}` : "That did not go through. Try again.");
+      const message = cause instanceof Error ? cause.message : "";
+      if (isStale(message)) setStale(true);
+      else setError(message ? `That did not go through: ${message}` : "That did not go through. Try again.");
     } finally {
       setPending(false);
     }
@@ -147,7 +158,24 @@ export function SteerDialog({
           ) : null}
         </div>
 
-        {history.length ? (
+        {stale ? (
+          <div className="mt-5 border-l-2 border-signal pl-4">
+            <p className="text-body text-ink">The site was updated while this was open.</p>
+            <p className="mt-1 max-w-measure text-meta leading-relaxed text-muted">
+              Nothing is lost: the dialogue so far is saved. Reload the page, then press Resume on this
+              item in the list to carry on from the engine&rsquo;s last questions.
+            </p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="mt-3 rounded-control border border-accent bg-accent px-5 py-2.5 text-body text-paper hover:opacity-90"
+            >
+              Reload the page
+            </button>
+          </div>
+        ) : null}
+
+        {history.length && !stale ? (
           <dl className="mt-4 border-l-2 border-hairline pl-4">
             {history.map((item, index) => (
               <div key={index} className={index ? "mt-2" : ""}>
@@ -158,7 +186,7 @@ export function SteerDialog({
           </dl>
         ) : null}
 
-        {turn.satisfied && !correcting ? (
+        {turn.satisfied && !correcting && !stale ? (
           <div className="mt-5">
             <p className="max-w-measure text-meta leading-relaxed text-muted">{doneDetail}</p>
             <p className="mt-4 max-w-measure text-body leading-relaxed text-ink">{turn.understanding}</p>
@@ -184,7 +212,7 @@ export function SteerDialog({
           </div>
         ) : null}
 
-        {turn.satisfied && correcting ? (
+        {turn.satisfied && correcting && !stale ? (
           <div className="mt-5">
             <p className="max-w-measure text-body leading-relaxed text-ink">{turn.understanding}</p>
             <label htmlFor="steer-correction" className="mt-5 block text-meta text-muted">
@@ -229,7 +257,7 @@ export function SteerDialog({
           </div>
         ) : null}
 
-        {!turn.satisfied ? (
+        {!turn.satisfied && !stale ? (
           <div className="mt-5 space-y-6">
             {turn.questions.map((question, index) => (
               <fieldset key={question.id} disabled={pending}>
