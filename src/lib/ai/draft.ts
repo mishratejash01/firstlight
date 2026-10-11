@@ -218,7 +218,7 @@ function unescapeDeep<T>(value: T): T {
   return value;
 }
 
-async function generateStructured<S extends z.ZodTypeAny>(
+export async function generateStructured<S extends z.ZodTypeAny>(
   kind: "drafting" | "assist",
   options: { system: string; prompt: string; schema: S },
 ): Promise<z.infer<S>> {
@@ -248,7 +248,7 @@ async function generateStructured<S extends z.ZodTypeAny>(
   });
 }
 
-async function guarded<T>(run: () => Promise<T>): Promise<AiResult<T>> {
+export async function guarded<T>(run: () => Promise<T>): Promise<AiResult<T>> {
   if (!aiIsConfigured()) return { ok: false, error: AI_UNAVAILABLE_MESSAGE };
 
   try {
@@ -277,11 +277,14 @@ export async function draftArticle({
   angle,
   sourceMaterial,
   sectionName,
+  standingInstructions,
 }: {
   topic: string;
   angle?: string;
   sourceMaterial?: string;
   sectionName?: string;
+  /** The editor's standing instructions in force, from lib/engine/directives. */
+  standingInstructions?: string;
 }): Promise<AiResult<DraftedArticle>> {
   return guarded(async () => {
     const grounded = Boolean(sourceMaterial?.trim());
@@ -292,7 +295,10 @@ export async function draftArticle({
       grounded
         ? `Work ONLY from the source material provided. Do not add facts that are not in it. Anything you infer rather than read belongs in unverifiedClaims.`
         : HONESTY_RULE,
-    ].join("\n\n");
+      standingInstructions ?? "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
 
     const prompt = [
       `Topic: ${topic}`,
@@ -390,6 +396,7 @@ export async function draftFromTrend({
   sectionName,
   angle,
   searchResearch,
+  standingInstructions,
 }: {
   term: string;
   /**
@@ -415,6 +422,12 @@ export async function draftFromTrend({
   angle?: string;
   /** How readers are searching for the story now; see lib/seo/search-research. */
   searchResearch?: SearchResearch | null;
+  /**
+   * The editor's standing instructions in force, from lib/engine/directives:
+   * tone, angle, emphasis. Placed after the house rules so that where the two
+   * disagree the editor wins.
+   */
+  standingInstructions?: string;
 }): Promise<AiResult<DraftedArticle>> {
   return guarded(async () => {
     const sourced = documents?.filter((doc) => doc.content.trim().length > 0) ?? [];
@@ -466,7 +479,9 @@ Rules, without exception:
 - List in unverifiedClaims anything you inferred rather than read.
         `.trim();
 
-    const system = [HOUSE_STYLE, SEARCH_RULE, groundingRule].join("\n\n");
+    const system = [HOUSE_STYLE, SEARCH_RULE, groundingRule, standingInstructions ?? ""]
+      .filter(Boolean)
+      .join("\n\n");
 
     const coverage = newsItems
       .map((item) => `- ${item.source}: "${item.title}"  ${item.url}`)
@@ -509,5 +524,134 @@ Rules, without exception:
       prompt,
       schema: draftedArticleSchema,
     });
+  });
+}
+
+/**
+ * The brief for a commissioned story, as the drafter needs it. The full brief
+ * lives in lib/ai/steer; this is the part that shapes the writing.
+ */
+export type CommissionBriefInput = {
+  headlineHint: string;
+  tone: string;
+  stance: string;
+  lengthWords: number;
+  facts: string[];
+  mustInclude: string[];
+  avoid: string[];
+  notes: string;
+};
+
+const COMMISSION_RULE = `
+This story was commissioned by the editor. The editor's brief below is the
+assignment: follow its tone, its line, its emphasis and its length exactly,
+even where the house style above would choose differently. The facts the
+editor supplies are this publication's own reporting: state them plainly, as
+fact, without attributing them to the editor or to anyone, unless the brief
+says who to attribute them to. Everything else must come from the source
+material given; invent no quotations, figures or names, and list in
+unverifiedClaims anything inferred rather than read or given. Never
+reproduce another outlet's sentences.
+
+Pictures: the editor's pictures are listed by number. Where one belongs in the
+body, put [[IMAGE-n]] alone on its own line at that point, between
+paragraphs. Write no image markdown yourself. The main picture is placed by
+the desk above the story; never place it in the body.
+`.trim();
+
+/**
+ * Drafts a story an administrator commissioned: their brief, their facts and
+ * their pictures, plus whatever coverage could be read.
+ */
+export async function draftCommission({
+  prompt,
+  brief,
+  images,
+  newsItems,
+  documents,
+  searchResearch,
+  sectionName,
+}: {
+  /** The administrator's request, verbatim. */
+  prompt: string;
+  brief: CommissionBriefInput;
+  /** The pictures the writer may place in the body, numbered as the editor saw them. */
+  images: { index: number; alt: string; caption: string; isHero: boolean }[];
+  newsItems: { title: string; source: string; url: string }[];
+  documents?: {
+    url: string;
+    source: string;
+    title: string | null;
+    byline: string | null;
+    content: string;
+  }[];
+  searchResearch?: SearchResearch | null;
+  sectionName?: string;
+}): Promise<AiResult<DraftedArticle>> {
+  return guarded(async () => {
+    const sourced = documents?.filter((doc) => doc.content.trim().length > 0) ?? [];
+    const hasFullText = sourced.length > 0;
+
+    const groundingRule = hasFullText
+      ? `
+You have been given the full text of published articles on this subject.
+Write original prose from them and from the editor's brief: never reproduce
+their sentences, attribute to the primary source rather than the outlet,
+keep an outlet's name only for its own exclusive work, and put no links in
+the body. Where the sources and the editor's facts disagree, the editor's
+facts stand and the disagreement is noted in unverifiedClaims.
+        `.trim()
+      : `
+You have the editor's brief and facts, and no other source material. Write
+from them. Where a real story would carry a name, figure or quotation you do
+not have, write the sentence so the gap is plain rather than filling it, and
+list every such gap in unverifiedClaims.
+        `.trim();
+
+    const system = [HOUSE_STYLE, SEARCH_RULE, groundingRule, COMMISSION_RULE].join("\n\n");
+
+    const list = (label: string, items: string[]) =>
+      items.length ? `${label}:\n${items.map((item, i) => `  ${i + 1}. ${item}`).join("\n")}` : "";
+
+    const pictures = images.length
+      ? images
+          .map((image) =>
+            image.isHero
+              ? `  Picture ${image.index}: ${image.alt} — the main picture, placed by the desk; do not place it.`
+              : `  Picture ${image.index}: ${image.alt}${image.caption ? ` — caption: ${image.caption}` : ""} — place with [[IMAGE-${image.index}]] where it belongs.`,
+          )
+          .join("\n")
+      : "";
+
+    const coverage = newsItems.map((item) => `- ${item.source}: "${item.title}"  ${item.url}`).join("\n");
+    const fullText = sourced
+      .map((doc, index) =>
+        [`### Source ${index + 1} — ${doc.source}`, doc.title ? `Headline: ${doc.title}` : "", `Link: ${doc.url}`, "", doc.content]
+          .filter(Boolean)
+          .join("\n"),
+      )
+      .join("\n\n---\n\n");
+
+    const promptText = [
+      `The editor's brief. Follow it exactly.`,
+      `The story: ${prompt.trim()}`,
+      brief.headlineHint ? `Headline wanted: ${brief.headlineHint}` : "",
+      sectionName ? `Section: ${sectionName}` : "",
+      brief.tone ? `Tone: ${brief.tone}` : "",
+      brief.stance ? `The line to take: ${brief.stance}` : "",
+      list("Facts supplied by the editor — state these as fact", brief.facts),
+      list("Must include", brief.mustInclude),
+      list("Must not", brief.avoid),
+      brief.notes ? `Notes: ${brief.notes}` : "",
+      pictures ? `\nThe editor's pictures:\n${pictures}` : "",
+      coverage ? `\nPublished coverage found:\n${coverage}` : "",
+      hasFullText ? `\nFull text of that coverage:\n\n${fullText}` : "",
+      researchBlock(searchResearch),
+      `\nWrite the piece: about ${Math.min(Math.max(Math.round(brief.lengthWords) || 500, 250), 1500)} words of body copy.`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    return generateStructured("drafting", { system, prompt: promptText, schema: draftedArticleSchema });
   });
 }
