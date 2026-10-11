@@ -9,6 +9,12 @@ import { draftFromTrend } from "@/lib/ai/draft";
 import { researchSearch } from "@/lib/seo/search-research";
 import { getSourceDocuments } from "@/lib/fetch/extract";
 import { illustrateArticle } from "@/lib/media/illustrate";
+import {
+  classifyAgainstDirectives,
+  directivesPromptBlock,
+  isExclusive,
+  loadActiveDirectives,
+} from "@/lib/engine/directives";
 import type { TrendNewsItem } from "./google-trends";
 
 /**
@@ -103,6 +109,11 @@ export async function writeUpTrends(limit = 3): Promise<WriteUpReport> {
 
   const clustersWrittenThisRun = new Set<string>();
 
+  // The editor's standing instructions, applied to trends as to events.
+  const directives = await loadActiveDirectives();
+  const instructions = directivesPromptBlock(directives);
+  const exclusive = isExclusive(directives);
+
   for (const trend of trends ?? []) {
     // One story per cluster per run. Two search terms pointing at the same
     // event would otherwise become two articles saying the same thing.
@@ -116,6 +127,21 @@ export async function writeUpTrends(limit = 3): Promise<WriteUpReport> {
     }
 
     const newsItems = (trend.news_items as unknown as TrendNewsItem[]) ?? [];
+
+    const verdict = classifyAgainstDirectives(
+      `${trend.term} ${newsItems.map((item) => item.title).join(" ")}`,
+      directives,
+    );
+    if (verdict.avoided || (exclusive && !verdict.match)) {
+      report.outcomes.push({
+        term: trend.term,
+        status: "skipped",
+        reason: verdict.avoided
+          ? `Standing instruction: never write ${verdict.avoided}.`
+          : "Outside the editor's standing instruction.",
+      });
+      continue;
+    }
 
     // A trend with no matched coverage gives the model nothing to work from,
     // which is exactly the situation that produces invention.
@@ -194,6 +220,7 @@ export async function writeUpTrends(limit = 3): Promise<WriteUpReport> {
       }),
       sectionName: undefined,
       angle: trend.triage_reason ?? undefined,
+      standingInstructions: instructions || undefined,
     });
 
     if (!result.ok) {
