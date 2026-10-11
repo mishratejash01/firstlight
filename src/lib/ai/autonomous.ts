@@ -7,6 +7,12 @@ import { draftingModelId } from "./config";
 import { attachStructuredData } from "./attach-structure";
 import { draftArticle } from "./draft";
 import { illustrateArticle } from "@/lib/media/illustrate";
+import {
+  classifyAgainstDirectives,
+  directivesPromptBlock,
+  isExclusive,
+  loadActiveDirectives,
+} from "@/lib/engine/directives";
 import type { DraftedArticle } from "./schemas";
 
 /**
@@ -178,8 +184,28 @@ export async function runAutonomousGeneration(): Promise<GenerationReport> {
   const now = Date.now();
   const published: string[] = [];
 
+  // The editor's standing instructions apply to standing topics as to
+  // everything else: a topic outside an exclusive instruction, or on a
+  // forbidden subject, waits until the instruction lapses.
+  const directives = await loadActiveDirectives();
+  const instructions = directivesPromptBlock(directives);
+  const exclusive = isExclusive(directives);
+
   for (const topic of topics ?? []) {
     if (report.outcomes.filter((o) => o.status === "published").length >= remaining) break;
+
+    const verdict = classifyAgainstDirectives(`${topic.topic} ${topic.angle ?? ""}`, directives);
+    if (verdict.avoided || (exclusive && !verdict.match)) {
+      report.outcomes.push({
+        topicId: topic.id,
+        topic: topic.topic,
+        status: "skipped",
+        reason: verdict.avoided
+          ? `Standing instruction: never write ${verdict.avoided}.`
+          : "Outside the editor's standing instruction.",
+      });
+      continue;
+    }
 
     // Respect the per-topic gap, so the site does not fill with variations on
     // the same brief.
@@ -201,6 +227,7 @@ export async function runAutonomousGeneration(): Promise<GenerationReport> {
       topic: topic.topic,
       angle: topic.angle ?? undefined,
       sectionName: category?.name,
+      standingInstructions: instructions || undefined,
     });
 
     if (!result.ok) {
