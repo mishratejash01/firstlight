@@ -6,6 +6,7 @@ import { AdminNav } from "@/components/dashboard/admin-nav";
 import { CommissionForm } from "@/components/dashboard/commission-form";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { EmptyState } from "@/components/dashboard/empty-state";
+import { ResumeDialogueButton } from "@/components/dashboard/resume-dialogue-button";
 import { SteerNewInstruction } from "@/components/dashboard/steer-new-instruction";
 import { requireAdmin } from "@/lib/auth/guards";
 import { formatDateTime, formatTimeAgo } from "@/lib/format/datetime";
@@ -49,12 +50,17 @@ export default async function AdminSteerPage() {
   const user = await requireAdmin("/admin/steer");
   const supabase = await createClient();
 
-  const [{ data: active }, { data: past }, { data: commissions }] = await Promise.all([
+  const [{ data: active }, { data: unfinished }, { data: past }, { data: commissions }] = await Promise.all([
     supabase
       .from("engine_directives")
       .select("id, prompt, understanding, ttl_hours, activated_at, expires_at, created_at")
       .eq("status", "active")
       .order("activated_at", { ascending: false }),
+    supabase
+      .from("engine_directives")
+      .select("id, prompt, created_at")
+      .eq("status", "drafting")
+      .order("created_at", { ascending: false }),
     supabase
       .from("engine_directives")
       .select("id, prompt, understanding, status, activated_at, expires_at, deleted_at")
@@ -119,6 +125,33 @@ export default async function AdminSteerPage() {
             detail="The engine is choosing stories on its own judgement. Give it an instruction below and it will follow that instead, for as long as you say."
           />
         )}
+
+        {unfinished?.length ? (
+          <div className="mt-8">
+            <h3 className="text-body font-semibold text-ink">Not finished</h3>
+            <p className="mt-1 max-w-measure text-meta leading-relaxed text-muted">
+              The engine still has questions about these, so they are not in force. Resume to answer them,
+              or discard.
+            </p>
+            <ul className="mt-3 divide-y divide-hairline border-t border-hairline">
+              {unfinished.map((directive) => (
+                <li key={directive.id} className="py-3">
+                  <p className="max-w-measure text-body text-ink">&ldquo;{directive.prompt}&rdquo;</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <span className="text-meta text-muted">started {formatTimeAgo(directive.created_at)}</span>
+                    <ResumeDialogueButton kind="directive" id={directive.id} />
+                    <ActionButton
+                      action={deleteDirective}
+                      hidden={{ directive_id: directive.id }}
+                      label="Discard"
+                      pendingLabel="Discarding…"
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
         <h3 className="mt-8 text-body font-semibold text-ink">Give an instruction</h3>
         <SteerNewInstruction />
@@ -186,7 +219,8 @@ export default async function AdminSteerPage() {
                       />
                     </div>
                   ) : post.status === "drafting" ? (
-                    <div className="mt-3">
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <ResumeDialogueButton kind="commission" id={post.id} />
                       <ActionButton
                         action={deleteCommission}
                         hidden={{ commission_id: post.id }}
