@@ -35,6 +35,8 @@ export type EngineTurn = {
   understanding: string;
   round: number;
   maxRounds: number;
+  /** What has been asked and answered so far, for a dialogue picked up again. */
+  history: { question: string; answer: string }[];
 };
 
 export type DialogueStart = { ok: true; id: string; turn: EngineTurn } | { ok: false; error: string };
@@ -66,12 +68,19 @@ function asEngineTurn(
   turn: { satisfied: boolean; questions: DialogueQuestion[]; understanding: string },
   transcript: TranscriptTurn[],
 ): EngineTurn {
+  const history: { question: string; answer: string }[] = [];
+  for (const past of transcript) {
+    if (past.role !== "admin") continue;
+    for (const a of past.answers) history.push({ question: a.question, answer: a.answer });
+    if (past.note) history.push({ question: "Added", answer: past.note });
+  }
   return {
     satisfied: turn.satisfied,
     questions: turn.questions,
     understanding: turn.understanding,
     round: transcript.filter((t) => t.role === "engine").length,
     maxRounds: MAX_ROUNDS,
+    history,
   };
 }
 
@@ -216,6 +225,31 @@ export async function answerDirective(input: {
   if (error) return { ok: false, error: error.message };
 
   return runDirectiveTurn(input.id);
+}
+
+/**
+ * Picks up a dialogue that did not finish — a closed tab, a dropped
+ * connection, a deploy while it was open. The engine's last questions are
+ * shown again; if the answers went through but the engine's reply did not,
+ * it is asked now.
+ */
+export async function resumeDirective(id: string): Promise<DialogueStart> {
+  const admin = await requireAdminUser();
+  if (!admin) return { ok: false, error: "Administrator role required." };
+
+  const supabase = await createClient();
+  const { data: row } = await supabase
+    .from("engine_directives")
+    .select("id, status, transcript")
+    .eq("id", id)
+    .maybeSingle();
+  if (!row || !["drafting", "active"].includes(row.status)) return { ok: false, error: "That instruction is not open." };
+
+  const transcript = readTranscript(row.transcript);
+  const last = transcript.at(-1);
+  if (last?.role === "engine") return { ok: true, id, turn: asEngineTurn(last, transcript) };
+  const reply = await runDirectiveTurn(id);
+  return reply.ok ? { ok: true, id, turn: reply.turn } : reply;
 }
 
 /** Removes an instruction from the engine, at once. */
@@ -430,6 +464,26 @@ export async function answerCommission(input: {
   if (error) return { ok: false, error: error.message };
 
   return runCommissionTurn(input.id);
+}
+
+/** Picks up a commission dialogue that did not finish; see resumeDirective. */
+export async function resumeCommission(id: string): Promise<DialogueStart> {
+  const admin = await requireAdminUser();
+  if (!admin) return { ok: false, error: "Administrator role required." };
+
+  const supabase = await createClient();
+  const { data: row } = await supabase
+    .from("commissioned_posts")
+    .select("id, status, transcript")
+    .eq("id", id)
+    .maybeSingle();
+  if (!row || !["drafting", "queued"].includes(row.status)) return { ok: false, error: "That commission is not open." };
+
+  const transcript = readTranscript(row.transcript);
+  const last = transcript.at(-1);
+  if (last?.role === "engine") return { ok: true, id, turn: asEngineTurn(last, transcript) };
+  const reply = await runCommissionTurn(id);
+  return reply.ok ? { ok: true, id, turn: reply.turn } : reply;
 }
 
 /** Withdraws a commission that has not been written. */
