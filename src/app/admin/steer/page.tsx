@@ -122,6 +122,14 @@ export default async function AdminSteerPage() {
 
         <h3 className="mt-8 text-body font-semibold text-ink">Give an instruction</h3>
         <SteerNewInstruction />
+
+        <p className="mt-6 text-meta text-muted">
+          Every instruction ever given, with the dialogue that settled it:{" "}
+          <Link href="/admin/steer/history" className="text-accent underline underline-offset-4">
+            history
+          </Link>
+          .
+        </p>
       </section>
 
       <section className="mt-12 border-t border-hairline pt-6">
@@ -192,6 +200,14 @@ export default async function AdminSteerPage() {
             })}
           </ul>
         ) : null}
+
+        <p className="mt-6 text-meta text-muted">
+          Every commission, with its brief, its pictures and the dialogue:{" "}
+          <Link href="/admin/steer/history" className="text-accent underline underline-offset-4">
+            history
+          </Link>
+          .
+        </p>
       </section>
 
       {past?.length ? (
