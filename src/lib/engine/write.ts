@@ -19,6 +19,15 @@ import { aiIsConfigured, runWithChain } from "@/lib/ai/config";
 import { recordSameAs } from "./wikidata";
 import { canonicalHost } from "./hosts";
 import { recordDecision, snapshotEvent } from "./decisions";
+import {
+  breakingRule,
+  classifyAgainstDirectives,
+  directivesPromptBlock,
+  isExclusive,
+  latestActivation,
+  loadActiveDirectives,
+  targetShare,
+} from "./directives";
 
 /**
  * From a newsworthy event to a published article.
@@ -248,6 +257,16 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
   const report: EventWriteReport = { autoWrite, publishing, remaining: 0, outcomes: [] };
   if (!autoWrite) return report;
 
+  // The editor's standing instructions in force. The prompt block goes to
+  // the drafter; the rules decide here which stories are written at all,
+  // in what order, and whether they are flagged breaking.
+  const directives = await loadActiveDirectives();
+  const instructions = directivesPromptBlock(directives);
+  const exclusive = isExclusive(directives);
+  const share = targetShare(directives);
+  const activation = latestActivation(directives);
+  const flagRule = breakingRule(directives);
+
   // Shared with every other automated writer, counted from the database.
   // The cap is on what reaches readers: drafts an editor never published do
   // not use it up, otherwise a morning of drafting would silence the desk
@@ -295,7 +314,7 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
   const { data: candidates } = await supabase
     .from("story_events")
     .select(
-      "id, title, entities, independent_sources, write_attempts, triage_section, triage_angle, triage_reason, urgency, score, first_seen_at, p_big, second_source_at",
+      "id, title, entities, independent_sources, write_attempts, triage_section, triage_angle, triage_reason, urgency, score, first_seen_at, p_big, second_source_at, directive_match, directive_topic, directive_checked_at",
     )
     .or(
       `and(status.eq.newsworthy,or(claimed_at.is.null,claimed_at.lt.${retryBefore})),and(status.eq.writing,claimed_at.lt.${staleBefore})`,
@@ -307,6 +326,52 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
 
   if (!candidates?.length) return report;
   if (!Number.isFinite(report.remaining)) report.remaining = candidates.length;
+
+  // What the instructions make of each candidate: triage's verdict where it
+  // was given after the latest instruction took effect, the keywords alone
+  // otherwise. A topic the editor said never to write is rejected here; a
+  // story outside an exclusive instruction is simply left where it is.
+  type Candidate = (typeof candidates)[number];
+  const verdictOf = (event: Candidate) => {
+    const text = `${event.title} ${(event.entities ?? []).join(" ")}`;
+    const byRules = classifyAgainstDirectives(text, directives);
+    const fresh =
+      event.directive_checked_at && new Date(event.directive_checked_at).getTime() >= activation;
+    return fresh && event.directive_match !== null
+      ? { match: Boolean(event.directive_match), topic: event.directive_topic, avoided: byRules.avoided }
+      : { match: byRules.match, topic: byRules.topic, avoided: byRules.avoided };
+  };
+  let pool: Candidate[] = candidates;
+  if (directives.length) {
+    const kept: Candidate[] = [];
+    let outside = 0;
+    for (const event of candidates) {
+      const verdict = verdictOf(event);
+      if (verdict.avoided) {
+        await supabase
+          .from("story_events")
+          .update({ status: "rejected", triage_reason: `Standing instruction: never write ${verdict.avoided}.`, last_error: null })
+          .eq("id", event.id);
+        report.outcomes.push({ eventId: event.id, title: event.title, status: "skipped", reason: `Standing instruction: never write ${verdict.avoided}.` });
+        continue;
+      }
+      if (exclusive && !verdict.match) {
+        outside += 1;
+        continue;
+      }
+      kept.push(event);
+    }
+    pool = kept;
+    if (outside) {
+      report.outcomes.push({
+        eventId: "",
+        title: "—",
+        status: "skipped",
+        reason: `${outside} held: outside the editor's standing instruction.`,
+      });
+    }
+    if (!pool.length) return report;
+  }
 
   const { data: categories } = await supabase
     .from("categories")
@@ -345,7 +410,7 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
     Number(e.score ?? 0) * Math.pow(0.5, ageHours(e.first_seen_at) / 6);
   const breaking = (e: { urgency: string | null; first_seen_at: string }) =>
     e.urgency === "breaking" && ageHours(e.first_seen_at) <= 3 ? 1 : 0;
-  candidates.sort((a, b) => {
+  pool.sort((a, b) => {
     const urgent = breaking(b) - breaking(a);
     if (urgent) return urgent;
     const step = ageStep(a.first_seen_at) - ageStep(b.first_seen_at);
@@ -355,13 +420,35 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
     return ca - cb || fresh(b) - fresh(a);
   });
 
+  // A focus instruction asks for a share of the output. Measured on the
+  // last day's writing: below the share, stories on the topic go first;
+  // at or above it, the others do. Breaking news still leads either way.
+  if (share > 0) {
+    const { count: onTopic } = await supabase
+      .from("story_events")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "written")
+      .eq("directive_match", true)
+      .gte("claimed_at", since);
+    const total = count ?? 0;
+    const preferTopic = total === 0 || (onTopic ?? 0) / total < share;
+    pool.sort((a, b) => {
+      const urgent = breaking(b) - breaking(a);
+      if (urgent) return urgent;
+      const ma = verdictOf(a).match ? 1 : 0;
+      const mb = verdictOf(b).match ? 1 : 0;
+      return preferTopic ? mb - ma : ma - mb;
+    });
+  }
+
   const authority = await loadAuthority();
   const live = await loadLiveStories();
 
   const publishedSlugs: string[] = [];
 
-  for (const event of candidates.slice(0, Math.min(limit, report.remaining))) {
+  for (const event of pool.slice(0, Math.min(limit, report.remaining))) {
     const attempts = (event.write_attempts ?? 0) + 1;
+    const verdict = verdictOf(event);
 
     // The timing rule. A story the earliness model expects to grow is worth
     // a short wait for its confirmation; one it is sure of is written at
@@ -419,8 +506,8 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
     await snapshotEvent(event.id, "write");
     await recordDecision(event.id, "write_start", {
       score: Number(event.score ?? 0),
-      rank: candidates.indexOf(event) + 1,
-      details: { attempts, urgency: event.urgency, section: event.triage_section },
+      rank: pool.indexOf(event) + 1,
+      details: { attempts, urgency: event.urgency, section: event.triage_section, directive_topic: verdict.topic },
     });
 
     // Already on the site? The event's own words against everything live.
@@ -573,6 +660,7 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
       angle: [event.triage_angle, event.urgency === "breaking" ? "This is breaking news; lead with what is confirmed." : null]
         .filter(Boolean)
         .join(" "),
+      standingInstructions: instructions || undefined,
     });
 
     if (!result.ok) {
@@ -666,10 +754,16 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
         status: publishing ? (delayMinutes > 0 ? "scheduled" : "published") : "draft",
         published_at: publishing ? publishedAt : null,
         // Flagged on the same rule that put it at the head of the queue:
-        // triaged as breaking and first seen within three hours. The flag
-        // runs it in the breaking banner, and the expire-breaking job clears
-        // it once the story is past the banner's window.
-        is_breaking: breaking(event) === 1,
+        // triaged as breaking and first seen within three hours — unless the
+        // editor's standing instruction says always for its topics, or never.
+        // The flag runs it in the breaking banner, and the expire-breaking
+        // job clears it once the story is past the banner's window.
+        is_breaking:
+          flagRule === "never"
+            ? false
+            : flagRule === "always_for_topics" && verdict.match && ageHours(event.first_seen_at) <= 6
+              ? true
+              : breaking(event) === 1,
         ai_assisted: true,
         ai_model: draftingModelId(),
         ai_generated_at: new Date().toISOString(),
