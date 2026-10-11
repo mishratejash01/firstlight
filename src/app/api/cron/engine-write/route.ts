@@ -5,6 +5,7 @@ import { runWithChain } from "@/lib/ai/config";
 import { commonsLogo, findWikidataItem } from "@/lib/engine/wikidata";
 import { triageCandidates } from "@/lib/engine/triage";
 import { announceNewlyLive } from "@/lib/engine/announce";
+import { writeCommissions } from "@/lib/engine/commission";
 import { redraftEvent, reillustrateCards, writeEvents } from "@/lib/engine/write";
 import { metered } from "@/lib/engine/metered";
 
@@ -88,8 +89,11 @@ async function handle(request: Request) {
   if (!leased) return Response.json({ ok: true, skipped: true, announced });
 
   try {
+    // A story the editor commissioned goes before everything else: one per
+    // pass, since each takes up to a minute, and triage gets less time after.
+    const commissions = await writeCommissions(1);
     // Two minutes for triage, the rest for writing one story.
-    const triage = await triageCandidates(6, Date.now() + 120_000);
+    const triage = await triageCandidates(6, Date.now() + (commissions.length ? 60_000 : 120_000));
     const write = await writeEvents(limit);
     // Cards from earlier runs get another look while the sources are fresh —
     // once an hour, on the run in the first two minutes of it. Run every two
@@ -100,7 +104,7 @@ async function handle(request: Request) {
       new Date().getUTCMinutes() < 2
         ? await reillustrateCards(2)
         : { considered: 0, replaced: 0, titles: [] };
-    return Response.json({ ok: true, triage, write, reillustrated, announced });
+    return Response.json({ ok: true, commissions, triage, write, reillustrated, announced });
   } catch (error) {
     console.error("[engine-write] failed", error);
     return Response.json(
