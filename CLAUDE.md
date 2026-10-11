@@ -81,6 +81,24 @@ replaces the notes a previous session kept on one Mac. Nothing here is a secret.
   jobs with `cron.alter_job(jobid, active := false)`, restart the project through the Management
   API, then turn the jobs back on.
 
+## Steering the engine (admin → Steer, `/admin/steer`)
+- **Standing instructions** (`engine_directives`): an admin types what the engine should cover and
+  for how long (24 h / 48 h / 7 d / 30 d / until removed). The engine (`src/lib/ai/steer.ts`) asks
+  clarifying questions in a dialogue that cannot be closed until it says it is satisfied; it then
+  writes its `understanding` (prompt text) and `rules` (JSON, `directiveRulesSchema` in
+  `src/lib/engine/directives.ts`). Active directives are loaded on every desk pass:
+  the understanding goes into the triage and drafting prompts above the house rules; the rules are
+  enforced in code (exclusive: only matching stories are triaged/written; focus: share of output;
+  avoid: rejected; breaking rule). Expiry is by `expires_at`; the `expire-directives` cron only
+  tidies the status. Removing one takes effect on the next pass.
+- **Commissioned stories** (`commissioned_posts`): prompt + uploaded pictures → the same dialogue →
+  a `brief` (`commissionBriefSchema`) → status `queued`. `writeCommissions(1)` runs first in every
+  `engine-write` pass (`src/lib/engine/commission.ts`), or "Write it now" on the page. Publishes
+  exactly as the brief says (now / usual delay / draft). Standing instructions do not apply to
+  commissions.
+- Everything here is admin-only by RLS (`app.is_admin()`). Never put model calls in page renders;
+  the dialogue runs in server actions (`src/app/admin/steer-actions.ts`).
+
 ## Content and SEO
 - Contact mailboxes in `PUBLISHER` (`src/lib/site.ts`): contact@, newsroom@, editor@,
   partnerships@ and grievance@ theindiadecade.com. Publish only these mailboxes, never aliases.
