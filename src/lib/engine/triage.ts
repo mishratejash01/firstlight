@@ -7,6 +7,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { aiIsConfigured, runWithChain } from "@/lib/ai/config";
 import type { Features } from "./score";
 import { recordDecision, snapshotEvent } from "./decisions";
+import {
+  directiveKeywords,
+  directivesPromptBlock,
+  isExclusive,
+  loadActiveDirectives,
+} from "./directives";
 
 /**
  * Editorial judgement on the events the maths has surfaced.
@@ -56,6 +62,14 @@ export const eventTriageSchema = z.object({
       "One sentence: what the story actually is, in plain terms, as a brief to a reporter. Empty if not newsworthy.",
     ),
   reason: z.string().describe("One sentence explaining the decision."),
+  directiveMatch: z
+    .boolean()
+    .describe(
+      "Whether this story is on one of the topics named in the editor's standing instructions. True when no instruction names topics. False only when the instructions name topics and this story is not on any of them.",
+    ),
+  directiveTopic: z
+    .string()
+    .describe("The instruction topic it is on, in the instruction's own words. Empty if none."),
 });
 
 export type EventTriage = z.infer<typeof eventTriageSchema>;
@@ -157,6 +171,8 @@ export async function triageEvent(input: {
   sections: string[];
   /** Headlines already live on the site, so a repeat can be called a repeat. */
   published?: string[];
+  /** The editor's standing instructions in force, from lib/engine/directives. */
+  instructions?: string;
 }): Promise<
   { ok: true; triage: EventTriage; modelId: string; ms: number } | { ok: false; error: string }
 > {
@@ -196,6 +212,9 @@ export async function triageEvent(input: {
       ? `\nAlready published on our site in the last day (mark a repeat of any of these as duplicate):\n${input.published.map((h) => `  - ${h}`).join("\n")}`
       : "",
     `\nAvailable sections: ${input.sections.join(", ")}`,
+    input.instructions
+      ? "\nThe editor's standing instructions apply (see the system instructions). Say in directiveMatch whether this story is on one of their topics, and apply any tone or section they ask for."
+      : "",
   ]
     .filter(Boolean)
     .join("\n");
@@ -206,7 +225,7 @@ export async function triageEvent(input: {
       const { output } = await generateText({
         model,
         maxRetries: 0,
-        system: SYSTEM,
+        system: input.instructions ? `${SYSTEM}\n\n${input.instructions}` : SYSTEM,
         prompt,
         output: Output.object({ schema: eventTriageSchema }),
       });
@@ -283,6 +302,31 @@ export async function triageCandidates(
   const room = Math.max(budget - (usedThisHour ?? 0), 0);
   if (room === 0) return report;
   limit = Math.min(limit, room);
+
+  // The editor's standing instructions. Their topics widen the queue: a
+  // story on a topic the editor asked for goes to triage whatever its score,
+  // and under an exclusive instruction nothing else goes at all, since
+  // nothing else could be written.
+  const directives = await loadActiveDirectives();
+  const instructions = directivesPromptBlock(directives);
+  const exclusive = isExclusive(directives);
+  const keywords = directiveKeywords(directives)
+    .map((keyword) => keyword.replace(/[^a-z0-9 -]/g, "").trim())
+    .filter((keyword) => keyword.length >= 3)
+    .slice(0, 25);
+  const { data: steered } = keywords.length
+    ? await supabase
+        .from("story_events")
+        .select(
+          "id, title, entities, first_seen_at, region_mix, score, score_breakdown, independent_sources",
+        )
+        .eq("status", "candidate")
+        .is("triaged_at", null)
+        .gte("first_seen_at", since)
+        .or(keywords.map((keyword) => `title.ilike.*${keyword}*`).join(","))
+        .order("score", { ascending: false })
+        .limit(limit)
+    : { data: [] };
 
   // Standing beats are wanted in depth, so their events go to triage from a
   // lower score: a single TechCrunch report of a model release is worth the
@@ -373,7 +417,11 @@ export async function triageCandidates(
   );
 
   const seenIds = new Set<string>();
-  const queue = [...(fastLane ?? []), ...(onBeat ?? []), ...(fresh ?? []), ...regrown]
+  const queue = (
+    exclusive
+      ? [...(steered ?? [])]
+      : [...(steered ?? []), ...(fastLane ?? []), ...(onBeat ?? []), ...(fresh ?? []), ...regrown]
+  )
     .filter((event) => (seenIds.has(event.id) ? false : (seenIds.add(event.id), true)))
     .slice(0, limit);
 
@@ -426,6 +474,7 @@ export async function triageCandidates(
       mentions: (mentions ?? []) as CandidateMention[],
       sections,
       published,
+      instructions: instructions || undefined,
     });
 
     if (!result.ok) {
@@ -441,38 +490,48 @@ export async function triageCandidates(
     }
 
     const { triage } = result;
-    if (triage.newsworthy) report.newsworthy += 1;
+    // Under an exclusive instruction a story that is news but not on the
+    // editor's topics is still not written: the instruction says only those.
+    const onTopic = !directives.length || triage.directiveMatch;
+    const outside = exclusive && triage.newsworthy && !onTopic;
+    const accepted = triage.newsworthy && !outside;
+    if (accepted) report.newsworthy += 1;
     else report.rejected += 1;
     report.timings.push({
       title: event.title.slice(0, 60),
       modelId: result.modelId,
       ms: result.ms,
-      verdict: triage.newsworthy ? "newsworthy" : triage.category,
+      verdict: accepted ? "newsworthy" : outside ? "outside instruction" : triage.category,
     });
 
+    const reason = outside ? `Standing instruction: not on the editor's topics. ${triage.reason}` : triage.reason;
     await supabase
       .from("story_events")
       .update({
-        status: triage.newsworthy ? "newsworthy" : "rejected",
+        status: accepted ? "newsworthy" : "rejected",
         triage_category: triage.category,
-        triage_reason: triage.reason,
-        triage_section: triage.newsworthy ? triage.section || null : null,
-        triage_angle: triage.newsworthy ? triage.angle || null : null,
+        triage_reason: reason,
+        triage_section: accepted ? triage.section || null : null,
+        triage_angle: accepted ? triage.angle || null : null,
         urgency: triage.urgency,
         triaged_at: new Date().toISOString(),
         triaged_score: event.score,
         last_error: null,
+        directive_match: directives.length ? triage.directiveMatch : null,
+        directive_topic: directives.length && triage.directiveMatch ? triage.directiveTopic || null : null,
+        directive_checked_at: directives.length ? new Date().toISOString() : null,
       })
       .eq("id", event.id);
-    await recordDecision(event.id, triage.newsworthy ? "triage_accept" : "triage_reject", {
+    await recordDecision(event.id, accepted ? "triage_accept" : "triage_reject", {
       score: Number(event.score),
-      reason: triage.reason,
+      reason,
       details: {
         category: triage.category,
-        section: triage.newsworthy ? triage.section || null : null,
+        section: accepted ? triage.section || null : null,
         urgency: triage.urgency,
         modelId: result.modelId,
         ms: result.ms,
+        directive_match: directives.length ? triage.directiveMatch : null,
       },
     });
   }
