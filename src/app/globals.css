@@ -147,6 +147,13 @@
     line-height: 1.65;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    /* A string with no break in it — a URL in a story, a long picture credit —
+       wraps at the column edge instead of running past it. The clip on html
+       stops the page scrolling sideways, but on its own it only hides the
+       overrun: a source link in a story body was cut off 242px short of its
+       end on a phone. break-word breaks only what would otherwise overflow,
+       so ordinary text is untouched. */
+    overflow-wrap: break-word;
   }
 
   /* Headlines are set in the serif; everything else — labels, bylines,
