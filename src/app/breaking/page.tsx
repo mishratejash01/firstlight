@@ -71,7 +71,7 @@ function BreakingItem({ article }: { article: RankedArticle }) {
       </div>
 
       <div className="min-w-0 flex-1">
-        <h2 className="text-[1.25rem] leading-[1.25] text-pretty text-ink group-hover:text-accent">
+        <h2 className="text-[1.25rem] leading-[1.25] text-pretty text-ink">
           <Link href={href}>{article.headline}</Link>
         </h2>
         {dek ? (
