@@ -83,7 +83,7 @@ export function OpinionShelf({
                   </div>
                 ) : null}
 
-                <h3 className="mt-4 text-[1.15rem] leading-[1.3] text-ink group-hover:text-accent">
+                <h3 className="mt-4 text-[1.15rem] leading-[1.3] text-ink">
                   {article.headline}
                 </h3>
 
