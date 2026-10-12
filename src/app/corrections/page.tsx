@@ -3,7 +3,11 @@ import type { Metadata } from "next";
 
 import { EmailLink } from "@/components/site/email-link";
 import { GrievanceOfficer } from "@/components/site/grievance-officer";
-import { StaticPage } from "@/components/site/static-page";
+import {
+  DOCUMENTS_UPDATED,
+  LegalDocument,
+  clauseLink as link,
+} from "@/components/site/legal-document";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { PUBLISHER } from "@/lib/site";
 
@@ -13,8 +17,6 @@ export const metadata: Metadata = pageMetadata({
   path: "/corrections",
 });
 
-const link = "text-accent underline underline-offset-4";
-
 export default function CorrectionsPage() {
   // Errors go to the editor, who can fix them; the general inbox only when
   // there is no editor's address to send them to.
@@ -22,45 +24,67 @@ export default function CorrectionsPage() {
   const officer = PUBLISHER.grievanceOfficer;
 
   return (
-    <StaticPage
+    <LegalDocument
       title="Corrections policy"
       standfirst="How we handle errors, and how to tell us about one."
-    >
-      <div className="space-y-4 text-body leading-relaxed text-ink">
-        <h2 className="text-section text-ink">What we correct</h2>
-        <p>
-          Any factual error, however small. A misspelled name is a correction. So
-          is a wrong figure, a misattributed quote, or a caption that describes
-          the wrong thing.
-        </p>
-
-        <h2 className="mt-8 text-section text-ink">How we correct</h2>
-        <p>
-          We fix the error in the story itself, so that nobody reading it later
-          meets the mistake. A story whose text has changed since publication
-          shows when it was last updated.
-        </p>
-
-        <h2 className="mt-8 text-section text-ink">How changes are recorded</h2>
-        <p>
-          Every edit to a published story creates a permanent version record of
-          what changed and when. The record is written by the database itself
-          rather than by the editing tool, so it cannot be bypassed, altered or
-          deleted from the newsroom&rsquo;s own software.
-        </p>
-
-        {reportTo ? (
-          <>
-            <h2 className="mt-8 text-section text-ink">
-              Telling us about an error
-            </h2>
-            <p>
-              Write to <EmailLink address={reportTo} /> with the address of the
-              story and what you believe is wrong. If you can, tell us where the
-              correct information can be found.
-            </p>
-            {officer.name || officer.email ? (
-              <p>
+      lastUpdated={DOCUMENTS_UPDATED}
+      sections={[
+        {
+          id: "what-we-correct",
+          title: "What we correct",
+          items: [
+            <>
+              Any factual error, however small. A misspelled name is a
+              correction. So is a wrong figure, a misattributed quote, or a
+              caption that describes the wrong thing.
+            </>,
+          ],
+        },
+        {
+          id: "how-we-correct",
+          join: true,
+          title: "How we correct",
+          items: [
+            <>
+              We fix the error in the story itself, so that nobody reading it
+              later meets the mistake.
+            </>,
+            <>
+              A story whose text has changed since publication shows when it
+              was last updated.
+            </>,
+          ],
+        },
+        {
+          id: "record",
+          join: true,
+          title: "How changes are recorded",
+          items: [
+            <>
+              Every edit to a published story creates a permanent version
+              record of what changed and when.
+            </>,
+            <>
+              The record is written by the database itself rather than by the
+              editing tool, so it cannot be bypassed, altered or deleted from
+              the newsroom&rsquo;s own software.
+            </>,
+          ],
+        },
+        {
+          id: "report",
+          join: true,
+          title: "Telling us about an error",
+          items: [
+            reportTo ? (
+              <>
+                Write to <EmailLink address={reportTo} /> with the address of
+                the story and what you believe is wrong. If you can, tell us
+                where the correct information can be found.
+              </>
+            ) : null,
+            reportTo && (officer.name || officer.email) ? (
+              <>
                 To make a formal complaint about our content, write to{" "}
                 <GrievanceOfficer />. How complaints are handled is set out on
                 our{" "}
@@ -68,11 +92,26 @@ export default function CorrectionsPage() {
                   contact page
                 </Link>
                 .
-              </p>
-            ) : null}
-          </>
-        ) : null}
-      </div>
-    </StaticPage>
+              </>
+            ) : null,
+          ],
+        },
+        {
+          id: "replies",
+          title: "Replies and removal",
+          items: [
+            <>
+              A person or organisation that a story makes an allegation against
+              may send a reply, and we consider every reply for publication.
+              Removal of published material is dealt with on our{" "}
+              <Link href="/about#corrections" className={link}>
+                About page
+              </Link>
+              .
+            </>,
+          ],
+        },
+      ]}
+    />
   );
 }
