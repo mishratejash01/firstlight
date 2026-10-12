@@ -127,7 +127,7 @@ export function SectionDigest({
                     free, a three-line headline beside a one-line headline
                     leaves the copy and timestamps under them stepping up and
                     down across the grid. */}
-                <h4 className="line-clamp-2 text-[1rem] leading-[1.28] text-ink group-hover:text-accent">
+                <h4 className="line-clamp-2 text-[1rem] leading-[1.28] text-ink">
                   <Link href={`/${article.categories.slug}/${article.slug}`}>
                     {article.headline}
                   </Link>
