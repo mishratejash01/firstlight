@@ -7,7 +7,7 @@ import {
   X_HANDLE,
 } from "@/lib/site";
 import type { Metadata, Viewport } from "next";
-import { Inter, Libre_Franklin, Newsreader } from "next/font/google";
+import { Inter, Libre_Franklin, Mona_Sans, Space_Grotesk } from "next/font/google";
 
 import { AnalyticsProvider } from "@/components/analytics/analytics-provider";
 import { JsonLd } from "@/components/seo/json-ld";
@@ -19,13 +19,20 @@ import "./globals.css";
 // newspapers have set decks and labels in for a century — so it carries a
 // 52px headline and an 11px timestamp without needing a second family to help.
 // Loaded as a variable font: one file, every weight.
-// Newsreader carries the headlines. It was drawn for news and has an
-// optical-size axis, so a 54px splash and a 17px rail headline are genuinely
-// different cuts rather than one shape scaled — the large sizes tighten and
-// sharpen, the small ones open up and stay legible. One family covers the whole
-// scale without a page of forty headlines looking like one shape repeated.
-const newsreader = Newsreader({
-  variable: "--font-serif-src",
+// Space Grotesk carries the headlines: a grotesk with enough character in its
+// letters to read as the paper's own voice at a glance, set semibold rather
+// than bold so a page of forty headlines does not shout.
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-headline-src",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+// Mona Sans carries the descriptions under the headlines — the standfirst on a
+// story, the line of copy on a card. Regular weight: it is there to be read
+// after the headline, not to compete with it.
+const monaSans = Mona_Sans({
+  variable: "--font-dek-src",
   subsets: ["latin"],
   display: "swap",
 });
@@ -132,7 +139,7 @@ export default function RootLayout({
   return (
     <html
       lang={SITE_LANGUAGE}
-      className={`${newsreader.variable} ${inter.variable} ${libreFranklin.variable}`}
+      className={`${spaceGrotesk.variable} ${monaSans.variable} ${inter.variable} ${libreFranklin.variable}`}
     >
       <body>
         {/* Who publishes this page, the same on every page: name, logo,
