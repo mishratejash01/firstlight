@@ -66,8 +66,8 @@ export function TrackingPreference() {
           aria-pressed={consent === "granted"}
           className={
             consent === "granted"
-              ? "rounded-control border border-accent bg-accent px-4 py-2 text-meta text-paper"
-              : "rounded-control border border-hairline px-4 py-2 text-meta text-ink hover:border-muted"
+              ? "rounded-control border border-ink bg-ink px-4 py-2 font-label text-meta font-semibold text-paper"
+              : "rounded-control border border-ink/25 px-4 py-2 font-label text-meta font-semibold text-ink transition hover:border-ink"
           }
         >
           Allow measurement
@@ -78,8 +78,8 @@ export function TrackingPreference() {
           aria-pressed={consent === "denied"}
           className={
             consent === "denied"
-              ? "rounded-control border border-accent bg-accent px-4 py-2 text-meta text-paper"
-              : "rounded-control border border-hairline px-4 py-2 text-meta text-ink hover:border-muted"
+              ? "rounded-control border border-ink bg-ink px-4 py-2 font-label text-meta font-semibold text-paper"
+              : "rounded-control border border-ink/25 px-4 py-2 font-label text-meta font-semibold text-ink transition hover:border-ink"
           }
         >
           Decline
