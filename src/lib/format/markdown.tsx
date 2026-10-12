@@ -20,9 +20,10 @@ import { cloudinaryImage, cloudinaryVideoPoster } from "@/lib/media/transform";
  * captions, timestamps and navigation.
  *
  * Supported: '## '/'### ' headings, paragraphs, '- ' lists, '> ' quotes,
- * **bold**, *italic*, [text](url), and ![alt](url"optional caption") for
- * images, video files and YouTube videos. Anything else renders as literal
- * text.
+ * **bold**, *italic*, [text](url), ![alt](url"optional caption") for
+ * images, video files and YouTube videos, and pipe tables (a header row, a
+ * '---' separator row, then one row per item). Anything else renders as
+ * literal text.
  */
 
 type Block =
@@ -30,7 +31,60 @@ type Block =
   | { kind: "media"; alt: string; url: string; caption: string | null }
   | { kind: "paragraph"; text: string }
   | { kind: "list"; items: string[] }
-  | { kind: "quote"; text: string };
+  | { kind: "quote"; text: string }
+  | { kind: "table"; header: string[]; aligns: Align[]; rows: string[][] };
+
+type Align = "left" | "center" | "right" | null;
+
+/** A line that could be a table row: it opens or closes on a pipe. */
+function isTableRow(line: string): boolean {
+  const t = line.trim();
+  return t.includes("|") && (t.startsWith("|") || t.endsWith("|"));
+}
+
+/** The '---' row under a table's header, with optional ':' for alignment. */
+function isTableSeparator(line: string): boolean {
+  return /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/.test(line.trim());
+}
+
+/**
+ * A row's cells. A pipe with a backslash before it belongs to the cell's text
+ * rather than starting a new column. The row is walked character by character
+ * instead of split on a pattern, so recognising that escape needs no regular
+ * expression and no escape sequence in this source.
+ */
+function tableCells(line: string): string[] {
+  const BACKSLASH = String.fromCharCode(92);
+  let t = line.trim();
+  if (t.startsWith("|")) t = t.slice(1);
+  if (t.endsWith("|") && !t.endsWith(BACKSLASH + "|")) t = t.slice(0, -1);
+  const cells: string[] = [];
+  let cell = "";
+  for (let i = 0; i < t.length; i += 1) {
+    if (t[i] === BACKSLASH && t[i + 1] === "|") {
+      cell += "|";
+      i += 1;
+    } else if (t[i] === "|") {
+      cells.push(cell.trim());
+      cell = "";
+    } else {
+      cell += t[i];
+    }
+  }
+  cells.push(cell.trim());
+  return cells;
+}
+
+function tableAligns(separator: string): Align[] {
+  return tableCells(separator).map((cell) => {
+    const left = cell.startsWith(":");
+    const right = cell.endsWith(":");
+    if (left && right) return "center";
+    if (right) return "right";
+    if (left) return "left";
+    return null;
+  });
+}
 
 function parseBlocks(markdown: string): Block[] {
   const blocks: Block[] = [];
@@ -52,8 +106,34 @@ function parseBlocks(markdown: string): Block[] {
     }
   };
 
-  for (const raw of lines) {
-    const line = raw.trimEnd();
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i].trimEnd();
+
+    // A table is a header row followed directly by its '---' separator. A
+    // stray pipe in an ordinary sentence has no separator under it, so it
+    // stays a sentence.
+    if (isTableRow(line) && i + 1 < lines.length && isTableSeparator(lines[i + 1])) {
+      flushParagraph();
+      flushList();
+      const header = tableCells(line);
+      const aligns = tableAligns(lines[i + 1]);
+      const rows: string[][] = [];
+      i += 2;
+      while (i < lines.length && isTableRow(lines[i]) && lines[i].trim()) {
+        const cells = tableCells(lines[i]);
+        // Every row gets exactly the header's number of cells, so a row a
+        // writer left short does not shift its neighbours out of their columns.
+        rows.push(header.map((_, c) => cells[c] ?? ""));
+        i += 1;
+      }
+      i -= 1;
+      if (rows.length) {
+        blocks.push({ kind: "table", header, aligns, rows });
+      } else {
+        paragraph.push(line.trim());
+      }
+      continue;
+    }
 
     if (!line.trim()) {
       flushParagraph();
@@ -215,10 +295,46 @@ function renderInline(text: string, keyPrefix: string): ReactNode {
   });
 }
 
-export function renderMarkdown(markdown: string | null | undefined): ReactNode {
+/**
+ * Something to place between the paragraphs of a story — the "Latest" block,
+ * for one. It goes in after the given paragraph, counting paragraphs only, and
+ * never as the very last thing in the body. An insert the story is too short
+ * to reach goes at the end instead, so a short story still carries it.
+ */
+export type BodyInsert = { afterParagraph: number; node: ReactNode };
+
+export function renderMarkdown(
+  markdown: string | null | undefined,
+  options: { inserts?: BodyInsert[] } = {},
+): ReactNode {
   if (!markdown) return null;
 
-  return parseBlocks(markdown).map((block, index) => {
+  const blocks = parseBlocks(markdown);
+  const pending = [...(options.inserts ?? [])].sort(
+    (a, b) => a.afterParagraph - b.afterParagraph,
+  );
+  const out: ReactNode[] = [];
+  let paragraphs = 0;
+
+  blocks.forEach((block, index) => {
+    out.push(renderBlock(block, index));
+    if (block.kind !== "paragraph") return;
+    paragraphs += 1;
+    const isLast = index === blocks.length - 1;
+    while (pending.length && pending[0].afterParagraph === paragraphs && !isLast) {
+      const insert = pending.shift()!;
+      out.push(<Fragment key={`insert-${index}`}>{insert.node}</Fragment>);
+    }
+  });
+
+  pending.forEach((insert, i) => {
+    out.push(<Fragment key={`insert-end-${i}`}>{insert.node}</Fragment>);
+  });
+
+  return out;
+}
+
+function renderBlock(block: Block, index: number): ReactNode {
     const key = `b${index}`;
 
     switch (block.kind) {
@@ -334,6 +450,55 @@ export function renderMarkdown(markdown: string | null | undefined): ReactNode {
           </blockquote>
         );
 
+      case "table":
+        // Comparisons set as a real table. It scrolls sideways inside its own
+        // box on a phone rather than widening the page, and the first cell of
+        // each row is that row's header, so a screen reader announces each
+        // figure with the thing it belongs to.
+        return (
+          <div
+            key={key}
+            className="table-wrap my-7"
+            role="region"
+            aria-label="Table"
+            tabIndex={0}
+          >
+            <table className="data-table">
+              <thead>
+                <tr>
+                  {block.header.map((cell, c) => (
+                    <th
+                      key={`${key}-h${c}`}
+                      scope="col"
+                      style={block.aligns[c] ? { textAlign: block.aligns[c]! } : undefined}
+                    >
+                      {renderInline(cell, `${key}-h${c}`)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {block.rows.map((row, r) => (
+                  <tr key={`${key}-r${r}`}>
+                    {row.map((cell, c) => {
+                      const style = block.aligns[c] ? { textAlign: block.aligns[c]! } : undefined;
+                      return c === 0 ? (
+                        <th key={`${key}-${r}-${c}`} scope="row" style={style}>
+                          {renderInline(cell, `${key}-${r}-${c}`)}
+                        </th>
+                      ) : (
+                        <td key={`${key}-${r}-${c}`} style={style}>
+                          {renderInline(cell, `${key}-${r}-${c}`)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+
       default:
         return (
           <p key={key} className="my-5 text-prose text-ink">
@@ -341,5 +506,4 @@ export function renderMarkdown(markdown: string | null | undefined): ReactNode {
           </p>
         );
     }
-  });
 }
