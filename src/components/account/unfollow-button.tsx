@@ -28,7 +28,7 @@ export function UnfollowButton({ followId }: { followId: string }) {
       type="button"
       onClick={unfollow}
       disabled={pending}
-      className="shrink-0 rounded-control border border-hairline px-3 py-1.5 text-meta text-ink hover:border-muted disabled:text-muted"
+      className="shrink-0 rounded-control border border-ink/25 bg-paper px-3 py-1.5 font-label text-meta font-semibold text-ink transition hover:border-ink disabled:text-muted"
     >
       {pending ? "Removing…" : "Unfollow"}
     </button>
