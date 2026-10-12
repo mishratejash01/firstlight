@@ -228,7 +228,7 @@ export default async function ArticlePage(
             </h1>
 
             {article.standfirst ? (
-              <p className="mt-4 max-w-[42rem] text-[1.1875rem] leading-[1.5] text-ink xl:max-w-[46rem]">
+              <p className="mt-4 max-w-[42rem] font-dek text-[1.1875rem] leading-[1.5] text-ink xl:max-w-[46rem]">
                 {article.standfirst}
               </p>
             ) : null}
