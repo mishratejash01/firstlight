@@ -121,7 +121,7 @@ export function BulletinBoard({ items }: { items: BoardItem[] }) {
             // the top of an article. Clamped rather than trimmed server-side so
             // a short standfirst is never padded and a long one never reflows
             // the panel.
-            <p className="mt-3 line-clamp-3 text-body leading-relaxed text-paper/90">
+            <p className="mt-3 line-clamp-3 font-dek text-body leading-relaxed text-paper/90">
               {item.gist}
             </p>
           ) : null}
