@@ -147,7 +147,7 @@ export function SectionPeek({
                     />
                   </span>
                 ) : null}
-                <span className="min-w-0 text-[0.9375rem] leading-[1.3] font-medium text-ink hover:text-accent">
+                <span className="min-w-0 text-[0.9375rem] leading-[1.3] font-medium text-ink">
                   {article.headline}
                 </span>
               </Link>
