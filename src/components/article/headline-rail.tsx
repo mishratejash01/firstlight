@@ -52,7 +52,7 @@ export function HeadlineRail({
                 <p className="font-label text-[0.75rem] font-semibold text-muted">
                   {article.categories.name}
                 </p>
-                <h3 className="mt-1 text-[0.9375rem] leading-[1.35] text-ink group-hover:text-accent">
+                <h3 className="mt-1 text-[0.9375rem] leading-[1.35] text-ink">
                   {article.headline}
                 </h3>
               </Link>
@@ -73,7 +73,7 @@ export function HeadlineRail({
       <div className="mt-4">
         <article className="group">
           <Link href={leadHref}>
-            <h3 className="text-[1.0625rem] leading-[1.28] text-ink group-hover:text-accent">
+            <h3 className="text-[1.0625rem] leading-[1.28] text-ink">
               {lead.headline}
             </h3>
 
@@ -105,7 +105,7 @@ export function HeadlineRail({
                   <p className="eyebrow font-label font-semibold text-accent">
                     {article.categories.name}
                   </p>
-                  <h3 className="mt-1.5 text-[1.0625rem] leading-[1.28] text-ink group-hover:text-accent">
+                  <h3 className="mt-1.5 text-[1.0625rem] leading-[1.28] text-ink">
                     {article.headline}
                   </h3>
                 </Link>
