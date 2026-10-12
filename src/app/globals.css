@@ -38,7 +38,10 @@
      weight, not from switching face — which is what keeps a page holding forty
      headlines from looking like forty different decisions. */
   --font-sans: var(--font-sans-src), "Libre Franklin", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-serif: var(--font-serif-src), Newsreader, Georgia, "Times New Roman", serif;
+  --font-headline: var(--font-headline-src), "Space Grotesk", -apple-system, "Segoe UI", sans-serif;
+  /* Descriptions — standfirsts and the line of copy under a card headline.
+     Defined here so Tailwind generates a font-dek utility for them. */
+  --font-dek: var(--font-dek-src), "Mona Sans", -apple-system, "Segoe UI", sans-serif;
   --font-label: var(--font-label-src), Inter, -apple-system, "Segoe UI", sans-serif;
 
   /* Type scale. Emphasis comes from size, weight and whitespace — never from
@@ -156,25 +159,24 @@
     overflow-wrap: break-word;
   }
 
-  /* Headlines are set in the serif; everything else — labels, bylines,
-     timestamps, navigation, body copy — stays in the grotesque. A serif needs
-     far less negative tracking than a grotesque does at the same size, so the
-     values here are close to zero rather than the -0.019em a sans wanted. */
+  /* Headlines are set in Space Grotesk, semibold. Every headline takes the
+     same weight — the specimen the owner chose set both the article title and
+     the card headline at 600 — so size alone carries the hierarchy. A grotesk
+     wants a little tracking taken out at headline sizes, more than a serif
+     did, or its open letters drift apart. */
   h1, h2, h3, h4 {
-    font-family: var(--font-serif);
-    font-weight: 500;
-    letter-spacing: -0.003em;
+    font-family: var(--font-headline);
+    font-weight: 600;
+    letter-spacing: -0.01em;
     text-wrap: balance;
   }
 
-/* Big headlines still want a little more tracking taken out than small ones,
-   even in the serif: a single value set for a 54px splash leaves a 17px rail
-   headline looking cramped. */
+/* Big headlines want a little more tracking taken out than small ones: a
+   single value set for a 44px article title leaves a 17px rail headline
+   looking cramped. */
 .headline-lg {
-  /* The splash keeps the heavier cut. Card and rail headlines sit a step below
-     it at 500, which is what stops a page of forty of them reading as bold. */
   font-weight: 600;
-  letter-spacing: -0.012em;
+  letter-spacing: -0.02em;
   /* Not balanced. Balancing evens the line lengths by pulling the whole block
      in from the column edge, which on a five-line splash reads as a narrow
      headline floating in a wide column. It fills its measure instead. */
