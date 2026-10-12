@@ -13,10 +13,13 @@ import { cloudinaryImage } from "@/lib/media/transform";
  * whitespace and, where they need it, a single hairline rule. The only thing
  * that moves on hover is the headline colour.
  *
- * Three sizes, because a page of identically weighted cards has no front page
+ * Four sizes, because a page of identically weighted cards has no front page
  * in it. 'lead' anchors a section block, 'card' fills a grid, and 'list' is the
  * text-only entry that stacks in a column beside a lead — the same job the
- * short items down the side of a printed section page do.
+ * short items down the side of a printed section page do. 'row' is a list
+ * entry with a small picture beside it, for a long run of headlines: the
+ * pictures give every row the same left edge and the same height, where bare
+ * headlines of different lengths left a ragged block.
  */
 export function ArticleCard({
   article,
@@ -25,7 +28,7 @@ export function ArticleCard({
   showDek = true,
 }: {
   article: ArticleCardData;
-  variant?: "lead" | "card" | "list";
+  variant?: "lead" | "card" | "list" | "row";
   /** Off in a column that has to finish level with something beside it: the
    *  dek is the first thing worth losing, being the only part a reader can do
    *  without once the headline has told them what happened. */
@@ -45,6 +48,46 @@ export function ArticleCard({
       : variant === "card"
         ? "text-[1.15rem] leading-[1.22] text-ink sm:text-headline"
         : "text-[1.0625rem] leading-[1.28] text-ink";
+
+  if (variant === "row") {
+    return (
+      <article className="group flex items-start gap-4">
+        <Link
+          href={href}
+          tabIndex={-1}
+          aria-hidden="true"
+          className="relative block aspect-[4/3] w-28 shrink-0 overflow-hidden rounded-media bg-wash sm:w-32"
+        >
+          {article.hero_image_url ? (
+            <Image
+              src={
+                cloudinaryImage(article.hero_image_url, "thumb") ??
+                article.hero_image_url
+              }
+              alt={article.hero_image_alt ?? ""}
+              fill
+              sizes="128px"
+              className="object-cover"
+            />
+          ) : null}
+        </Link>
+        <div className="min-w-0">
+          {article.is_breaking ? (
+            <Eyebrow article={article} className="mb-1" />
+          ) : null}
+          <h3 className="line-clamp-3 text-[1rem] leading-[1.3] text-ink">
+            <Link href={href}>{article.headline}</Link>
+          </h3>
+          <Byline
+            author={article.authors}
+            publishedAt={article.published_at}
+            attributionLabel={article.attribution_label}
+            className="mt-1.5"
+          />
+        </div>
+      </article>
+    );
+  }
 
   return (
     <article className="group">
