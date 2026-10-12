@@ -32,7 +32,7 @@ export function ArticleRow({
       <div className="min-w-0 flex-1">
         {showEyebrow ? <Eyebrow article={article} className="mb-1.5" /> : null}
         <h3 className="text-[1.0625rem] leading-[1.3] text-ink">
-          <Link href={href} className="group-hover:text-accent">
+          <Link href={href}>
             {article.headline}
           </Link>
         </h3>
