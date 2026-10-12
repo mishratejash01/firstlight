@@ -1,8 +1,13 @@
 import Link from "next/link";
+import { Fragment } from "react";
 import type { Metadata } from "next";
 
 import { EmailLink } from "@/components/site/email-link";
-import { StaticPage } from "@/components/site/static-page";
+import {
+  DOCUMENTS_UPDATED,
+  LegalDocument,
+  clauseLink as link,
+} from "@/components/site/legal-document";
 import { getPublishingAuthors } from "@/lib/queries/syndication";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { PUBLISHER, SITE_NAME } from "@/lib/site";
@@ -44,69 +49,86 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function MastheadPage() {
   const writers = await getWriters();
+  const editor = PUBLISHER.editor;
 
   return (
-    <StaticPage
+    <LegalDocument
       title="Masthead"
       standfirst={`The people responsible for ${SITE_NAME}.`}
-    >
-      <div className="space-y-4 text-body leading-relaxed text-ink">
-        {PUBLISHER.editor.name ? (
-          <div className="border-t border-hairline pt-5">
-            <h2 className="text-[1.15rem] text-ink">{PUBLISHER.editor.name}</h2>
-            <p className="mt-0.5 text-meta text-muted">
-              {PUBLISHER.editor.title || "Editor"}
-            </p>
-          </div>
-        ) : null}
-
-        {writers.length ? (
-          <ul className="divide-y divide-hairline border-t border-hairline">
-            {writers.map((author) => (
-              <li key={author.slug} className="py-5">
-                <h2 className="text-[1.15rem] text-ink">
-                  <Link href={`/author/${author.slug}`} className="hover:text-accent">
-                    {author.display_name}
-                  </Link>
-                </h2>
-                {author.title ? (
-                  <p className="mt-0.5 text-meta text-muted">{author.title}</p>
-                ) : null}
-                {author.bio ? (
-                  <p className="mt-2 text-body leading-relaxed text-muted">{author.bio}</p>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-
-        {PUBLISHER.legalName ? (
-          <p className="border-t border-hairline pt-5 text-meta text-muted">
-            {SITE_NAME} is published by {PUBLISHER.legalName}
-            {PUBLISHER.address ? `, ${PUBLISHER.address}` : ""}.
-          </p>
-        ) : null}
-
-        <p className="text-meta text-muted">
-          Stories without a named writer are the work of our newsroom and are
-          published under the paper&rsquo;s name. Our{" "}
-          <Link href="/editorial-standards" className="text-accent underline underline-offset-4">
-            editorial standards
-          </Link>{" "}
-          set out how they are sourced and checked.
-        </p>
-
-        {PUBLISHER.editor.email ? (
-          <p className="text-meta text-muted">
-            Write to the editor at <EmailLink address={PUBLISHER.editor.email} />.
-            Every other way to reach us is on the{" "}
-            <Link href="/contact" className="text-accent underline underline-offset-4">
-              contact page
-            </Link>
-            .
-          </p>
-        ) : null}
-      </div>
-    </StaticPage>
+      lastUpdated={DOCUMENTS_UPDATED}
+      sections={[
+        {
+          id: "editor",
+          title: "Editor",
+          items: [
+            editor.name ? (
+              <>
+                <span className="font-semibold">{editor.name}</span>,{" "}
+                {editor.title || "Editor"}, is responsible for what {SITE_NAME}{" "}
+                publishes.
+              </>
+            ) : null,
+          ],
+        },
+        {
+          id: "writers",
+          title: "Writers",
+          items: writers.map((author) => (
+            <Fragment key={author.slug}>
+              <Link
+                href={`/author/${author.slug}`}
+                className="font-semibold text-ink underline-offset-4 hover:underline"
+              >
+                {author.display_name}
+              </Link>
+              {author.title ? <span className="text-muted">, {author.title}</span> : null}
+              {author.bio ? <span className="mt-1 block text-muted">{author.bio}</span> : null}
+            </Fragment>
+          )),
+        },
+        {
+          id: "newsroom",
+          title: "The newsroom",
+          items: [
+            <>
+              Stories without a named writer are the work of our newsroom and
+              are published under the paper&rsquo;s name. Our{" "}
+              <Link href="/editorial-standards" className={link}>
+                editorial standards
+              </Link>{" "}
+              set out how they are sourced and checked.
+            </>,
+          ],
+        },
+        {
+          id: "publisher",
+          title: "Publisher",
+          items: [
+            PUBLISHER.legalName ? (
+              <>
+                {SITE_NAME} is published by {PUBLISHER.legalName}
+                {PUBLISHER.address ? `, ${PUBLISHER.address}` : ""}.
+              </>
+            ) : null,
+          ],
+        },
+        {
+          id: "write-to-us",
+          title: "Writing to us",
+          items: [
+            editor.email ? (
+              <>
+                Write to the editor at <EmailLink address={editor.email} />.
+                Every other way to reach us is on the{" "}
+                <Link href="/contact" className={link}>
+                  contact page
+                </Link>
+                .
+              </>
+            ) : null,
+          ],
+        },
+      ]}
+    />
   );
 }
