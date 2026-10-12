@@ -22,7 +22,7 @@ export const draftedArticleSchema = z.object({
   bodyMarkdown: z
     .string()
     .describe(
-      "The article in Markdown. Use ## headings that mirror how readers phrase searches — what happened, who is involved, what happens next, key numbers.",
+      "The article in Markdown. Use ## headings that mirror how readers phrase searches — what happened, who is involved, what happens next, key numbers. Set any side-by-side comparison of several items as a Markdown table (header row, separator row, one row per item).",
     ),
   suggestedTags: z.array(z.string()).describe("Topic tags, lower case, three to six."),
   searchKeywords: z
