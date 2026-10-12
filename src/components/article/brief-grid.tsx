@@ -41,7 +41,7 @@ function Meta({
           the lead brief reads as a narrow headline sitting in a wide space
           under a full-width picture. */}
       <h3
-        className={`text-pretty leading-[1.25] text-ink group-hover:text-accent ${
+        className={`text-pretty leading-[1.25] text-ink ${
           large ? "text-[1.25rem]" : "text-[1rem]"
         }`}
       >
