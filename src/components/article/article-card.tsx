@@ -70,7 +70,7 @@ export function ArticleCard({
       ) : null}
 
       <h3 className={headlineClass}>
-        <Link href={href} className="group-hover:text-accent">
+        <Link href={href}>
           {article.headline}
         </Link>
       </h3>
