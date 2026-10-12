@@ -70,11 +70,11 @@ export function HeroStory({ article }: { article: ArticleCardData }) {
       </h2>
 
       {dek ? (
-        <p className="mt-3 max-w-[42rem] text-lead text-ink">{dek}</p>
+        <p className="mt-3 max-w-[42rem] font-dek text-lead text-ink">{dek}</p>
       ) : null}
 
       {more ? (
-        <p className="mt-2.5 max-w-[42rem] text-body leading-relaxed text-muted">
+        <p className="mt-2.5 max-w-[42rem] font-dek text-body leading-relaxed text-muted">
           {more}
         </p>
       ) : null}
