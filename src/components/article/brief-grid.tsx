@@ -81,11 +81,11 @@ export function BriefGrid({
   const [first, ...rest] = articles;
 
   return (
-    <div className="grid grid-cols-2 gap-x-6 gap-y-6">
+    <div className="grid grid-cols-2 gap-x-6 gap-y-6 lg:grid-cols-1">
       {/* The lead brief takes the full width with its picture above the
           headline — a proper second story rather than a thumbnail with a
           caption beside it, which left a ragged hole under the picture. */}
-      <article className="group col-span-2">
+      <article className="group col-span-2 lg:col-span-1">
         {first.hero_image_url ? (
           <Link
             href={`/${first.categories.slug}/${first.slug}`}
@@ -118,7 +118,7 @@ export function BriefGrid({
       {rest.map((article, index) => (
         <article
           key={article.id}
-          className={`group ${index > 1 ? "border-t border-hairline pt-5" : ""}`}
+          className={`group ${index > 1 ? "border-t border-hairline pt-5" : "lg:border-t lg:border-hairline lg:pt-5"}`}
         >
           <Meta
             article={article}
