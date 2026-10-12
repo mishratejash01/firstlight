@@ -21,18 +21,25 @@ import { useEffect, useState, type ReactNode } from "react";
  * strip itself is server-rendered inside a server component, so it cannot read
  * React state. CSS on a parent attribute can reach it; a prop cannot.
  *
- * The threshold is below the nameplate's height, and there is no hysteresis
- * band because the two states differ only in the height of the marks — a strip
- * that flickered between them would still be legible, and the reader would have
- * to be holding the scroll exactly at the boundary to see it.
+ * Two thresholds, not one. Folding the marks away makes the block 20px
+ * shorter on a desktop and 36px on a phone, and everything below it moves up
+ * by that much; the browser's scroll anchoring then moves the scroll position
+ * to match. With a single threshold that move could carry the page back
+ * across it, the strip would unfold, the page would move back, and the strip
+ * flickered between the two states for as long as the reader scrolled near
+ * that point. So it folds past SHRINK_AT and only unfolds again above
+ * GROW_AT: the gap between them is several times the height that changes, so
+ * no amount of anchoring can bounce it across both.
  */
 const SHRINK_AT = 140;
+const GROW_AT = 40;
 
 export function StickyNav({ children }: { children: ReactNode }) {
   const [shrunk, setShrunk] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setShrunk(window.scrollY > SHRINK_AT);
+    const onScroll = () =>
+      setShrunk((was) => (was ? window.scrollY > GROW_AT : window.scrollY > SHRINK_AT));
     // Run once on mount: a reader arriving on a deep link, or returning to a
     // restored scroll position, is already past the threshold before the first
     // scroll event ever fires.
