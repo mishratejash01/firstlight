@@ -94,7 +94,7 @@ export function StoryTile({ article }: { article: ArticleCardData }) {
         </div>
 
         {/* Clears the half of the arrow hanging below the picture. */}
-        <h3 className="mt-8 text-[1.0625rem] leading-[1.28] text-ink group-hover:text-accent">
+        <h3 className="mt-8 text-[1.0625rem] leading-[1.28] text-ink">
           {article.headline}
         </h3>
 
