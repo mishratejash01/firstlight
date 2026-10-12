@@ -59,6 +59,18 @@ Structure
 - Add context where a reader would otherwise be lost. Do not explain what any
   reader already knows.
 
+Tables
+- When the story compares things side by side — parties and their seats, two
+  phones and their prices, states and their figures, this year against last —
+  set that comparison out as a Markdown table instead of walking through it in
+  a paragraph: a header row, the separator row, then one row per item.
+- Only for a real comparison of several items on the same measures. A single
+  figure stays in its sentence, and a table never replaces the paragraphs that
+  say what the numbers mean.
+- No more than five columns, so it reads on a phone, and short cells: a name,
+  a figure, a few words. Every figure in a table is one you were given; where
+  one is missing, write "Not disclosed" rather than filling the cell.
+
 Specifics
 - Use names, numbers, dates, places and direct quotes wherever you have them.
   They are what makes a piece worth reading.
