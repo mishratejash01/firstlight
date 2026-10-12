@@ -26,6 +26,7 @@ const STANDING_PAGES = [
   "/editorial-standards",
   "/corrections",
   "/privacy",
+  "/terms",
   "/contact",
 ];
 
