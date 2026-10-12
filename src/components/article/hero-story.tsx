@@ -64,7 +64,7 @@ export function HeroStory({ article }: { article: ArticleCardData }) {
       <Eyebrow article={article} className="mb-2" />
 
       <h2 className="headline-lg text-hero leading-[1.03] text-ink sm:text-hero-lg lg:text-display">
-        <Link href={href} className="group-hover:text-accent">
+        <Link href={href}>
           {article.headline}
         </Link>
       </h2>
