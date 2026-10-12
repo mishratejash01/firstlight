@@ -77,7 +77,7 @@ export function OpinionShelf({
                     >
                       <path d="M9.5 5.5C6.5 7 5 9.6 5 13v5.5h6.5V13H8.2c0-2.2.9-3.8 2.8-4.8l-1.5-2.7Zm9 0C15.5 7 14 9.6 14 13v5.5h6.5V13h-3.3c0-2.2.9-3.8 2.8-4.8l-1.5-2.7Z" />
                     </svg>
-                    <p className="mt-2 text-meta leading-relaxed text-ink">
+                    <p className="mt-2 font-dek text-meta leading-relaxed text-ink">
                       {argument}
                     </p>
                   </div>
