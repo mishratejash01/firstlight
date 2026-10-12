@@ -111,12 +111,13 @@ export default async function HomePage() {
     .map((p) => take(byId.get(p.article_id)))
     .filter((a): a is ArticleCardData => Boolean(a));
 
-  // The briefs beside the splash: one with a picture, then pairs beneath it.
-  // Six is what finishes level with a lead of this depth — the count is set by
-  // the splash's height, not by how many stories happen to be spare.
-  const briefs = [...pinnedRail, ...nextUnused(6 - pinnedRail.length)].slice(
+  // The briefs beside the splash: one with a picture, then the rest beneath
+  // it. The splash's picture stretches to the depth of this column, so the
+  // count sets how tall the splash runs: five keeps its picture near 4:3.
+  const BRIEFS = 5;
+  const briefs = [...pinnedRail, ...nextUnused(BRIEFS - pinnedRail.length)].slice(
     0,
-    6,
+    BRIEFS,
   );
   briefs.forEach((a) => used.add(a.id));
 
@@ -193,16 +194,11 @@ export default async function HomePage() {
 
       <main className="route-enter">
         <div className="mx-auto max-w-page px-4 sm:px-6">
-          {/* The page's heading, in the same form as every section label below
-              it: what the front page is, in the words of its title. The
-              paper's name above is the masthead, not the heading. */}
-          <h1 className="font-label flex items-center gap-3 pt-8 text-section font-semibold text-ink">
-            <span
-              aria-hidden="true"
-              className="inline-block h-[1.15em] w-[5px] shrink-0 rounded-[2px] bg-accent"
-            />
-            Today&rsquo;s latest and breaking news
-          </h1>
+          {/* The page's heading, kept for search engines and screen readers but
+              not shown: on screen the front page opens straight on the lead
+              story, which says what the page is better than a label above it
+              could. The paper's name above is the masthead, not the heading. */}
+          <h1 className="sr-only">Today&rsquo;s latest and breaking news</h1>
 
           {/* The splash on the left; the right side stacked in rows of differing
             width rather than a second and third column of equal weight. Two
@@ -211,14 +207,14 @@ export default async function HomePage() {
             lets the right side finish level with the splash instead of running
             past it. They stack in reading order on a phone. */}
           <div className="grid grid-cols-1 gap-x-10 gap-y-10 pt-6 pb-12 lg:grid-cols-12">
-            <div className="lg:col-span-7">
+            <div className="lg:col-span-8 lg:flex lg:flex-col">
               <HeroStory article={hero} />
             </div>
 
             {/* Many stories, each given a little, against the one story given a
               lot. Two columns of briefs finish level with the splash where a
               single column of full cards ran a screen past it. */}
-            <div className="lg:col-span-5">
+            <div className="lg:col-span-4">
               <BriefGrid articles={briefs} iconBySlug={iconBySlug} />
             </div>
           </div>
