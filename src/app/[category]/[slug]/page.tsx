@@ -6,16 +6,16 @@ import type { Metadata } from "next";
 import { ArticleCard } from "@/components/article/article-card";
 import { Eyebrow } from "@/components/article/eyebrow";
 import { JsonLd } from "@/components/seo/json-ld";
-import { EmailLink } from "@/components/site/email-link";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { NewsletterSignup } from "@/components/site/newsletter-signup";
 import { PageViewBeacon } from "@/components/analytics/page-view-beacon";
 import { ReadingInstrumentation } from "@/components/analytics/reading-instrumentation";
 import { getArticle, getRelatedArticles } from "@/lib/queries/article-detail";
-import { LatestRail } from "@/components/site/live-headlines";
+import { InlineLatest } from "@/components/site/live-headlines";
 import { ListenButton } from "@/components/article/listen-button";
 import { renderMarkdown } from "@/lib/format/markdown";
+import { displayTagName } from "@/lib/format/tag-name";
 import { listeningMinutes, markdownToSpeech } from "@/lib/format/speech-text";
 import {
   SHARE_IMAGE_SHAPE,
@@ -212,15 +212,17 @@ export default async function ArticlePage(
       <ReadingInstrumentation articleId={article.id} />
 
       <main className="route-enter mx-auto max-w-page px-4 sm:px-6">
-        {/* The page runs to the same width as the masthead and the front
-            page, so the story's left edge and the rail's right edge line up
-            with everything above them. The story takes all the room the rail
-            leaves: headline and picture run the full width of the column, so
-            nothing opens up between the story and the rail. The rail is a
-            narrow list of headlines behind a hairline, secondary to the piece
-            the reader opened. */}
-        <div className="grid grid-cols-1 gap-x-10 lg:grid-cols-[minmax(0,1fr)_16rem] xl:grid-cols-[minmax(0,1fr)_18rem] xl:gap-x-14 2xl:grid-cols-[minmax(0,1fr)_20rem]">
-          <article className="min-w-0 pt-8 pb-10">
+      {/* One column, in the middle of the page. The headline, the standfirst,
+            the byline and the body all share its left edge, so the story reads
+            as a single block from the top down; only the pictures break out
+            wider than it. There is no rail: other stories are set into the
+            story between paragraphs instead (see InlineLatest), so nothing
+            runs beside the text and leaves an empty column for most of it. */}
+        <article className="mx-auto min-w-0 max-w-[46rem] pt-8 pb-10 lg:max-w-[52rem] xl:max-w-[54rem] 2xl:max-w-[56rem]">
+          {/* The headline block runs to the picture's width and edges,
+              wider than the body copy below it: the headline is the one
+              line on the page meant to be taken in whole at a glance. */}
+          <header className="breakout">
             <Eyebrow article={article} className="mb-2.5" />
 
             <h1 className="headline-lg text-hero leading-[1.08] text-ink sm:text-[2.75rem]">
@@ -228,12 +230,12 @@ export default async function ArticlePage(
             </h1>
 
             {article.standfirst ? (
-              <p className="mt-4 max-w-[42rem] font-dek text-[1.1875rem] leading-[1.5] text-ink xl:max-w-[46rem]">
+              <p className="mt-4 font-dek text-[1.1875rem] leading-[1.5] text-ink lg:text-[1.3125rem]">
                 {article.standfirst}
               </p>
             ) : null}
 
-            <div className="mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-hairline pb-5">
+            <div className="mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-1 pb-5">
               {/* The byline. A story without a named writer is the paper's
                   own and says so, linked to the page about who we are. */}
               <p className="text-meta text-ink">
@@ -267,7 +269,6 @@ export default async function ArticlePage(
                   <span aria-hidden="true" className="mr-3">
                     &middot;
                   </span>
-                  Published{" "}
                   <time dateTime={toIstIso(article.published_at)}>
                     {formatDateTime(article.published_at)}
                   </time>
@@ -295,213 +296,232 @@ export default async function ArticlePage(
                 </div>
               ) : null}
             </div>
+          </header>
 
-            {article.hero_image_url ? (
-              <figure className="media-wide">
-                <div className="relative aspect-[16/9] w-full overflow-hidden rounded-media bg-hairline">
-                  <Image
-                    src={
-                      cloudinaryImage(article.hero_image_url, "hero") ??
-                      article.hero_image_url
-                    }
-                    alt={article.hero_image_alt ?? ""}
-                    fill
-                    loading="eager"
-                    fetchPriority="high"
-                    sizes="(max-width: 640px) calc(100vw - 32px), (max-width: 1024px) calc(100vw - 48px), 672px"
-                    className="object-cover"
-                  />
-                </div>
-                {/* The credit follows the caption after a middle dot: a
-                    picture desk credit is an attribution, not a sentence. It
-                    wraps wherever it must, even inside a long file name or
-                    code in a library credit, because a caption that cannot
-                    break widens the page past a phone's screen. */}
-                {article.hero_image_alt || article.hero_image_credit ? (
-                  <figcaption className="mt-2 text-meta text-muted [overflow-wrap:anywhere]">
-                    {article.hero_image_alt}
-                    {article.hero_image_credit ? (
-                      <>
-                        {" "}
-                        &middot; {readableCredit(article.hero_image_credit)}
-                      </>
-                    ) : null}
-                  </figcaption>
+          {article.hero_image_url ? (
+            <figure className="media-wide">
+              <div className="relative aspect-[16/9] w-full overflow-hidden rounded-media bg-hairline">
+                <Image
+                  src={
+                    cloudinaryImage(article.hero_image_url, "hero") ??
+                    article.hero_image_url
+                  }
+                  alt={article.hero_image_alt ?? ""}
+                  fill
+                  loading="eager"
+                  fetchPriority="high"
+                  sizes="(max-width: 640px) calc(100vw - 32px), (max-width: 1024px) calc(100vw - 48px), 672px"
+                  className="object-cover"
+                />
+              </div>
+              {/* The credit follows the caption after a middle dot: a
+                  picture desk credit is an attribution, not a sentence. It
+                  wraps wherever it must, even inside a long file name or
+                  code in a library credit, because a caption that cannot
+                  break widens the page past a phone's screen. */}
+              {article.hero_image_alt || article.hero_image_credit ? (
+                <figcaption className="mt-2 text-meta text-muted [overflow-wrap:anywhere]">
+                  {article.hero_image_alt}
+                  {article.hero_image_credit ? (
+                    <>
+                      {" "}
+                      &middot; {readableCredit(article.hero_image_credit)}
+                    </>
+                  ) : null}
+                </figcaption>
+              ) : null}
+            </figure>
+          ) : null}
+
+          {/* The column is the reading measure. On larger screens the type
+              steps up with it, so a line stays under about seventy-five
+              characters. */}
+          <div className="lg:[--text-prose:1.1875rem] xl:[--text-prose:1.25rem]">
+            {/* A curated item is a summary and a link. There is no body column on
+ the row to render, by database constraint, so this branch cannot
+ silently reproduce someone else's article. */}
+            {article.origin === "curated" ? (
+              <div className="mt-6">
+                <p className="font-label text-prose text-ink">
+                  {article.summary}
+                </p>
+                {article.attribution_url ? (
+                  <p className="mt-5 border-l-2 border-accent pl-4 text-body">
+                    <a
+                      href={article.attribution_url}
+                      rel="noopener noreferrer nofollow"
+                      target="_blank"
+                      className="text-accent underline underline-offset-4"
+                      data-track="click_source_link"
+                    >
+                      Read the full report at{" "}
+                      {article.attribution_label ?? "the original source"}
+                    </a>
+                  </p>
                 ) : null}
-              </figure>
+                <InlineLatest excludeId={article.id} from={0} count={3} label="Latest" />
+              </div>
+            ) : (
+              <div className="font-label mt-7">
+                {/* Other stories go in after the third paragraph, once the
+                    reader is into the piece, and again after the eighth in a
+                    long one. A story too short to reach either still carries
+                    them, at the end. */}
+                {renderMarkdown(article.body, {
+                  inserts: [
+                    {
+                      afterParagraph: 3,
+                      node: <InlineLatest excludeId={article.id} from={0} count={3} label="Latest" />,
+                    },
+                    {
+                      afterParagraph: 8,
+                      node: <InlineLatest excludeId={article.id} from={3} count={3} label="More stories" />,
+                    },
+                  ],
+                })}
+              </div>
+            )}
+
+            {keyFacts.length ? (
+              <section className="mt-12">
+                <h2 className="text-section text-ink">Key numbers</h2>
+                <div
+                  className="table-wrap mt-4"
+                  role="region"
+                  aria-label="Key numbers"
+                  tabIndex={0}
+                >
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">What</th>
+                        <th scope="col">Figure</th>
+                        <th scope="col">Source</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {keyFacts.map((fact) => (
+                        <tr key={fact.label}>
+                          <th scope="row">{fact.label}</th>
+                          <td>{fact.value}</td>
+                          <td className="text-muted">{fact.attribution}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
             ) : null}
 
-            {/* Everything that is read line by line holds to the reading
-                measure, even where the picture above runs wider. On larger
-                screens the type steps up and the measure with it, so the text
-                fills more of the column while a line stays under about
-                seventy-five characters. */}
-            <div className="max-w-[42rem] xl:max-w-[44rem] xl:[--text-prose:1.1875rem] 2xl:max-w-[47rem] 2xl:[--text-prose:1.25rem]">
-              {/* A curated item is a summary and a link. There is no body column on
-   the row to render, by database constraint, so this branch cannot
-   silently reproduce someone else's article. */}
-              {article.origin === "curated" ? (
-                <div className="mt-6">
-                  <p className="font-label text-prose text-ink">
-                    {article.summary}
-                  </p>
-                  {article.attribution_url ? (
-                    <p className="mt-5 border-l-2 border-accent pl-4 text-body">
-                      <a
-                        href={article.attribution_url}
-                        rel="noopener noreferrer nofollow"
-                        target="_blank"
-                        className="text-accent underline underline-offset-4"
-                        data-track="click_source_link"
-                      >
-                        Read the full report at{" "}
-                        {article.attribution_label ?? "the original source"}
-                      </a>
-                    </p>
-                  ) : null}
+            {faqs.length ? (
+              <section className="mt-12">
+                <h2 className="text-section text-ink">
+                  Questions readers are asking
+                </h2>
+                <div className="mt-4 divide-y divide-hairline">
+                  {faqs.map((faq) => (
+                    <div key={faq.question} className="py-4">
+                      <h3 className="text-[1.1rem] text-ink">{faq.question}</h3>
+                      <p className="mt-1.5 text-body leading-relaxed text-muted">
+                        {faq.answer}
+                      </p>
+                    </div>
+                  ))}
                 </div>
-              ) : (
-                <div className="font-label mt-7">
-                  {renderMarkdown(article.body)}
-                </div>
-              )}
+              </section>
+            ) : null}
 
-              {/* Every story ends with the way to report an error in it. The
-                  message is addressed to the editor with the headline as its
-                  subject and the story's address in its body, so a report
-                  arrives saying which story it is about. */}
-              {PUBLISHER.editor.email ? (
-                <p className="mt-8 text-meta text-muted">
-                  Found an error in this story? Write to{" "}
-                  <EmailLink
-                    address={PUBLISHER.editor.email}
-                    subject={`Possible error: ${article.headline}`}
-                    body={`${url}\r\n\r\n`}
-                  />
-                  . Our{" "}
-                  <Link href="/corrections" className="text-accent underline underline-offset-4">
-                    corrections policy
-                  </Link>{" "}
-                  explains how we put mistakes right.
-                </p>
-              ) : null}
-
-              {keyFacts.length ? (
-                <section className="mt-12 border-t border-hairline pt-6">
-                  <h2 className="text-section text-ink">Key numbers</h2>
-                  <dl className="mt-4 divide-y divide-hairline">
-                    {keyFacts.map((fact) => (
-                      <div
-                        key={fact.label}
-                        className="flex flex-wrap items-baseline gap-x-4 py-3"
+            {events.length ? (
+              <section className="mt-12">
+                <h2 className="text-section text-ink">Follow this story</h2>
+                <ul className="mt-3 space-y-2">
+                  {events.map((event) => (
+                    <li key={event.slug}>
+                      <Link
+                        href={`/live/${event.slug}`}
+                        className="text-body text-accent underline underline-offset-4"
                       >
-                        <dt className="text-meta text-muted">{fact.label}</dt>
-                        <dd className="text-[1.25rem] text-ink">{fact.value}</dd>
-                        <dd className="w-full text-meta text-muted">
-                          Source: {fact.attribution}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                </section>
-              ) : null}
+                        {event.title}
+                      </Link>
+                      {event.is_live ? (
+                        <span className="ml-2 text-meta text-signal">
+                          Updating
+                        </span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
 
-              {faqs.length ? (
-                <section className="mt-12 border-t border-hairline pt-6">
-                  <h2 className="text-section text-ink">
-                    Questions readers are asking
-                  </h2>
-                  <div className="mt-4 divide-y divide-hairline">
-                    {faqs.map((faq) => (
-                      <div key={faq.question} className="py-4">
-                        <h3 className="text-[1.1rem] text-ink">{faq.question}</h3>
-                        <p className="mt-1.5 text-body leading-relaxed text-muted">
-                          {faq.answer}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              ) : null}
+            {primaryEntities.length ? (
+              <section className="mt-12">
+                <h2 className="text-section text-ink">In this story</h2>
+                <div
+                  className="table-wrap mt-4"
+                  role="region"
+                  aria-label="People and organisations in this story"
+                  tabIndex={0}
+                >
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Name</th>
+                        <th scope="col">Role in the story</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {primaryEntities.map(({ entity, roleNote }) => (
+                        <tr key={entity.slug}>
+                          <th scope="row">{entity.name}</th>
+                          <td>{roleNote ?? "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            ) : null}
 
-              {events.length ? (
-                <section className="mt-12 border-t border-hairline pt-6">
-                  <h2 className="text-section text-ink">Follow this story</h2>
-                  <ul className="mt-3 space-y-2">
-                    {events.map((event) => (
-                      <li key={event.slug}>
-                        <Link
-                          href={`/live/${event.slug}`}
-                          className="text-body text-accent underline underline-offset-4"
-                        >
-                          {event.title}
-                        </Link>
-                        {event.is_live ? (
-                          <span className="ml-2 text-meta text-signal">
-                            Updating
-                          </span>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
+            {tags.length ? (
+              // A plain line of links, "Topics" then each name with a dot
+              // between them: set apart by weight and colour, not boxed.
+              <section className="mt-12 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <h2 className="font-label text-meta font-semibold text-ink">
+                  Topics
+                </h2>
+                <ul className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-label text-meta">
+                  {tags.map((tag, index) => (
+                    <li key={tag.slug} className="flex items-baseline gap-x-2">
+                      <Link
+                        href={`/topic/${tag.slug}`}
+                        className="text-ink underline-offset-4 hover:underline"
+                      >
+                        {displayTagName(
+                          tag.name,
+                          entities.map(({ entity }) => entity.name),
+                        )}
+                      </Link>
+                      {index < tags.length - 1 ? (
+                        <span aria-hidden="true" className="text-muted">
+                          &middot;
+                        </span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
 
-              {primaryEntities.length ? (
-                <section className="mt-12 border-t border-hairline pt-6">
-                  <h2 className="text-body font-semibold text-ink">
-                    In this story
-                  </h2>
-                  <ul className="mt-3 space-y-1.5">
-                    {primaryEntities.map(({ entity, roleNote }) => (
-                      <li key={entity.slug} className="text-meta text-muted">
-                        <span className="text-ink">{entity.name}</span>
-                        {roleNote ? ` — ${roleNote}` : null}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
-
-              {tags.length ? (
-                <section className="mt-12 border-t border-hairline pt-6">
-                  <h2 className="sr-only">Topics</h2>
-                  <ul className="flex flex-wrap gap-x-4 gap-y-2">
-                    {tags.map((tag) => (
-                      <li key={tag.slug}>
-                        <Link
-                          href={`/topic/${tag.slug}`}
-                          className="text-meta text-accent hover:underline underline-offset-4"
-                        >
-                          {tag.name}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
-
-              <div className="mt-12 border-t border-hairline pt-8">
-                <NewsletterSignup context="article-end" />
-              </div>
+            <div className="mt-12">
+              <NewsletterSignup context="article-end" variant="panel" />
             </div>
-          </article>
+          </div>
+        </article>
 
-          {/* The rail sticks while the story scrolls: an article runs far longer
-              than six headlines do, and a column that scrolls out of sight after
-              the second paragraph is just the old empty margin with pictures in
-              it for a moment. */}
-          <aside className="border-t border-hairline pt-8 lg:border-t-0 lg:border-l lg:pt-8 lg:pl-8">
-            <div className="lg:sticky lg:top-20">
-              {/* The story being read is not "latest" to the person reading
-                  it, so the column leaves it out. */}
-              <LatestRail excludeId={article.id} title="Latest" />
-            </div>
-          </aside>
-        </div>
 
         {related.length ? (
-          <section className="border-t border-hairline pt-6 pb-12">
+          <section className="pt-6 pb-12">
             <h2 className="mb-6 text-section text-ink">More on this story</h2>
             <div className="story-grid">
               {related.map((item) => (
