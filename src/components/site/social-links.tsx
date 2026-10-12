@@ -25,10 +25,10 @@ const PATHS: Record<string, string> = {
  * Each network's own colour. These are the one deliberate exception to the
  * six-token palette: a social mark is a borrowed logo, and recolouring it to
  * match the paper makes it harder to recognise at 15px, which is the only job
- * it has.
+ * it has. X has none here: its mark is black, so it takes the text colour and
+ * stays visible on the footer's dark ground.
  */
 const BRAND: Record<string, string> = {
-  X: "#000000",
   Facebook: "#1877F2",
   Instagram: "#E4405F",
 };
