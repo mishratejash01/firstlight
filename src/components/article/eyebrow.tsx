@@ -1,43 +1,29 @@
-import Link from "next/link";
-
 import { BreakingTag } from "./breaking-tag";
 import type { ArticleCardData } from "@/lib/queries/articles";
 
 /**
- * The small category label that sits above a headline.
+ * What sits above a headline: nothing, unless the story is breaking.
  *
- * Sentence case at semibold, not tracked-out capitals. On a page carrying forty
- * headlines the reader scans for the section before reading the words, and
- * weight and colour mark it out perfectly well; capitals shout it at the same
- * volume as the headline underneath, which is the one thing a label above a
- * headline must not do.
+ * The section name used to sit here on every headline. It is gone: the section
+ * is already said by the nav, by the block a story sits in, and by the
+ * category-and-time line under each card, so a third copy above the headline
+ * only pushed the words a reader came for further down.
  *
- * Breaking replaces the label rather than sitting beside it. Two markers above
- * one headline is one more than a reader will use.
+ * Breaking stays. It is not a section but a state, and it is the one thing a
+ * reader needs to know before the headline rather than after it.
  */
 export function Eyebrow({
   article,
   className = "",
 }: {
-  article: Pick<ArticleCardData, "is_breaking" | "categories">;
+  article: Pick<ArticleCardData, "is_breaking">;
   className?: string;
 }) {
-  if (article.is_breaking) {
-    return (
-      <div className={className}>
-        <BreakingTag />
-      </div>
-    );
-  }
+  if (!article.is_breaking) return null;
 
   return (
     <div className={className}>
-      <Link
-        href={`/${article.categories.slug}`}
-        className="font-label text-meta font-semibold text-accent underline-offset-4 hover:underline"
-      >
-        {article.categories.name}
-      </Link>
+      <BreakingTag />
     </div>
   );
 }
