@@ -196,7 +196,6 @@ export default async function LiveEventPage(props: PageProps<"/live/[slug]">) {
                       <h3 className="text-[1.05rem] leading-snug text-ink">
                         <Link
                           href={`/${article.categories.slug}/${article.slug}`}
-                          className="hover:text-accent"
                         >
                           {article.headline}
                         </Link>
