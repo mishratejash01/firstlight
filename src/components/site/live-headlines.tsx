@@ -76,6 +76,71 @@ export function LatestRail({ excludeId, title }: { excludeId: string; title: str
 }
 
 /**
+ * The latest stories, set between a story's paragraphs instead of in a column
+ * beside it.
+ *
+ * A column beside the story was six headlines tall next to an article five
+ * times that length, so for most of the read it was an empty margin. Set into
+ * the story, a short row of other stories is met at a natural pause in the
+ * reading, the way a paper runs a panel across a page between columns of copy.
+ *
+ * Several of these share one story: `from` and `count` pick which slice of the
+ * latest list each shows, so two of them never repeat a story. Read from the
+ * shared live file like everything else here, so the story page itself stays
+ * cached; it renders nothing until that file arrives, and nothing at all if
+ * there is nothing new to show.
+ */
+export function InlineLatest({
+  excludeId,
+  from = 0,
+  count = 3,
+  label = "Latest",
+}: {
+  excludeId: string;
+  from?: number;
+  count?: number;
+  label?: string;
+}) {
+  const live = useLiveHeadlines();
+  const articles = (live?.latest ?? [])
+    .filter((article) => article.id !== excludeId)
+    .slice(from, from + count);
+
+  if (!articles.length) return null;
+
+  return (
+    <aside aria-label={label} className="tint-panel my-10 rounded-panel px-5 py-5">
+      <p className="font-label text-meta font-semibold text-ink">{label}</p>
+      <ul className="mt-4 grid gap-4 sm:grid-cols-3 sm:gap-5">
+        {articles.map((article) => (
+          <li key={article.id} className="min-w-0">
+            <Link
+              href={`/${article.categories.slug}/${article.slug}`}
+              className="flex gap-3 sm:flex-col sm:gap-2"
+            >
+              <span className="relative block aspect-[16/9] w-28 shrink-0 overflow-hidden rounded-media bg-wash sm:w-full">
+                {article.hero_image_url ? (
+                  <Image
+                    src={cloudinaryImage(article.hero_image_url, "thumb") ?? article.hero_image_url}
+                    alt=""
+                    fill
+                    sizes="(max-width: 640px) 112px, 240px"
+                    className="object-cover"
+                  />
+                ) : null}
+              </span>
+              <span className="line-clamp-3 min-w-0 font-headline text-[0.9375rem] leading-[1.3] font-semibold text-ink">
+                {article.headline}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </aside>
+  );
+}
+
+/**
  * A section's three latest stories, opened by hovering its name in the strip.
  *
  * Shown by CSS hover on the list item it sits in, with the panel a child of
@@ -156,5 +221,66 @@ export function SectionPeek({
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * The latest stories as a column of their own, beside a standing page (About,
+ * Terms, Privacy and the rest), so a reader who came to check a policy still
+ * has the news in view.
+ *
+ * From the shared live file like everything else here: the policy pages are
+ * cached for hours and must never carry a headline baked in at render time.
+ * Nothing shows until the file arrives, and nothing at all if it is empty.
+ * On a wide screen it is a column; narrower, the same stories run as a grid
+ * under the page.
+ */
+export function NewsColumn({ count = 6 }: { count?: number }) {
+  const live = useLiveHeadlines();
+  const articles = (live?.latest ?? []).slice(0, count);
+
+  if (!articles.length) return null;
+
+  return (
+    // A box of its own, with its label set into the middle of the top line
+    // like a tag, so the news reads as a separate panel beside the document
+    // rather than as more of it. The stories carry no section label: the tag
+    // names the box, and a section name over every headline was clutter.
+    <aside
+      aria-labelledby="news-column-label"
+      className="relative rounded-panel border border-[color-mix(in_srgb,var(--color-accent)_35%,var(--color-paper))] px-5 pt-9 pb-6"
+    >
+      <p
+        id="news-column-label"
+        className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-control bg-signal px-3.5 py-1 font-label text-meta font-semibold whitespace-nowrap text-white"
+      >
+        Latest news
+      </p>
+      <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-1 xl:gap-5">
+        {articles.map((article) => (
+          <li key={article.id} className="min-w-0">
+            <Link
+              href={`/${article.categories.slug}/${article.slug}`}
+              className="group block"
+            >
+              <span className="relative block aspect-[16/9] w-full overflow-hidden rounded-media bg-wash">
+                {article.hero_image_url ? (
+                  <Image
+                    src={cloudinaryImage(article.hero_image_url, "thumb") ?? article.hero_image_url}
+                    alt={article.hero_image_alt ?? ""}
+                    fill
+                    sizes="(max-width: 640px) calc(100vw - 32px), (max-width: 1280px) 33vw, 320px"
+                    className="object-cover"
+                  />
+                ) : null}
+              </span>
+              <span className="mt-2.5 line-clamp-3 block font-headline text-[1rem] leading-[1.3] font-semibold text-ink">
+                {article.headline}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </aside>
   );
 }
