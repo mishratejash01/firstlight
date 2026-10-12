@@ -136,7 +136,7 @@ export function SectionDigest({
                 {/* Two lines of the story itself. A headline says what
                     happened; a line of the copy underneath is what tells a
                     reader whether it is the kind of thing they want to read. */}
-                <p className="mt-1.5 line-clamp-2 min-h-[2.6em] text-meta leading-relaxed text-ink">
+                <p className="mt-1.5 line-clamp-2 min-h-[2.6em] font-dek text-meta leading-relaxed text-ink">
                   {article.standfirst ?? article.summary}
                 </p>
 
