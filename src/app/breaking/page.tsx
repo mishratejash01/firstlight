@@ -75,7 +75,7 @@ function BreakingItem({ article }: { article: RankedArticle }) {
           <Link href={href}>{article.headline}</Link>
         </h2>
         {dek ? (
-          <p className="mt-2 max-w-[46rem] text-body leading-relaxed text-ink">
+          <p className="mt-2 max-w-[46rem] font-dek text-body leading-relaxed text-ink">
             {dek}
           </p>
         ) : null}
