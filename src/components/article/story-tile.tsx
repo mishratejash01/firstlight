@@ -100,7 +100,7 @@ export function StoryTile({ article }: { article: ArticleCardData }) {
 
         {/* The way in runs on from the extract rather than sitting under it as
             a block of its own — it is the end of the sentence, not a button. */}
-        <p className="mt-2 text-meta leading-relaxed text-ink">
+        <p className="mt-2 font-dek text-meta leading-relaxed text-ink">
           {extract ? `${trim(extract)} ` : null}
           <span className="text-ink underline underline-offset-2">
             View all
