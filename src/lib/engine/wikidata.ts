@@ -542,3 +542,90 @@ export async function wikidataCoordinates(qid: string): Promise<{ lat: number; l
   if (!value || typeof value.latitude !== "number" || typeof value.longitude !== "number") return null;
   return { lat: value.latitude, lon: value.longitude };
 }
+
+type CategoryPages = {
+  query?: {
+    pages?: Record<
+      string,
+      {
+        title: string;
+        ns?: number;
+        imageinfo?: {
+          url: string;
+          thumburl?: string;
+          descriptionurl: string;
+          width: number;
+          height: number;
+          thumbwidth?: number;
+          thumbheight?: number;
+          extmetadata?: Record<string, { value?: string }>;
+        }[];
+      }
+    >;
+  };
+};
+
+/** Commons categories whose names match a query, best first: "Vaccination in India", "Hospitals in Kerala". */
+export async function commonsSearchCategories(query: string, limit = 3): Promise<string[]> {
+  const data = await getJson<{ query?: { search?: { title: string }[] } }>(
+    "https://commons.wikimedia.org/w/api.php?action=query&list=search&srnamespace=14&format=json&srlimit=" +
+      Math.min(Math.max(limit, 1), 10) +
+      "&srsearch=" +
+      encodeURIComponent(query),
+  );
+  return (data?.query?.search ?? []).map((hit) => hit.title.replace(/^Category:/, ""));
+}
+
+/**
+ * Photographs from a named Commons category and, when it holds few files of
+ * its own, from its first subcategories: the way a picture editor browses
+ * "Floods in Assam" rather than searching for the words.
+ */
+export async function commonsCategoryFiles(category: string, limit = 6): Promise<LicensedImage[]> {
+  const read = async (name: string, cap: number): Promise<{ files: LicensedImage[]; subcats: string[] }> => {
+    const data = await getJson<CategoryPages>(
+      "https://commons.wikimedia.org/w/api.php?action=query&generator=categorymembers&gcmtype=file|subcat&gcmlimit=40&prop=imageinfo&iiprop=url|size|extmetadata&iiurlwidth=1600&format=json&gcmtitle=" +
+        encodeURIComponent(`Category:${name}`),
+    );
+    const files: LicensedImage[] = [];
+    const subcats: string[] = [];
+    for (const page of Object.values(data?.query?.pages ?? {})) {
+      if (page.ns === 14) {
+        subcats.push(page.title.replace(/^Category:/, ""));
+        continue;
+      }
+      const info = page.imageinfo?.[0];
+      if (!info || !/\.(jpe?g|png|webp)$/i.test(page.title)) continue;
+      const meta = info.extmetadata ?? {};
+      const licence = stripHtml(meta.LicenseShortName?.value) ?? "";
+      if (!OPEN_LICENCES.test(licence)) continue;
+      const title = stripHtml(meta.ObjectName?.value) ?? page.title.replace(/^File:/, "");
+      if (looksLikeSymbol(page.title) || looksLikeSymbol(title)) continue;
+      if (/\b(banknote|coin|stamp|seal|emblem|flag|map|plan|scan|document|certificate|letter|poster|chart|diagram|screenshot|logo)\b/i.test(`${page.title} ${title}`)) continue;
+      if (info.width < 900 || info.width < info.height) continue;
+      const url = info.thumburl ?? info.url;
+      files.push({
+        url,
+        thumbUrl: commonsThumb(url),
+        title,
+        creator: stripHtml(meta.Artist?.value),
+        licence,
+        licenceUrl: stripHtml(meta.LicenseUrl?.value),
+        sourceUrl: info.descriptionurl,
+        provider: "wikimedia_commons",
+        width: info.thumbwidth ?? info.width,
+        height: info.thumbheight ?? info.height,
+      });
+      if (files.length >= cap) break;
+    }
+    return { files, subcats };
+  };
+
+  const top = await read(category, limit);
+  const out = [...top.files];
+  if (out.length < limit) {
+    const more = await Promise.all(top.subcats.slice(0, 3).map((name) => read(name, limit).catch(() => ({ files: [] as LicensedImage[], subcats: [] as string[] }))));
+    for (const branch of more) for (const file of branch.files) if (out.length < limit && !out.some((f) => f.url === file.url)) out.push(file);
+  }
+  return out.slice(0, limit);
+}
