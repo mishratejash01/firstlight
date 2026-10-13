@@ -22,7 +22,9 @@ import { revalidateStory } from "@/lib/cache/revalidate-story";
 import { getSourceDocuments } from "@/lib/fetch/extract";
 import { isGoogleNewsRedirect, resolveGoogleNewsUrl } from "@/lib/fetch/google-redirect";
 import { slugify, withUniqueSuffix } from "@/lib/format/slug";
-import { illustrateArticle } from "@/lib/media/illustrate";
+import { buildCaseStudyCover } from "@/lib/media/case-study-cover";
+import { illustrateArticle, uploadSvg } from "@/lib/media/illustrate";
+import { SITE_NAME } from "@/lib/site";
 import { submitToIndexNow } from "@/lib/seo/indexnow";
 import { researchSearch } from "@/lib/seo/search-research";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -308,6 +310,10 @@ export async function writeCaseStudy(supabase: Supabase, input: WriteInput): Pro
     terms: draft.imageSearchTerms,
   });
 
+  // The cover: the question on the paper's ground, for the library, the
+  // shelf and the share image. The photograph stays on the page itself.
+  const cover = await uploadSvg(buildCaseStudyCover({ question: headline, subject: input.subject.name, siteName: SITE_NAME }), "newswebsite/covers");
+
   const delayMinutes = await readSetting<number>(supabase, "autonomous_publish_delay_minutes", 0);
   const now = Date.now();
   const status = delayMinutes > 0 ? "scheduled" : "published";
@@ -328,6 +334,7 @@ export async function writeCaseStudy(supabase: Supabase, input: WriteInput): Pro
     sources: draft.sources.slice(0, 12),
     updates: [],
     trigger: input.trigger ? { title: input.trigger.title, href: input.trigger.href } : null,
+    cover: cover ? { url: cover.url, publicId: cover.publicId } : null,
   };
 
   const { data: article, error } = await supabase
@@ -639,4 +646,30 @@ export async function runCaseDesk({ deadline }: { deadline: number }): Promise<C
   }
 
   return report;
+}
+
+/** Gives a cover to every case study that has none. Returns how many were made. */
+export async function backfillCovers(supabase: Supabase): Promise<number> {
+  const { data: rows } = await supabase
+    .from("articles")
+    .select("id, slug, headline, subject_slug, case_study")
+    .eq("format", "case_study")
+    .limit(200);
+  const subjects = await loadSubjects(supabase);
+  let made = 0;
+  for (const row of rows ?? []) {
+    const block = readCaseStudy(row.case_study);
+    if (!block || block.cover) continue;
+    const subject = subjects.find((s) => s.slug === row.subject_slug)?.name ?? "Case study";
+    const cover = await uploadSvg(buildCaseStudyCover({ question: row.headline, subject, siteName: SITE_NAME }), "newswebsite/covers");
+    if (!cover) continue;
+    const { error } = await supabase
+      .from("articles")
+      .update({ case_study: { ...block, cover: { url: cover.url, publicId: cover.publicId } } })
+      .eq("id", row.id);
+    if (error) continue;
+    made += 1;
+    revalidateStory(CASE_SECTION_SLUG, row.slug);
+  }
+  return made;
 }
