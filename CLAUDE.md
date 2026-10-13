@@ -99,6 +99,15 @@ replaces the notes a previous session kept on one Mac. Nothing here is a secret.
 - Everything here is admin-only by RLS (`app.is_admin()`). Never put model calls in page renders;
   the dialogue runs in server actions (`src/app/admin/steer-actions.ts`).
 
+## Advertising (since 13 Oct 2026)
+- Google AdSense, publisher id in `NEXT_PUBLIC_ADSENSE_CLIENT` (set locally and on the server; it is
+  public, it sits in every page's HTML). `src/components/ads/adsense-tag.tsx` renders the plain
+  tag AdSense's site check looks for, hoisted into the head; nothing on the newsroom paths
+  (`/admin`, `/desk`, `/review`, `/contribute`, `/account`, `/auth`, `/login`). `public/ads.txt`
+  names the publisher. The privacy page has an "Advertisements" clause: keep it true.
+- Consent for EEA/UK/Swiss readers is Google's own message, switched on in AdSense under
+  Privacy & messaging; the site's banner covers analytics only.
+
 ## Content and SEO
 - Contact mailboxes in `PUBLISHER` (`src/lib/site.ts`): contact@, newsroom@, editor@,
   partnerships@ and grievance@ theindiadecade.com. Publish only these mailboxes, never aliases.
