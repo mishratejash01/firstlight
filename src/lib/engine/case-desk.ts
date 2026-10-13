@@ -2,6 +2,7 @@ import "server-only";
 
 import { attachStructuredData } from "@/lib/ai/attach-structure";
 import {
+  caseStudyMarkdown,
   draftCaseStudy,
   proposeCaseQuestions,
   qualifyCaseCandidates,
@@ -46,8 +47,9 @@ const HOT_WINDOW_HOURS = 72;
 const TREND_WINDOW_HOURS = 48;
 const CONSIDERED_WINDOW_DAYS = 7;
 const MAX_CANDIDATES = 8;
-const MAX_DOCUMENTS = 8;
-const DOCUMENT_CHARS = 7000;
+/** Enough to write from, small enough for the fallback model's per-minute token limit. */
+const MAX_DOCUMENTS = 4;
+const DOCUMENT_CHARS = 3000;
 const BANK_LOW_WATER = 6;
 const BANK_TOP_UP = 12;
 /** Writing takes this long at most; a pass with less time left does not start one. */
@@ -289,10 +291,10 @@ export async function writeCaseStudy(supabase: Supabase, input: WriteInput): Pro
   if (!result.ok) return { ok: false, reason: result.error };
   const draft = result.data;
 
-  const lastProse = draft.bodyMarkdown.trim().split(/\n{2,}/).at(-1) ?? "";
-  if (!/[.!?"'\)\]]$/.test(lastProse.trim())) return { ok: false, reason: "Draft ended mid-sentence and was discarded." };
   if (draft.mechanism.steps.length < 3) return { ok: false, reason: "Draft had no mechanism to speak of and was discarded." };
+  if (!/[.!?"'\)\]]$/.test(draft.shortAnswer.trim())) return { ok: false, reason: "Draft ended mid-sentence and was discarded." };
   const headline = draft.headline.trim().replace(/[.?!]*$/, "") + "?";
+  const body = caseStudyMarkdown(draft);
 
   const illustration = await illustrateArticle({
     headline,
@@ -332,7 +334,7 @@ export async function writeCaseStudy(supabase: Supabase, input: WriteInput): Pro
       slug: clash ? withUniqueSuffix(base) : base,
       standfirst: draft.standfirst,
       summary: draft.summary,
-      body: draft.bodyMarkdown,
+      body,
       category_id: section.id,
       format: "case_study",
       subject_slug: input.subject.slug,
@@ -361,7 +363,7 @@ export async function writeCaseStudy(supabase: Supabase, input: WriteInput): Pro
     headlineAlternatives: [],
     standfirst: draft.standfirst,
     summary: draft.summary,
-    bodyMarkdown: draft.bodyMarkdown,
+    bodyMarkdown: body,
     suggestedTags: draft.suggestedTags,
     searchKeywords: draft.searchKeywords,
     imageBrief: draft.imageBrief,
