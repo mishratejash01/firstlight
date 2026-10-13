@@ -1625,6 +1625,68 @@ export type Database = {
         }
         Relationships: []
       }
+      picture_decisions: {
+        Row: {
+          admin_note: string | null
+          admin_verdict: string | null
+          article_id: string | null
+          candidates: Json
+          chosen: Json | null
+          created_at: string
+          headline: string
+          id: string
+          judged_by: string | null
+          ms: number | null
+          outcome: string
+          reason: string | null
+          section: string | null
+          story_kind: string | null
+          trace: Json | null
+        }
+        Insert: {
+          admin_note?: string | null
+          admin_verdict?: string | null
+          article_id?: string | null
+          candidates?: Json
+          chosen?: Json | null
+          created_at?: string
+          headline: string
+          id?: string
+          judged_by?: string | null
+          ms?: number | null
+          outcome: string
+          reason?: string | null
+          section?: string | null
+          story_kind?: string | null
+          trace?: Json | null
+        }
+        Update: {
+          admin_note?: string | null
+          admin_verdict?: string | null
+          article_id?: string | null
+          candidates?: Json
+          chosen?: Json | null
+          created_at?: string
+          headline?: string
+          id?: string
+          judged_by?: string | null
+          ms?: number | null
+          outcome?: string
+          reason?: string | null
+          section?: string | null
+          story_kind?: string | null
+          trace?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "picture_decisions_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       robots_cache: {
         Row: {
           crawl_delay_seconds: number | null
