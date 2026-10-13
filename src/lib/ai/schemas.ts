@@ -40,6 +40,11 @@ export const draftedArticleSchema = z.object({
     .describe(
       "Two or three plain words a picture library indexes, for the same photograph: 'stock market', 'server rack', 'flooded street', 'courtroom'. No names.",
     ),
+  imageAlternatives: z
+    .array(z.string())
+    .describe(
+      "Two other scenes that would also be right for this story, as different from imageBrief and from each other as the story allows, each three to eight nameless words. Indian settings for Indian stories: 'Dalal Street outside the BSE building', 'government hospital ward in Kerala'. Never a gavel, a handshake or a generic office.",
+    ),
   keyFacts: z
     .array(
       z.object({
