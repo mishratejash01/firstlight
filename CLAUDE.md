@@ -110,11 +110,21 @@ replaces the notes a previous session kept on one Mac. Nothing here is a secret.
   and may choose none. Acceptance: relevance ≥ `picture_min_score` (7), not misleading, not synthetic,
   quality ≥ 5, no logo on a conflict/incident, no foreign scene for an Indian story. Then a Geoapify
   map of the place for incidents (`GEOAPIFY_API_KEY`), else the typographic card.
-- The judge's chain is the `picture` kind in `src/lib/ai/config.ts`: Gemini Flash-Lite, Gemini 3.8
-  Flash, NVIDIA's free omni model on OpenRouter (spoken to directly, pictures inline), Gemini Flash,
-  Gemma. Two non-cooling keys per model, at most eight attempts, 110 s in all. When every provider is
-  out, the outcome is `unjudged` and the old search ladder decides; the half-hour slot of the desk
-  pass offers those stories to the judge again (`reillustrateCards(2, "unjudged")`).
+- The judge's chain is the `picture` kind in `src/lib/ai/config.ts`: **Mistral Pixtral 12B** (free
+  tier, several pictures a call, at most 8, answers in seconds), Gemini Flash-Lite, Gemini 3.8 Flash,
+  NVIDIA's free omni model on OpenRouter, Gemini Flash, Gemma. Mistral and OpenRouter are called
+  directly (`askCompatible`), pictures inline. Two non-cooling keys per model, at most eight attempts,
+  the last 45 s of the 110 s budget reserved for the caption route: Cloudflare Workers AI LLaVA
+  describes each picture (`src/lib/media/captions.ts`, needs `CLOUDFLARE_ACCOUNT_ID`) and the assist
+  text chain judges the descriptions. Only when all of that fails is the outcome `unjudged` and the
+  old ladder decides; three in five minutes pause the judge for five minutes; the half-hour slot of
+  the desk pass offers those stories to the judge again (`reillustrateCards(2, "unjudged")`).
+- Commons facts that bit: thumbnails are served only at Commons' own widths (250, 330, 500, 1280,
+  1920; others answer 400), the API's `thumburl` is on thumb.wikimedia.org with a tracking query and
+  works verbatim, anonymous fetchers get 429s so pictures are fetched by us with a named User-Agent
+  and handed to Cloudinary as bytes. Scenes come from Commons "… in India" category walks
+  (`commonsSearchCategories`/`commonsCategoryFiles`), Openverse (two queries) and Pexels if a key
+  exists (the owner could not obtain one).
 - Every decision is in `picture_decisions` (candidates with scores, chosen, trace with timings and
   counts). `/admin/pictures` shows them; mark good or bad there. Rules of thumb that are now code:
   no gavels for Indian courts, no foreign trading floors, a private person described not named.
