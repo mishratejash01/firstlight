@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -541,10 +541,12 @@ export type Database = {
           author_id: string | null
           body: string | null
           canonical_url: string | null
+          case_study: Json | null
           category_id: string
           content_updated_at: string | null
           created_at: string
           created_by: string | null
+          format: string
           headline: string
           hero_image_alt: string | null
           hero_image_credit: string | null
@@ -558,6 +560,7 @@ export type Database = {
           origin: Database["public"]["Enums"]["content_origin"]
           published_at: string | null
           read_count: number
+          reviewed_at: string | null
           reviewed_by: string | null
           scheduled_for: string | null
           search_keywords: string[]
@@ -566,6 +569,7 @@ export type Database = {
           source_id: string | null
           standfirst: string | null
           status: Database["public"]["Enums"]["article_status"]
+          subject_slug: string | null
           summary: string | null
           updated_at: string
         }
@@ -579,10 +583,12 @@ export type Database = {
           author_id?: string | null
           body?: string | null
           canonical_url?: string | null
+          case_study?: Json | null
           category_id: string
           content_updated_at?: string | null
           created_at?: string
           created_by?: string | null
+          format?: string
           headline: string
           hero_image_alt?: string | null
           hero_image_credit?: string | null
@@ -596,6 +602,7 @@ export type Database = {
           origin?: Database["public"]["Enums"]["content_origin"]
           published_at?: string | null
           read_count?: number
+          reviewed_at?: string | null
           reviewed_by?: string | null
           scheduled_for?: string | null
           search_keywords?: string[]
@@ -604,6 +611,7 @@ export type Database = {
           source_id?: string | null
           standfirst?: string | null
           status?: Database["public"]["Enums"]["article_status"]
+          subject_slug?: string | null
           summary?: string | null
           updated_at?: string
         }
@@ -617,10 +625,12 @@ export type Database = {
           author_id?: string | null
           body?: string | null
           canonical_url?: string | null
+          case_study?: Json | null
           category_id?: string
           content_updated_at?: string | null
           created_at?: string
           created_by?: string | null
+          format?: string
           headline?: string
           hero_image_alt?: string | null
           hero_image_credit?: string | null
@@ -634,6 +644,7 @@ export type Database = {
           origin?: Database["public"]["Enums"]["content_origin"]
           published_at?: string | null
           read_count?: number
+          reviewed_at?: string | null
           reviewed_by?: string | null
           scheduled_for?: string | null
           search_keywords?: string[]
@@ -642,6 +653,7 @@ export type Database = {
           source_id?: string | null
           standfirst?: string | null
           status?: Database["public"]["Enums"]["article_status"]
+          subject_slug?: string | null
           summary?: string | null
           updated_at?: string
         }
@@ -710,6 +722,129 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      case_candidates: {
+        Row: {
+          article_id: string | null
+          created_at: string
+          error: string | null
+          id: string
+          kind: string
+          question: string | null
+          question_id: string | null
+          reasons: Json
+          story_event_id: string | null
+          subject_slug: string | null
+          title: string
+          trend_id: string | null
+          verdict: string
+          viral_score: number | null
+        }
+        Insert: {
+          article_id?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          kind: string
+          question?: string | null
+          question_id?: string | null
+          reasons?: Json
+          story_event_id?: string | null
+          subject_slug?: string | null
+          title: string
+          trend_id?: string | null
+          verdict: string
+          viral_score?: number | null
+        }
+        Update: {
+          article_id?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          kind?: string
+          question?: string | null
+          question_id?: string | null
+          reasons?: Json
+          story_event_id?: string | null
+          subject_slug?: string | null
+          title?: string
+          trend_id?: string | null
+          verdict?: string
+          viral_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_candidates_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_candidates_story_event_id_fkey"
+            columns: ["story_event_id"]
+            isOneToOne: false
+            referencedRelation: "story_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_candidates_trend_id_fkey"
+            columns: ["trend_id"]
+            isOneToOne: false
+            referencedRelation: "trending_topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      case_questions: {
+        Row: {
+          article_id: string | null
+          created_at: string
+          demand_score: number
+          id: string
+          proposed_by: string
+          question: string
+          rationale: string | null
+          status: string
+          subject_slug: string
+          updated_at: string
+          written_at: string | null
+        }
+        Insert: {
+          article_id?: string | null
+          created_at?: string
+          demand_score?: number
+          id?: string
+          proposed_by?: string
+          question: string
+          rationale?: string | null
+          status?: string
+          subject_slug: string
+          updated_at?: string
+          written_at?: string | null
+        }
+        Update: {
+          article_id?: string | null
+          created_at?: string
+          demand_score?: number
+          id?: string
+          proposed_by?: string
+          question?: string
+          rationale?: string | null
+          status?: string
+          subject_slug?: string
+          updated_at?: string
+          written_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_questions_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       categories: {
         Row: {
