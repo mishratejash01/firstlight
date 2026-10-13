@@ -127,6 +127,43 @@ export const caseStudyBlockSchema = caseStudyCoreSchema.extend({
 });
 export type CaseStudyBlock = z.infer<typeof caseStudyBlockSchema>;
 
+const EFFECT_WORDS: Record<CaseStudyBlock["responses"][number]["effect"], string> = {
+  working: "Working so far",
+  mixed: "Mixed results",
+  too_early: "Too early to say",
+  not_working: "Not working",
+  unknown: "Effect unclear",
+};
+
+/**
+ * The case study as one Markdown text, assembled from its parts: what the
+ * search index, the listen button, the feeds and the plain fallback page read.
+ * The model writes the parts once; this is not a second draft.
+ */
+export function caseStudyMarkdown(block: Omit<CaseStudyBlock, "updates" | "trigger">): string {
+  const section = (title: string, body: string) => (body.trim() ? `## ${title}\n\n${body.trim()}` : "");
+  const list = (items: string[]) => items.map((item) => `- ${item.trim()}`).join("\n");
+  return [
+    block.shortAnswer.trim(),
+    section("What's happening now", block.now),
+    section(
+      block.mechanism.title || "How it works",
+      block.mechanism.steps.map((step, index) => `${index + 1}. **${step.title.trim()}** ${step.text.trim()}`).join("\n"),
+    ),
+    section("Who it affects", block.affects),
+    section(
+      "What's being done, and is it working",
+      block.responses
+        .map((response) => `**${response.actor.trim()}** (${EFFECT_WORDS[response.effect]}): ${response.what.trim()} ${response.evidence.trim()}`)
+        .join("\n\n"),
+    ),
+    section("What you can do", list(block.whatYouCanDo)),
+    section("What we still don't know", list(block.openQuestions)),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 /** The stored block, or nothing if the column holds something else. */
 export function readCaseStudy(raw: unknown): CaseStudyBlock | null {
   const parsed = caseStudyBlockSchema.safeParse(raw);
@@ -141,11 +178,6 @@ export const caseStudyDraftSchema = caseStudyCoreSchema.extend({
     ),
   standfirst: z.string().describe("The answer in one sentence, under the headline."),
   summary: z.string().describe("Two or three sentences for lists and feeds."),
-  bodyMarkdown: z
-    .string()
-    .describe(
-      "The whole case study as prose in Markdown, 1,000 to 1,400 words: the short answer first with no heading, then ## What's happening now, ## How it works (the steps as prose), ## Who it affects, ## What's being done, and is it working, ## What you can do, ## What we still don't know. No links in the body.",
-    ),
   ...draftedArticleSchema.pick({
     suggestedTags: true,
     searchKeywords: true,
@@ -342,7 +374,7 @@ export async function draftCaseStudy({
       coverage.length ? `\nCoverage found:\n${coverage.map((item) => `- ${item.source}: "${item.title}"  ${item.url}`).join("\n")}` : "",
       sourced.length ? `\nFull text:\n\n${fullText(sourced)}` : "",
       researchBlock(searchResearch),
-      `\nWrite the case study: every structured part, and bodyMarkdown of about ${Math.min(Math.max(Math.round(lengthWords), 800), 1600)} words.`,
+      `\nWrite the case study: every structured part, about ${Math.min(Math.max(Math.round(lengthWords), 800), 1600)} words in all across the short answer, what's happening now, the steps, who it affects and the responses. The page is assembled from these parts; there is no separate body to write.`,
     ]
       .filter(Boolean)
       .join("\n");
