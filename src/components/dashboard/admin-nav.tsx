@@ -11,6 +11,7 @@ const PAGES = [
   { href: "/admin/events", label: "Events", hint: "What is breaking, and why" },
   { href: "/admin/steer", label: "Steer", hint: "Instruct the engine" },
   { href: "/admin/case-studies", label: "Case studies", hint: "The question behind the news" },
+  { href: "/admin/pictures", label: "Pictures", hint: "What the picture desk chose, and why" },
   { href: "/admin/learning", label: "Learning", hint: "Labels, weights, reviewers" },
   { href: "/admin/audience", label: "Audience", hint: "Readers and subscribers" },
 ] as const;
