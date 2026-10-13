@@ -207,6 +207,7 @@ export async function CaseStudyPage({
                   item={article}
                   preset="hero"
                   priority
+                  prefer="photo"
                   aspect="aspect-[4/3]"
                   sizes="(max-width: 1024px) calc(100vw - 32px), 460px"
                 />
