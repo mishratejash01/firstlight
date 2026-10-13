@@ -51,7 +51,7 @@ export function SectionShelf({
  * the words and reads as a marker belonging to them, which is what a section
  * label is. Sentence case, not capitals — the name is a word, not a tag.
  */
-function SectionHeader({
+export function SectionHeader({
   title,
   href,
   iconUrl,
