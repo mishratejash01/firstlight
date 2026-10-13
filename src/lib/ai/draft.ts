@@ -30,7 +30,7 @@ import {
  * makes the verification work visible instead of invisible.
  */
 
-const HOUSE_STYLE = `
+export const HOUSE_STYLE = `
 Write like a good journalist who actually understands the story. Not like a
 model summarising one.
 
@@ -126,7 +126,7 @@ Search
  * words readers use, which is all it is offered as: the facts still come only
  * from the sources.
  */
-function researchBlock(research: SearchResearch | null | undefined): string {
+export function researchBlock(research: SearchResearch | null | undefined): string {
   if (!research) return "";
   const lines = ["\nSearch research for this story, gathered just now:"];
   if (research.searches.length) {
