@@ -52,6 +52,16 @@ function licenceIsUsable(licence: string | null | undefined): boolean {
 }
 
 /** Attribution text that satisfies a CC BY-style licence. */
+/**
+ * Openverse addresses Wikimedia files through thumb.wikimedia.org with a
+ * tracking query, a host that answers 400 to anyone but a browser. The file
+ * lives at upload.wikimedia.org under the same path.
+ */
+function commonsHost(url: string): string {
+  if (!/^https?:\/\/thumb\.wikimedia\.org\//.test(url)) return url;
+  return url.replace(/^https?:\/\/thumb\.wikimedia\.org\//, "https://upload.wikimedia.org/").replace(/\?.*$/, "");
+}
+
 export function attributionFor(image: LicensedImage): string {
   const parts: string[] = [];
   if (image.title) parts.push(`“${image.title}”`);
@@ -115,8 +125,8 @@ export async function searchLicensedImages(
       if ((code === "by" || code === "by-sa") && !result.creator) continue;
       if (result.width && result.height && result.height > result.width) continue;
       usable.push({
-        url: result.url,
-        thumbUrl: result.thumbnail ?? null,
+        url: commonsHost(result.url),
+        thumbUrl: result.thumbnail ? commonsHost(result.thumbnail) : null,
         title: result.title ?? null,
         creator: result.creator ?? null,
         licence: [result.license, result.license_version].filter(Boolean).join(" "),
@@ -194,8 +204,8 @@ export async function searchLicensedImage(
       if (result.width && result.height && result.height > result.width) continue;
 
       return {
-        url: result.url,
-        thumbUrl: result.thumbnail ?? null,
+        url: commonsHost(result.url),
+        thumbUrl: result.thumbnail ? commonsHost(result.thumbnail) : null,
         title: result.title ?? null,
         creator: result.creator ?? null,
         licence: [result.license, result.license_version].filter(Boolean).join(" "),
