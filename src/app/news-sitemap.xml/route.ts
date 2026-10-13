@@ -21,7 +21,9 @@ const MAX_ENTRIES = 1000;
 
 export async function GET() {
   const since = new Date(Date.now() - WINDOW_HOURS * 60 * 60 * 1000).toISOString();
-  const articles = await getLatestArticles({ limit: MAX_ENTRIES, since });
+  // News only: a case study is an explainer, not a news article, and Google
+  // News would not know what to do with it here.
+  const articles = await getLatestArticles({ limit: MAX_ENTRIES, since, format: "story" });
 
   const entries = articles
     .map(
