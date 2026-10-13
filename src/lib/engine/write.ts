@@ -19,6 +19,7 @@ import { aiIsConfigured, runWithChain } from "@/lib/ai/config";
 import { recordSameAs } from "./wikidata";
 import { canonicalHost } from "./hosts";
 import { recordDecision, snapshotEvent } from "./decisions";
+import { linkPictureDecision } from "@/lib/media/picture-desk";
 import {
   breakingRule,
   classifyAgainstDirectives,
@@ -737,7 +738,9 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
       related: draft.entities
         .filter((entity) => entity.relation !== "about")
         .map((entity) => ({ name: entity.name, type: entity.type })),
+      standfirst: draft.standfirst,
       brief: draft.imageBrief,
+      alternatives: draft.imageAlternatives,
       terms: draft.imageSearchTerms,
     });
 
@@ -810,6 +813,7 @@ export async function writeEvents(limit = 1): Promise<EventWriteReport> {
     });
 
     await attachStructuredData(supabase, article.id, draft);
+    await linkPictureDecision(illustration?.decisionId, article.id);
     if (illustration?.sameAs.length) await recordSameAs(supabase, illustration.sameAs);
 
     if (publishing) publishedSlugs.push(article.slug);
@@ -980,11 +984,30 @@ async function briefFor(
 
 export async function reillustrateCards(
   limit = 3,
-  scope: "cards" | "all" = "cards",
+  scope: "cards" | "all" | "unjudged" = "cards",
   slug?: string,
 ): Promise<ReillustrateReport> {
   const supabase = createAdminClient();
   const report: ReillustrateReport = { considered: 0, replaced: 0, titles: [] };
+
+  // Stories illustrated while the picture judge could not be reached got the
+  // old ladder's choice; they are offered to the judge again, newest first,
+  // until it has seen them.
+  let unjudgedIds: string[] = [];
+  if (scope === "unjudged" && !slug) {
+    const since = new Date(Date.now() - 36 * 3600_000).toISOString();
+    const { data: decisions } = await supabase
+      .from("picture_decisions")
+      .select("article_id, outcome, created_at")
+      .not("article_id", "is", null)
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(200);
+    const latest = new Map<string, string>();
+    for (const row of decisions ?? []) if (row.article_id && !latest.has(row.article_id)) latest.set(row.article_id, row.outcome);
+    unjudgedIds = [...latest.entries()].filter(([, outcome]) => outcome === "unjudged").map(([id]) => id).slice(0, limit);
+    if (!unjudgedIds.length) return report;
+  }
 
   let query = supabase
     .from("articles")
@@ -996,6 +1019,7 @@ export async function reillustrateCards(
     .limit(scope === "all" ? limit * 3 : limit);
   if (slug) query = query.eq("slug", slug);
   else if (scope === "cards") query = query.or(`hero_image_credit.eq.${SITE_NAME},hero_image_url.is.null`);
+  else if (scope === "unjudged") query = query.in("id", unjudgedIds);
   const { data: articles } = await query;
 
   for (const article of articles ?? []) {
@@ -1047,6 +1071,7 @@ export async function reillustrateCards(
     const section = (article.categories as unknown as { name: string } | null)?.name ?? "News";
     const illustration = await illustrateArticle({
       headline: article.headline,
+      standfirst: article.standfirst,
       section,
       subjects,
       related,
@@ -1070,6 +1095,7 @@ export async function reillustrateCards(
     if (error) continue;
 
     if (illustration.sameAs.length) await recordSameAs(supabase, illustration.sameAs);
+    await linkPictureDecision(illustration.decisionId, article.id);
     report.replaced += 1;
     report.titles.push(article.headline);
   }
