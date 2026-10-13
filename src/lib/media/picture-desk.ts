@@ -479,6 +479,22 @@ export async function pictureDesk<T>(
 
   if (!pool.length) return fallbackMap("No candidate picture was found.", null, []);
 
+  // When the judge has just failed three times running, every provider is
+  // down; the next few minutes go straight to the old ladder rather than
+  // spending a minute of each story on timeouts. The half-hour pass offers
+  // these stories to the judge again.
+  const { data: lastThree } = await supabase
+    .from("picture_decisions")
+    .select("outcome")
+    .gte("created_at", new Date(Date.now() - 5 * 60_000).toISOString())
+    .neq("outcome", "card")
+    .order("created_at", { ascending: false })
+    .limit(3);
+  if ((lastThree ?? []).length === 3 && (lastThree ?? []).every((row) => row.outcome === "unjudged")) {
+    const decisionId = await record("unjudged", "The judge is paused for a few minutes after three failures in a row.", null, describeAll(), null);
+    return { outcome: "unjudged", chosen: null, caption: null, decisionId, sameAs, illustration: null };
+  }
+
   const cap = await readSetting<number>(supabase, "picture_judge_daily_cap", 500);
   const { count } = await supabase
     .from("picture_decisions")
