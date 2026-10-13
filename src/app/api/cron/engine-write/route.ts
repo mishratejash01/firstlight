@@ -60,7 +60,7 @@ async function handle(request: Request) {
   // Give card-illustrated stories another go at a photograph, and return.
   const reillustrate = params.get("reillustrate");
   if (reillustrate) {
-    const scope = params.get("scope") === "all" ? "all" : "cards";
+    const scope = params.get("scope") === "all" ? "all" : params.get("scope") === "unjudged" ? "unjudged" : "cards";
     const slug = params.get("slug") ?? undefined;
     const outcome = await reillustrateCards(Math.min(Math.max(Number(reillustrate), 1), 30), scope, slug);
     return Response.json({ ok: true, reillustrate: outcome });
@@ -100,10 +100,14 @@ async function handle(request: Request) {
     // minutes, it searched the picture libraries for the same two stories
     // seven hundred times a day, found the same nothing, and cost more CPU
     // than the rest of the desk put together on a plan with four hours a month.
+    // The same hourly slot offers the judge the stories it missed (see
+    // reillustrateCards "unjudged"), two at a time.
     const reillustrated =
       new Date().getUTCMinutes() < 2
         ? await reillustrateCards(2)
-        : { considered: 0, replaced: 0, titles: [] };
+        : new Date().getUTCMinutes() >= 30 && new Date().getUTCMinutes() < 32
+          ? await reillustrateCards(2, "unjudged")
+          : { considered: 0, replaced: 0, titles: [] };
     return Response.json({ ok: true, commissions, triage, write, reillustrated, announced });
   } catch (error) {
     console.error("[engine-write] failed", error);
