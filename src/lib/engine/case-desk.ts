@@ -1,5 +1,7 @@
 import "server-only";
 
+import { revalidatePath } from "next/cache";
+
 import { attachStructuredData } from "@/lib/ai/attach-structure";
 import {
   caseStudyMarkdown,
@@ -15,6 +17,7 @@ import {
   type CaseVerdict,
 } from "@/lib/ai/case-study";
 import { draftingModelId } from "@/lib/ai/config";
+import { purgeEdge } from "@/lib/cache/cloudflare";
 import { revalidateStory } from "@/lib/cache/revalidate-story";
 import { getSourceDocuments } from "@/lib/fetch/extract";
 import { isGoogleNewsRedirect, resolveGoogleNewsUrl } from "@/lib/fetch/google-redirect";
@@ -377,6 +380,12 @@ export async function writeCaseStudy(supabase: Supabase, input: WriteInput): Pro
   if (status === "published") {
     revalidateStory(CASE_SECTION_SLUG, article.slug);
     if (SITE_URL) await submitToIndexNow([`${SITE_URL}/${CASE_SECTION_SLUG}/${article.slug}`]);
+  }
+  // The story that prompted it now carries the case-study box: rebuilt here
+  // rather than within the hour its page is cached for.
+  if (input.trigger?.href) {
+    revalidatePath(input.trigger.href);
+    void purgeEdge([input.trigger.href]);
   }
   return { ok: true, id: article.id, slug: article.slug, status };
 }
