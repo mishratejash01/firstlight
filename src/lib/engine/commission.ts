@@ -15,6 +15,7 @@ import { submitToIndexNow } from "@/lib/seo/indexnow";
 import { researchSearch } from "@/lib/seo/search-research";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { searchGoogleNews, type NewsHit } from "@/lib/trends/google-news";
+import { linkPictureDecision } from "@/lib/media/picture-desk";
 
 /**
  * Writes the stories an administrator commissioned.
@@ -265,6 +266,7 @@ export async function writeCommission(id: string): Promise<CommissionOutcome> {
 
     // The main picture: the editor's, or a licensed one the illustrator finds.
     let hero: { url: string; alt: string; credit: string } | null = null;
+    let illustration: Awaited<ReturnType<typeof illustrateArticle>> = null;
     if (heroIndex) {
       const image = images[heroIndex - 1];
       hero = {
@@ -273,12 +275,14 @@ export async function writeCommission(id: string): Promise<CommissionOutcome> {
         credit: captionFor(heroIndex)?.credit || image.credit || "Special arrangement",
       };
     } else {
-      const illustration = await illustrateArticle({
+      illustration = await illustrateArticle({
         headline: draft.headline,
         section: chosenSection.name,
         subjects: draft.entities.filter((e) => e.relation === "about").map((e) => ({ name: e.name, type: e.type })),
         related: draft.entities.filter((e) => e.relation !== "about").map((e) => ({ name: e.name, type: e.type })),
+        standfirst: draft.standfirst,
         brief: draft.imageBrief,
+        alternatives: draft.imageAlternatives,
         terms: draft.imageSearchTerms,
       });
       hero = illustration ? { url: illustration.url, alt: illustration.alt, credit: illustration.credit } : null;
@@ -331,6 +335,7 @@ export async function writeCommission(id: string): Promise<CommissionOutcome> {
     if (error) return fail(error.message);
 
     await attachStructuredData(supabase, article.id, draft);
+    if (!heroIndex) await linkPictureDecision(illustration?.decisionId, article.id);
     await supabase
       .from("commissioned_posts")
       .update({ status: "done", article_id: article.id, last_error: null })
