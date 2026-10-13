@@ -22,6 +22,7 @@ import {
   searchLicensedImages,
   type LicensedImage,
 } from "./openverse";
+import { pictureDesk } from "./picture-desk";
 import { buildTypographicCard } from "./typographic-card";
 
 /**
@@ -60,6 +61,8 @@ export type Illustration = {
   kind: "photo" | "card";
   /** Wikidata identities resolved along the way, to record against our entities. */
   sameAs: { name: string; url: string }[];
+  /** The picture desk's record of this choice (picture_decisions), to link to the article once it exists. */
+  decisionId?: string | null;
 };
 
 function configureCloudinary(): boolean {
@@ -353,15 +356,19 @@ function titleConfirmsSubject(title: string | null, subject: string): boolean {
 
 export async function illustrateArticle({
   headline,
+  standfirst = null,
   section,
   subjects,
   related = [],
   brief = null,
+  alternatives = [],
   terms = null,
   relevantOnly = false,
   uploadedBy,
 }: {
   headline: string;
+  /** The standfirst, which the picture judge reads beside the headline. */
+  standfirst?: string | null;
   section: string;
   /** What the story is about, in the drafter's order. */
   subjects: { name: string; type: string }[];
@@ -371,6 +378,8 @@ export async function illustrateArticle({
   brief?: string | null;
   /** The writer's plain library terms for the same picture, e.g. "stock market". */
   terms?: string | null;
+  /** Other scenes the writer would accept, so the desk has more than one search to run. */
+  alternatives?: string[];
   /** Stop after the relevant tiers — subject identity and the brief — rather than falling back. */
   relevantOnly?: boolean;
   uploadedBy?: string | null;
@@ -414,6 +423,37 @@ export async function illustrateArticle({
 
     return { url: uploaded.url, alt, credit, kind: "photo", sameAs };
   };
+
+  // The picture desk: every candidate gathered at once and judged by a model
+  // that looks at them (lib/media/picture-desk). The ladder below is only
+  // for when the judge cannot be reached.
+  const deskEnabled = await readSetting<boolean>("picture_desk_enabled", true);
+  if (allowPhotos && deskEnabled) {
+    const outcome = await pictureDesk(
+      {
+        headline,
+        standfirst,
+        section,
+        subjects,
+        related,
+        briefs: [brief ?? "", ...alternatives].filter(Boolean),
+        terms,
+      },
+      publish,
+    ).catch((error) => {
+      console.error("[illustrate] picture desk failed", error);
+      return null;
+    });
+    if (outcome) {
+      sameAs.push(...outcome.sameAs);
+      if (outcome.illustration) return { ...outcome.illustration, decisionId: outcome.decisionId };
+      if (outcome.outcome === "card") {
+        if (relevantOnly) return null;
+        return cardFor(outcome.decisionId);
+      }
+      // "unjudged": fall through to the ladder.
+    }
+  }
 
   if (allowPhotos) {
     // The subjects the drafter said the story is about, in its order: the
@@ -603,30 +643,35 @@ export async function illustrateArticle({
     }
   }
 
+  return cardFor(null);
+
   // Nothing suitable and licensed. A generated card is honest about being a
   // graphic; a generated photograph would not be.
-  const svg = buildTypographicCard({ headline, section });
-  const uploaded = await uploadSvg(svg, "newswebsite/cards");
-  if (!uploaded) return null;
+  async function cardFor(decisionId: string | null): Promise<Illustration | null> {
+    const svg = buildTypographicCard({ headline, section });
+    const uploaded = await uploadSvg(svg, "newswebsite/cards");
+    if (!uploaded) return null;
 
-  await supabase.from("media_assets").insert({
-    public_id: uploaded.publicId,
-    secure_url: uploaded.url,
-    resource_type: "image",
-    bytes: uploaded.bytes,
-    alt_text: `${section}: ${headline}`,
-    credit: SITE_NAME,
-    provider: "generated",
-    uploaded_by: uploadedBy ?? null,
-  });
+    await supabase.from("media_assets").insert({
+      public_id: uploaded.publicId,
+      secure_url: uploaded.url,
+      resource_type: "image",
+      bytes: uploaded.bytes,
+      alt_text: `${section}: ${headline}`,
+      credit: SITE_NAME,
+      provider: "generated",
+      uploaded_by: uploadedBy ?? null,
+    });
 
-  return {
-    url: uploaded.url,
-    // Says what it is. A screen reader user should not be told this is a
-    // photograph of the event.
-    alt: `${section} — ${headline}`,
-    credit: SITE_NAME,
-    kind: "card",
-    sameAs,
-  };
+    return {
+      url: uploaded.url,
+      // Says what it is. A screen reader user should not be told this is a
+      // photograph of the event.
+      alt: `${section} — ${headline}`,
+      credit: SITE_NAME,
+      kind: "card",
+      sameAs,
+      decisionId,
+    };
+  }
 }
