@@ -9,6 +9,7 @@ import {
 import type { Metadata, Viewport } from "next";
 import { Inter, Libre_Franklin, Mona_Sans, Space_Grotesk } from "next/font/google";
 
+import { AdSenseTag } from "@/components/ads/adsense-tag";
 import { AnalyticsProvider } from "@/components/analytics/analytics-provider";
 import { JsonLd } from "@/components/seo/json-ld";
 import { siteGraphJsonLd } from "@/lib/seo/json-ld";
@@ -149,6 +150,9 @@ export default function RootLayout({
         <AnalyticsProvider
           measurementId={process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID}
         />
+        {/* Advertising, on the paper's pages only; the tag is hoisted into
+            the head of the served HTML. */}
+        <AdSenseTag client={process.env.NEXT_PUBLIC_ADSENSE_CLIENT} />
       </body>
     </html>
   );
