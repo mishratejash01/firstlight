@@ -22,23 +22,29 @@ export function CaseStudyPicture({
   aspect = "aspect-[4/3]",
   priority = false,
   ground = "bg-wash",
+  prefer = "cover",
 }: {
-  item: Pick<CaseStudyCardData, "hero_image_url" | "hero_image_alt"> & { hero_image_credit?: string | null };
+  item: Pick<CaseStudyCardData, "hero_image_url" | "hero_image_alt"> & { hero_image_credit?: string | null; cover?: { url: string } | null };
   preset: "thumb" | "card" | "hero";
   sizes: string;
   aspect?: string;
   priority?: boolean;
   /** The frame's colour: the tinted wash, or paper when the frame already sits on the wash. */
   ground?: "bg-wash" | "bg-paper";
+  /** Which picture: the generated cover (lists, where the question is the picture) or the photograph (where the question is already beside it). */
+  prefer?: "cover" | "photo";
 }) {
-  if (!item.hero_image_url) {
-    return <div aria-hidden="true" className={`${aspect} w-full rounded-media ${ground}`} />;
+  const useCover = prefer === "cover" ? Boolean(item.cover?.url) : !item.hero_image_url && Boolean(item.cover?.url);
+  const src = useCover ? item.cover!.url : (item.hero_image_url ?? item.cover?.url ?? null);
+  const shape = useCover ? "aspect-[16/9]" : aspect;
+  if (!src) {
+    return <div aria-hidden="true" className={`${shape} w-full rounded-media ${ground}`} />;
   }
-  const logo = isLogoPicture(item);
+  const logo = !useCover && isLogoPicture(item);
   return (
-    <div className={`relative ${aspect} w-full overflow-hidden rounded-media ${ground}`}>
+    <div className={`relative ${shape} w-full overflow-hidden rounded-media ${ground}`}>
       <Image
-        src={cloudinaryImage(item.hero_image_url, preset) ?? item.hero_image_url}
+        src={cloudinaryImage(src, preset) ?? src}
         alt=""
         fill
         priority={priority}
@@ -159,7 +165,7 @@ export function CaseStudyCard({
           </p>
         </div>
         <Link href={href} tabIndex={-1} aria-hidden="true" className="lg:col-span-5">
-          <CaseStudyPicture item={item} preset="hero" priority sizes="(max-width: 1024px) calc(100vw - 72px), 440px" ground="bg-paper" />
+          <CaseStudyPicture item={item} preset="hero" priority prefer="photo" sizes="(max-width: 1024px) calc(100vw - 72px), 440px" ground="bg-paper" />
         </Link>
       </article>
     );
