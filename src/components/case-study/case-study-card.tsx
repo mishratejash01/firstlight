@@ -129,8 +129,8 @@ export function CaseStudyCard({
   if (variant === "row") {
     return (
       <article className="group flex items-start gap-4">
-        <Link href={href} tabIndex={-1} aria-hidden="true" className="w-28 shrink-0 sm:w-32">
-          <CaseStudyPicture item={item} preset="thumb" sizes="128px" />
+        <Link href={href} tabIndex={-1} aria-hidden="true" className="w-32 shrink-0 sm:w-40">
+          <CaseStudyPicture item={item} preset="card" sizes="160px" />
         </Link>
         <div className="min-w-0">
           <h3 className="font-headline text-[1.0625rem] leading-[1.28] text-ink">
@@ -165,7 +165,7 @@ export function CaseStudyCard({
           </p>
         </div>
         <Link href={href} tabIndex={-1} aria-hidden="true" className="lg:col-span-5">
-          <CaseStudyPicture item={item} preset="hero" priority prefer="photo" sizes="(max-width: 1024px) calc(100vw - 72px), 440px" ground="bg-paper" />
+          <CaseStudyPicture item={item} preset="hero" priority prefer="cover" sizes="(max-width: 1024px) calc(100vw - 72px), 440px" ground="bg-paper" />
         </Link>
       </article>
     );
