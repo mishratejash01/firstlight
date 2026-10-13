@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 
 import { PageViewBeacon } from "@/components/analytics/page-view-beacon";
@@ -15,20 +14,21 @@ import { formatDate, formatDateTime, toIstIso } from "@/lib/format/datetime";
 import { renderMarkdown } from "@/lib/format/markdown";
 import { listeningMinutes, markdownToSpeech } from "@/lib/format/speech-text";
 import { displayTagName } from "@/lib/format/tag-name";
-import { cloudinaryImage } from "@/lib/media/transform";
 import type { getArticle, getRelatedArticles } from "@/lib/queries/article-detail";
 import { breadcrumbJsonLd, faqJsonLd, newsArticleJsonLd } from "@/lib/seo/json-ld";
 import { SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/site";
 
+import { CaseStudyPicture } from "./case-study-card";
+
 type Result = NonNullable<Awaited<ReturnType<typeof getArticle>>>;
 type Related = Awaited<ReturnType<typeof getRelatedArticles>>;
 
-const EFFECT: Record<CaseStudyBlock["responses"][number]["effect"], { label: string; className: string }> = {
-  working: { label: "Working", className: "text-ink" },
-  mixed: { label: "Mixed results", className: "text-ink" },
-  too_early: { label: "Too early to say", className: "text-muted" },
-  not_working: { label: "Not working", className: "text-signal" },
-  unknown: { label: "Unclear", className: "text-muted" },
+const EFFECT: Record<CaseStudyBlock["responses"][number]["effect"], { label: string; dot: string; text: string }> = {
+  working: { label: "Working", dot: "bg-accent", text: "text-ink" },
+  mixed: { label: "Mixed results", dot: "bg-ink", text: "text-ink" },
+  too_early: { label: "Too early to say", dot: "bg-muted", text: "text-muted" },
+  not_working: { label: "Not working", dot: "bg-signal", text: "text-signal" },
+  unknown: { label: "Unclear", dot: "bg-muted", text: "text-muted" },
 };
 
 const KIND: Record<CaseStudyBlock["responses"][number]["kind"], string> = {
@@ -38,23 +38,35 @@ const KIND: Record<CaseStudyBlock["responses"][number]["kind"], string> = {
   individual: "Individuals",
 };
 
-function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+type Chapter = { id: string; title: string };
+
+/** A chapter heading: its number in the margin's colour, the title in the display face, a rule above. */
+function Chapter({ chapter, index, children }: { chapter: Chapter; index: number; children: React.ReactNode }) {
   return (
-    <section id={id} aria-labelledby={`${id}-title`} className="mt-12 scroll-mt-24">
-      <h2 id={`${id}-title`} className="font-headline text-[1.5rem] leading-tight text-ink">
-        {title}
-      </h2>
+    <section id={chapter.id} aria-labelledby={`${chapter.id}-title`} className="mt-14 scroll-mt-24 border-t border-hairline pt-6">
+      <div className="flex items-baseline gap-3">
+        <span aria-hidden="true" className="font-label text-meta font-semibold tabular-nums text-accent">
+          {String(index + 1).padStart(2, "0")}
+        </span>
+        <h2 id={`${chapter.id}-title`} className="headline-lg text-[1.625rem] leading-[1.15] text-ink sm:text-[1.875rem]">
+          {chapter.title}
+        </h2>
+      </div>
       {children}
     </section>
   );
 }
 
 /**
- * A case study's page: the question, the short answer, then the working —
- * the news that prompted it, how it works as numbered steps, who it affects,
- * what is being done with a verdict on each response, what a reader can do,
- * what is still unknown, the sources, and the log of updates. Kept to the
- * article page's reading column and type, so it reads as the same paper.
+ * A case study's page, laid out as a dossier.
+ *
+ * The question and its one-line answer open the page across the full
+ * measure, with the picture beside them rather than under them, so the
+ * page starts on the answer and not on a photograph. Below, a contents rail
+ * stays beside the reading column on a wide screen; on a phone the same
+ * contents are a row of chips. The short answer is set as a pull quote in
+ * the paper's warm panel; the figures are a stat strip; how it works runs
+ * down a line as numbered steps; each response carries its verdict.
  */
 export async function CaseStudyPage({
   result,
@@ -71,17 +83,35 @@ export async function CaseStudyPage({
   const speechBlocks = article.body ? markdownToSpeech(article.body) : [];
   const reviewed = article.reviewed_at ?? article.content_updated_at ?? article.published_at;
   const faqSchema = faqJsonLd(faqs);
-  const sections: { id: string; title: string }[] = block
+  const chapters: Chapter[] = block
     ? [
         { id: "now", title: "What's happening now" },
         { id: "how", title: block.mechanism.title || "How it works" },
         { id: "who", title: "Who it affects" },
-        { id: "responses", title: "What's being done" },
-        { id: "do", title: "What you can do" },
-        { id: "unknown", title: "Still unknown" },
-        { id: "sources", title: "Sources" },
+        { id: "responses", title: "What's being done, and is it working" },
+        ...(block.whatYouCanDo.length ? [{ id: "do", title: "What you can do" }] : []),
+        ...(block.openQuestions.length ? [{ id: "unknown", title: "What we still don't know" }] : []),
+        ...(faqs.length ? [{ id: "faq", title: "Questions readers ask" }] : []),
+        ...(block.sources.length ? [{ id: "sources", title: "Sources" }] : []),
+        ...(block.updates.length ? [{ id: "updates", title: "Updates" }] : []),
       ]
     : [];
+  const at = (id: string) => chapters.findIndex((c) => c.id === id);
+
+  const contents = (
+    <ol className="space-y-2.5">
+      {chapters.map((chapter, index) => (
+        <li key={chapter.id} className="flex gap-3 font-label text-meta leading-snug">
+          <span aria-hidden="true" className="w-5 shrink-0 tabular-nums text-muted">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+          <a href={`#${chapter.id}`} className="text-ink hover:text-accent">
+            {chapter.title}
+          </a>
+        </li>
+      ))}
+    </ol>
+  );
 
   return (
     <>
@@ -114,282 +144,330 @@ export async function CaseStudyPage({
       <ReadingInstrumentation articleId={article.id} />
 
       <main className="route-enter mx-auto max-w-page px-4 sm:px-6">
-        <article className="mx-auto min-w-0 max-w-[46rem] pt-8 pb-10 lg:max-w-[52rem] xl:max-w-[54rem] 2xl:max-w-[56rem]">
-          <header className="breakout">
-            <p className="font-label text-meta text-muted">
-              <Link href={`/${article.categories.slug}`} className="font-semibold text-ink hover:text-accent">
-                Case study
-              </Link>
-              {subjectName && article.subject_slug ? (
-                <>
-                  <span aria-hidden="true" className="mx-2">
-                    &middot;
-                  </span>
-                  <Link href={`/${article.subject_slug}`} className="hover:text-accent">
-                    {subjectName}
-                  </Link>
-                </>
-              ) : null}
-            </p>
-
-            <h1 className="headline-lg mt-2.5 text-hero leading-[1.08] text-ink sm:text-[2.75rem]">{article.headline}</h1>
-
-            {article.standfirst ? (
-              <p className="mt-4 font-dek text-[1.1875rem] leading-[1.5] text-ink lg:text-[1.3125rem]">{article.standfirst}</p>
-            ) : null}
-
-            <div className="mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-1 pb-5">
-              <p className="text-meta text-ink">
-                By{" "}
-                <Link href="/about" className="hover:text-accent">
-                  {SITE_NAME}
+        <article className="pt-8 pb-10">
+          {/* The opening: question, answer and meta on the left, the picture on
+              the right, so the page starts on the answer. */}
+          <header className="grid gap-8 border-b border-hairline pb-8 lg:grid-cols-12 lg:gap-12">
+            <div className="lg:col-span-7 lg:self-center">
+              <p className="flex items-center gap-3 font-label text-meta">
+                <span aria-hidden="true" className="inline-block h-[2px] w-8 bg-accent" />
+                <Link href={`/${article.categories.slug}`} className="font-semibold text-accent hover:underline">
+                  Case study
                 </Link>
+                {subjectName && article.subject_slug ? (
+                  <>
+                    <span aria-hidden="true" className="text-muted">
+                      &middot;
+                    </span>
+                    <Link href={`/${article.subject_slug}`} className="text-ink hover:text-accent">
+                      {subjectName}
+                    </Link>
+                  </>
+                ) : null}
               </p>
-              {article.published_at ? (
-                <p className="text-meta text-muted">
-                  <span aria-hidden="true" className="mr-3">
-                    &middot;
-                  </span>
-                  <time dateTime={toIstIso(article.published_at)}>{formatDate(article.published_at)}</time>
-                  {reviewed ? (
-                    <>
-                      <span aria-hidden="true" className="mx-3">
-                        &middot;
-                      </span>
+
+              <h1 className="headline-lg mt-4 text-hero leading-[1.06] text-ink sm:text-hero-lg">{article.headline}</h1>
+
+              {article.standfirst ? (
+                <p className="mt-5 max-w-[38rem] font-dek text-[1.1875rem] leading-[1.5] text-ink lg:text-[1.3125rem]">{article.standfirst}</p>
+              ) : null}
+
+              <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 font-label text-meta text-muted">
+                <span>
+                  By{" "}
+                  <Link href="/about" className="text-ink hover:text-accent">
+                    {SITE_NAME}
+                  </Link>
+                </span>
+                {article.published_at ? (
+                  <>
+                    <span aria-hidden="true">&middot;</span>
+                    <time dateTime={toIstIso(article.published_at)}>{formatDate(article.published_at)}</time>
+                  </>
+                ) : null}
+                {reviewed ? (
+                  <>
+                    <span aria-hidden="true">&middot;</span>
+                    <span>
                       Reviewed <time dateTime={toIstIso(reviewed)}>{formatDate(reviewed)}</time>
-                    </>
-                  ) : null}
-                </p>
-              ) : null}
-              {speechBlocks.length ? (
-                <div className="basis-full sm:ml-auto sm:basis-auto">
-                  <ListenButton headline={article.headline} standfirst={article.standfirst} blocks={speechBlocks} minutes={listeningMinutes(speechBlocks)} />
-                </div>
-              ) : null}
+                    </span>
+                  </>
+                ) : null}
+                {speechBlocks.length ? (
+                  <span className="basis-full sm:ml-auto sm:basis-auto">
+                    <ListenButton headline={article.headline} standfirst={article.standfirst} blocks={speechBlocks} minutes={listeningMinutes(speechBlocks)} />
+                  </span>
+                ) : null}
+              </div>
             </div>
+
+            {article.hero_image_url ? (
+              <figure className="lg:col-span-5">
+                <CaseStudyPicture
+                  item={article}
+                  preset="hero"
+                  priority
+                  aspect="aspect-[4/3]"
+                  sizes="(max-width: 1024px) calc(100vw - 32px), 460px"
+                />
+                {article.hero_image_alt || article.hero_image_credit ? (
+                  <figcaption className="mt-2 text-kicker leading-snug text-muted [overflow-wrap:anywhere]">
+                    {article.hero_image_alt}
+                    {article.hero_image_credit ? <> &middot; {readableCredit(article.hero_image_credit)}</> : null}
+                  </figcaption>
+                ) : null}
+              </figure>
+            ) : null}
           </header>
 
-          {article.hero_image_url ? (
-            <figure className="media-wide">
-              <div className="relative aspect-[16/9] w-full overflow-hidden rounded-media bg-hairline">
-                <Image
-                  src={cloudinaryImage(article.hero_image_url, "hero") ?? article.hero_image_url}
-                  alt={article.hero_image_alt ?? ""}
-                  fill
-                  loading="eager"
-                  fetchPriority="high"
-                  sizes="(max-width: 640px) calc(100vw - 32px), (max-width: 1024px) calc(100vw - 48px), 672px"
-                  className="object-cover"
-                />
-              </div>
-              {article.hero_image_alt || article.hero_image_credit ? (
-                <figcaption className="mt-2 text-meta text-muted [overflow-wrap:anywhere]">
-                  {article.hero_image_alt}
-                  {article.hero_image_credit ? <> &middot; {readableCredit(article.hero_image_credit)}</> : null}
-                </figcaption>
-              ) : null}
-            </figure>
-          ) : null}
-
-          <div className="lg:[--text-prose:1.1875rem] xl:[--text-prose:1.25rem]">
-            {block ? (
-              <>
-                {/* The answer, complete on its own, before any of the working. */}
-                <div className="mt-8 rounded-panel bg-wash px-5 py-5 sm:px-7 sm:py-6">
-                  <p className="font-label text-meta font-semibold text-ink">The short answer</p>
-                  <p className="mt-2 font-label text-prose leading-[1.6] text-ink">{block.shortAnswer}</p>
-                </div>
-
-                <nav aria-label="On this page" className="mt-6 flex flex-wrap gap-x-4 gap-y-1.5 font-label text-meta">
-                  {sections.map((section) => (
-                    <a key={section.id} href={`#${section.id}`} className="text-accent underline-offset-4 hover:underline">
-                      {section.title}
-                    </a>
-                  ))}
-                </nav>
-
-                {block.atAGlance.length ? (
-                  <section aria-label="At a glance" className="mt-10 border-t border-hairline pt-6">
-                    <h2 className="font-label text-meta font-semibold text-ink">At a glance</h2>
-                    <dl className="mt-4 grid gap-x-8 gap-y-4 sm:grid-cols-2">
-                      {block.atAGlance.map((fact) => (
-                        <div key={fact.label} className="border-l-2 border-hairline pl-4">
-                          <dt className="font-label text-meta text-muted">{fact.label}</dt>
-                          <dd className="mt-0.5 font-headline text-[1.25rem] leading-tight text-ink">{fact.value}</dd>
-                          <dd className="mt-0.5 text-meta text-muted">{fact.attribution}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </section>
+          <div className="pt-8 lg:grid lg:grid-cols-12 lg:gap-12">
+            {/* The contents rail, beside the reading column on a wide screen. */}
+            <aside className="hidden lg:col-span-3 lg:block">
+              <div className="sticky top-24">
+                <p className="font-label text-meta font-semibold text-ink">In this case study</p>
+                <div className="mt-3 border-t border-hairline pt-3">{contents}</div>
+                {reviewed ? (
+                  <p className="mt-6 border-t border-hairline pt-3 font-label text-meta text-muted">
+                    Last reviewed
+                    <br />
+                    <time dateTime={toIstIso(reviewed)} className="text-ink">
+                      {formatDate(reviewed)}
+                    </time>
+                  </p>
                 ) : null}
+                {block?.updates.length ? (
+                  <p className="mt-3 font-label text-meta text-muted">
+                    <a href="#updates" className="text-ink hover:text-accent">
+                      {block.updates.length} update{block.updates.length === 1 ? "" : "s"}
+                    </a>{" "}
+                    since publication
+                  </p>
+                ) : null}
+              </div>
+            </aside>
 
-                <Section id="now" title="What's happening now">
-                  {block.trigger ? (
-                    <p className="mt-2 font-label text-meta text-muted">
-                      Prompted by:{" "}
-                      {block.trigger.href ? (
-                        <Link href={block.trigger.href} className="text-accent underline-offset-4 hover:underline">
-                          {block.trigger.title}
-                        </Link>
-                      ) : (
-                        block.trigger.title
-                      )}
-                    </p>
+            <div className="min-w-0 lg:col-span-9 lg:[--text-prose:1.1875rem] xl:[--text-prose:1.25rem]">
+              {block ? (
+                <>
+                  {/* The answer, complete on its own, set as the pull quote it is. */}
+                  <blockquote className="rounded-panel bg-quote px-6 py-6 sm:px-8 sm:py-7">
+                    <p className="font-label text-meta font-semibold text-ink">The short answer</p>
+                    <p className="mt-3 max-w-[40rem] font-dek text-[1.25rem] leading-[1.5] text-ink sm:text-[1.375rem]">{block.shortAnswer}</p>
+                  </blockquote>
+
+                  <nav aria-label="On this page" className="-mx-4 mt-5 overflow-x-auto px-4 lg:hidden">
+                    <ol className="flex w-max gap-2">
+                      {chapters.map((chapter, index) => (
+                        <li key={chapter.id}>
+                          <a href={`#${chapter.id}`} className="inline-block rounded-control border border-hairline px-3 py-1.5 font-label text-meta text-ink">
+                            <span className="text-muted">{String(index + 1).padStart(2, "0")}</span> {chapter.title}
+                          </a>
+                        </li>
+                      ))}
+                    </ol>
+                  </nav>
+
+                  {block.atAGlance.length ? (
+                    <section aria-label="At a glance" className="mt-10">
+                      <dl className="grid grid-cols-2 border-t border-l border-hairline sm:grid-cols-3">
+                        {block.atAGlance.map((fact) => (
+                          <div key={fact.label} className="border-r border-b border-hairline px-4 py-5 sm:px-5">
+                            <dd className={`headline-lg leading-[1.05] text-ink ${fact.value.length > 18 ? "text-[1.25rem] sm:text-[1.375rem]" : "text-[1.75rem] sm:text-[2rem]"}`}>
+                              {fact.value}
+                            </dd>
+                            <dt className="mt-2 font-label text-meta font-semibold text-ink">{fact.label}</dt>
+                            <dd className="mt-1 text-kicker leading-snug text-muted">{fact.attribution}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </section>
                   ) : null}
-                  <div className="font-label mt-4">{renderMarkdown(block.now)}</div>
-                </Section>
 
-                <Section id="how" title={block.mechanism.title || "How it works"}>
-                  <ol className="mt-6 space-y-6">
-                    {block.mechanism.steps.map((step, index) => (
-                      <li key={step.title} className="grid grid-cols-[2.25rem_minmax(0,1fr)] gap-x-4">
-                        <span aria-hidden="true" className="flex h-9 w-9 items-center justify-center rounded-full bg-accent font-label text-[0.95rem] font-semibold text-paper">
+                  <Chapter chapter={chapters[at("now")]} index={at("now")}>
+                    {block.trigger ? (
+                      <p className="mt-4 rounded-control border border-hairline px-3.5 py-2.5 font-label text-meta text-muted">
+                        Prompted by{" "}
+                        {block.trigger.href ? (
+                          <Link href={block.trigger.href} className="text-ink underline-offset-4 hover:text-accent hover:underline">
+                            {block.trigger.title}
+                          </Link>
+                        ) : (
+                          <span className="text-ink">{block.trigger.title}</span>
+                        )}
+                      </p>
+                    ) : null}
+                    <div className="font-label mt-4 max-w-[46rem]">{renderMarkdown(block.now)}</div>
+                  </Chapter>
+
+                  <Chapter chapter={chapters[at("how")]} index={at("how")}>
+                    <ol className="relative mt-8 ml-4 space-y-9 border-l-2 border-hairline pl-9">
+                      {block.mechanism.steps.map((step, index) => (
+                        <li key={step.title} className="relative">
+                          <span
+                            aria-hidden="true"
+                            className="absolute top-0 -left-[3.3rem] flex h-9 w-9 items-center justify-center rounded-full bg-accent font-label text-[0.9375rem] font-semibold text-paper"
+                          >
+                            {index + 1}
+                          </span>
+                          <h3 className="headline-lg pt-1.5 text-[1.25rem] leading-snug text-ink">{step.title}</h3>
+                          <p className="mt-2 max-w-[42rem] font-label text-prose leading-[1.6] text-ink">{step.text}</p>
+                        </li>
+                      ))}
+                    </ol>
+                  </Chapter>
+
+                  <Chapter chapter={chapters[at("who")]} index={at("who")}>
+                    <div className="font-label mt-4 max-w-[46rem]">{renderMarkdown(block.affects)}</div>
+                  </Chapter>
+
+                  <Chapter chapter={chapters[at("responses")]} index={at("responses")}>
+                    <ul className="mt-6 divide-y divide-hairline border-y border-hairline">
+                      {block.responses.map((response) => {
+                        const effect = EFFECT[response.effect];
+                        return (
+                          <li key={`${response.actor}-${response.what.slice(0, 20)}`} className="grid gap-x-8 gap-y-3 py-5 sm:grid-cols-[minmax(0,1fr)_11rem]">
+                            <div className="min-w-0">
+                              <p className="font-label text-kicker font-semibold text-muted">{KIND[response.kind]}</p>
+                              <h3 className="headline-lg mt-1 text-[1.1875rem] leading-snug text-ink">{response.actor}</h3>
+                              <p className="mt-2 max-w-[42rem] text-body leading-relaxed text-ink">{response.what}</p>
+                              <p className="mt-1.5 max-w-[42rem] text-meta leading-relaxed text-muted">{response.evidence}</p>
+                            </div>
+                            <p className="sm:pt-5 sm:text-right">
+                              <span className={`inline-flex items-center gap-2 rounded-control border border-hairline px-2.5 py-1 font-label text-meta font-semibold ${effect.text}`}>
+                                <span aria-hidden="true" className={`h-2 w-2 rounded-full ${effect.dot}`} />
+                                {effect.label}
+                              </span>
+                            </p>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </Chapter>
+
+                  {block.whatYouCanDo.length ? (
+                    <Chapter chapter={chapters[at("do")]} index={at("do")}>
+                      <ol className="mt-6 grid gap-x-10 gap-y-5 sm:grid-cols-2">
+                        {block.whatYouCanDo.map((item, index) => (
+                          <li key={item} className="grid grid-cols-[2.25rem_minmax(0,1fr)] gap-x-2">
+                            <span aria-hidden="true" className="headline-lg text-[1.5rem] leading-none text-accent">
+                              {index + 1}
+                            </span>
+                            <p className="font-label text-body leading-relaxed text-ink">{item}</p>
+                          </li>
+                        ))}
+                      </ol>
+                    </Chapter>
+                  ) : null}
+
+                  {block.openQuestions.length ? (
+                    <Chapter chapter={chapters[at("unknown")]} index={at("unknown")}>
+                      <ul className="mt-5 max-w-[46rem] space-y-3">
+                        {block.openQuestions.map((item) => (
+                          <li key={item} className="flex gap-3 font-label text-body leading-relaxed text-ink">
+                            <span aria-hidden="true" className="mt-[0.6em] h-1.5 w-1.5 shrink-0 rounded-full bg-muted" />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </Chapter>
+                  ) : null}
+                </>
+              ) : (
+                <div className="font-label mt-7 max-w-[46rem]">{renderMarkdown(article.body)}</div>
+              )}
+
+              {faqs.length ? (
+                <Chapter chapter={{ id: "faq", title: "Questions readers ask" }} index={Math.max(at("faq"), 0)}>
+                  <div className="mt-2 max-w-[46rem] divide-y divide-hairline">
+                    {faqs.map((faq) => (
+                      <div key={faq.question} className="py-4">
+                        <h3 className="font-label text-[1.0625rem] font-semibold leading-snug text-ink">{faq.question}</h3>
+                        <p className="mt-1.5 text-body leading-relaxed text-muted">{faq.answer}</p>
+                      </div>
+                    ))}
+                  </div>
+                </Chapter>
+              ) : null}
+
+              {block?.sources.length ? (
+                <Chapter chapter={chapters[at("sources")]} index={at("sources")}>
+                  <ol className="mt-5 grid gap-x-10 gap-y-3 sm:grid-cols-2">
+                    {block.sources.map((source, index) => (
+                      <li key={source.url} className="flex gap-3 text-meta leading-relaxed">
+                        <span aria-hidden="true" className="w-5 shrink-0 tabular-nums text-muted">
                           {index + 1}
                         </span>
-                        <div className="pt-1">
-                          <h3 className="font-label text-[1.0625rem] font-semibold leading-snug text-ink">{step.title}</h3>
-                          <p className="mt-1.5 font-label text-prose leading-[1.6] text-ink">{step.text}</p>
-                        </div>
+                        <span className="min-w-0">
+                          <a href={source.url} rel="noopener noreferrer nofollow" target="_blank" className="text-ink underline-offset-4 hover:text-accent hover:underline [overflow-wrap:anywhere]">
+                            {source.title}
+                          </a>
+                          <span className="block text-muted">
+                            {source.publisher}
+                            {source.usedFor ? ` · ${source.usedFor}` : ""}
+                          </span>
+                        </span>
                       </li>
                     ))}
                   </ol>
-                </Section>
+                </Chapter>
+              ) : null}
 
-                <Section id="who" title="Who it affects">
-                  <div className="font-label mt-4">{renderMarkdown(block.affects)}</div>
-                </Section>
+              {block?.updates.length ? (
+                <Chapter chapter={chapters[at("updates")]} index={at("updates")}>
+                  <ol className="relative mt-6 ml-1.5 space-y-5 border-l-2 border-hairline pl-6">
+                    {[...block.updates].reverse().map((update) => (
+                      <li key={update.at} className="relative">
+                        <span aria-hidden="true" className="absolute top-1.5 -left-[1.95rem] h-3 w-3 rounded-full border-2 border-accent bg-paper" />
+                        <p className="font-label text-meta text-muted">
+                          <time dateTime={toIstIso(update.at)}>{formatDateTime(update.at)}</time>
+                        </p>
+                        <p className="mt-1 max-w-[42rem] text-body leading-relaxed text-ink">
+                          {update.note}
+                          {update.href ? (
+                            <>
+                              {" "}
+                              <Link href={update.href} className="text-accent underline-offset-4 hover:underline">
+                                Read the story
+                              </Link>
+                            </>
+                          ) : null}
+                        </p>
+                      </li>
+                    ))}
+                  </ol>
+                </Chapter>
+              ) : null}
 
-                <Section id="responses" title="What's being done, and is it working">
-                  <div className="mt-4 divide-y divide-hairline border-t border-hairline">
-                    {block.responses.map((response) => {
-                      const effect = EFFECT[response.effect];
-                      return (
-                        <div key={`${response.actor}-${response.what.slice(0, 20)}`} className="grid gap-x-6 gap-y-2 py-4 sm:grid-cols-[minmax(0,1fr)_10rem]">
-                          <div>
-                            <p className="font-label text-meta text-muted">{KIND[response.kind]}</p>
-                            <h3 className="mt-0.5 font-label text-[1.0625rem] font-semibold text-ink">{response.actor}</h3>
-                            <p className="mt-1 text-body leading-relaxed text-ink">{response.what}</p>
-                            <p className="mt-1.5 text-meta leading-relaxed text-muted">{response.evidence}</p>
-                          </div>
-                          <p className={`font-label text-body font-semibold sm:pt-5 sm:text-right ${effect.className}`}>{effect.label}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </Section>
-
-                {block.whatYouCanDo.length ? (
-                  <Section id="do" title="What you can do">
-                    <ul className="mt-4 list-disc space-y-2 pl-5 font-label text-prose leading-[1.6] text-ink">
-                      {block.whatYouCanDo.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </Section>
-                ) : null}
-
-                {block.openQuestions.length ? (
-                  <Section id="unknown" title="What we still don't know">
-                    <ul className="mt-4 list-disc space-y-2 pl-5 font-label text-prose leading-[1.6] text-ink">
-                      {block.openQuestions.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </Section>
-                ) : null}
-              </>
-            ) : (
-              <div className="font-label mt-7">{renderMarkdown(article.body)}</div>
-            )}
-
-            {faqs.length ? (
-              <section className="mt-12">
-                <h2 className="font-headline text-[1.5rem] leading-tight text-ink">Questions readers ask</h2>
-                <div className="mt-4 divide-y divide-hairline">
-                  {faqs.map((faq) => (
-                    <div key={faq.question} className="py-4">
-                      <h3 className="text-[1.1rem] text-ink">{faq.question}</h3>
-                      <p className="mt-1.5 text-body leading-relaxed text-muted">{faq.answer}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
-            {block?.sources.length ? (
-              <Section id="sources" title="Sources">
-                <ol className="mt-4 list-decimal space-y-2 pl-5 text-body leading-relaxed text-ink">
-                  {block.sources.map((source) => (
-                    <li key={source.url}>
-                      <a href={source.url} rel="noopener noreferrer nofollow" target="_blank" className="text-accent underline underline-offset-4 [overflow-wrap:anywhere]">
-                        {source.title}
-                      </a>
-                      <span className="text-muted">
-                        {" "}
-                        &middot; {source.publisher}
-                        {source.usedFor ? ` · ${source.usedFor}` : ""}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-              </Section>
-            ) : null}
-
-            {block?.updates.length ? (
-              <section id="updates" className="mt-12 scroll-mt-24">
-                <h2 className="font-headline text-[1.5rem] leading-tight text-ink">Updates</h2>
-                <ul className="mt-4 space-y-3">
-                  {[...block.updates].reverse().map((update) => (
-                    <li key={update.at} className="border-l-2 border-hairline pl-4">
-                      <p className="font-label text-meta text-muted">
-                        <time dateTime={toIstIso(update.at)}>{formatDateTime(update.at)}</time>
-                      </p>
-                      <p className="mt-0.5 text-body leading-relaxed text-ink">
-                        {update.note}
-                        {update.href ? (
-                          <>
-                            {" "}
-                            <Link href={update.href} className="text-accent underline-offset-4 hover:underline">
-                              Read the story
-                            </Link>
-                          </>
+              {tags.length ? (
+                <section className="mt-12 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-hairline pt-5">
+                  <h2 className="font-label text-meta font-semibold text-ink">Topics</h2>
+                  <ul className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-label text-meta">
+                    {tags.map((tag, index) => (
+                      <li key={tag.slug} className="flex items-baseline gap-x-2">
+                        <Link href={`/topic/${tag.slug}`} className="text-ink underline-offset-4 hover:underline">
+                          {displayTagName(tag.name, entities.map(({ entity }) => entity.name))}
+                        </Link>
+                        {index < tags.length - 1 ? (
+                          <span aria-hidden="true" className="text-muted">
+                            &middot;
+                          </span>
                         ) : null}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
 
-            {tags.length ? (
-              <section className="mt-12 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <h2 className="font-label text-meta font-semibold text-ink">Topics</h2>
-                <ul className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-label text-meta">
-                  {tags.map((tag, index) => (
-                    <li key={tag.slug} className="flex items-baseline gap-x-2">
-                      <Link href={`/topic/${tag.slug}`} className="text-ink underline-offset-4 hover:underline">
-                        {displayTagName(tag.name, entities.map(({ entity }) => entity.name))}
-                      </Link>
-                      {index < tags.length - 1 ? (
-                        <span aria-hidden="true" className="text-muted">
-                          &middot;
-                        </span>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-
-            <div className="mt-12">
-              <NewsletterSignup context="article-end" variant="panel" />
+              <div className="mt-12 max-w-[46rem]">
+                <NewsletterSignup context="article-end" variant="panel" />
+              </div>
             </div>
           </div>
         </article>
 
         {related.length ? (
-          <section className="pt-6 pb-12">
-            <h2 className="mb-6 text-section text-ink">The news on this</h2>
+          <section className="border-t border-hairline pt-8 pb-12">
+            <h2 className="mb-6 font-label text-section font-semibold text-ink">The news on this</h2>
             <div className="story-grid">
               {related.map((item) => (
                 <ArticleCard
