@@ -185,6 +185,7 @@ export const caseStudyDraftSchema = caseStudyCoreSchema.extend({
     searchKeywords: true,
     imageBrief: true,
     imageSearchTerms: true,
+    imageAlternatives: true,
     entities: true,
     unverifiedClaims: true,
   }).shape,
