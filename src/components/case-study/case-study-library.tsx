@@ -6,13 +6,17 @@ import { CaseStudyCard } from "./case-study-card";
 
 export type Subject = { slug: string; name: string };
 
+/** A subject gets a picture shelf of its own once it has this many. */
+const SHELF_FROM = 3;
+
 /**
- * The Case studies front: a library rather than a news river.
+ * The Case studies front: a reference library rather than a news river.
  *
- * The newest case study leads at full width, then the rest are shelved by
- * subject in the sections' own order, so a reader looking for health finds
- * every health case study together. Older pages are a plain grid, for the
- * reader going through the archive and for crawlers walking it.
+ * The newest leads as a dossier on a tinted panel. Under it, every case
+ * study in a dense two-column list, the question doing the work, so the page
+ * is full and useful from the first few. Subjects that have grown get a
+ * picture shelf of their own below, in the sections' order. Older pages are
+ * the same list, for a reader going through the archive and for crawlers.
  */
 export function CaseStudyLibrary({
   items,
@@ -32,22 +36,36 @@ export function CaseStudyLibrary({
 
   const lead = page === 1 ? items[0] : undefined;
   const rest = page === 1 ? items.slice(1) : items;
-
-  // Shelves in the sections' order; a subject with nothing on it is not shown.
-  const shelves = subjects
-    .map((subject) => ({ subject, items: rest.filter((item) => item.subject_slug === subject.slug) }))
-    .filter((shelf) => shelf.items.length > 0);
-  const unfiled = rest.filter((item) => !item.subject_slug || !nameOf.has(item.subject_slug));
+  const counts = subjects
+    .map((subject) => ({ subject, count: items.filter((item) => item.subject_slug === subject.slug).length }))
+    .filter((entry) => entry.count > 0);
+  const shelves = counts
+    .filter((entry) => entry.count >= SHELF_FROM)
+    .map(({ subject }) => ({ subject, items: rest.filter((item) => item.subject_slug === subject.slug) }));
 
   return (
     <>
       {page === 1 ? (
-        <header className="border-b border-hairline pt-8 pb-6">
-          <h1 className="font-headline text-[2rem] leading-[1.1] text-ink sm:text-[2.5rem]">Case studies</h1>
-          <p className="mt-3 max-w-measure text-lead text-muted">
-            The question behind the news, answered in full: how it works, who it affects, what is being done, and
-            whether that works. Each one is kept current and says when it was last reviewed.
+        <header className="border-b border-hairline pt-10 pb-8">
+          <p className="font-label text-meta font-semibold text-accent">The question behind the news</p>
+          <h1 className="headline-lg mt-2 text-hero text-ink sm:text-hero-lg">Case studies</h1>
+          <p className="mt-4 max-w-measure font-dek text-[1.125rem] leading-[1.5] text-ink">
+            How it works, who it affects, what is being done, and whether that works: one page per question, kept
+            current, with the date it was last reviewed.
           </p>
+          {counts.length ? (
+            <nav aria-label="Subjects" className="mt-6 flex flex-wrap gap-2">
+              {counts.map(({ subject, count }) => (
+                <a
+                  key={subject.slug}
+                  href={`#cs-${subject.slug}`}
+                  className="rounded-control border border-hairline px-3 py-1.5 font-label text-meta text-ink hover:border-accent hover:text-accent"
+                >
+                  {subject.name} <span className="text-muted">{count}</span>
+                </a>
+              ))}
+            </nav>
+          ) : null}
         </header>
       ) : (
         <h1 className="sr-only">Case studies · page {page}</h1>
@@ -61,12 +79,29 @@ export function CaseStudyLibrary({
         <p className="py-16 text-lead text-muted">The first case studies are being written.</p>
       ) : null}
 
-      {page === 1 ? (
-        <>
-          {shelves.map(({ subject, items: shelfItems }) => (
-            <section key={subject.slug} aria-labelledby={`cs-${subject.slug}`} className="border-t border-hairline py-10">
+      {rest.length ? (
+        <section aria-labelledby="cs-all" className={page === 1 ? "border-t border-hairline pt-6 pb-4" : "pt-8 pb-4"}>
+          <div className="flex items-baseline justify-between gap-4">
+            <h2 id="cs-all" className="font-label text-section font-semibold text-ink">
+              {page === 1 ? "All case studies" : `Older case studies · page ${page}`}
+            </h2>
+            {page === 1 ? <span className="font-label text-meta text-muted">{items.length} in all</span> : null}
+          </div>
+          <ul className="mt-2 md:grid md:grid-cols-2 md:gap-x-12">
+            {rest.map((item) => (
+              <li key={item.id} id={item.subject_slug ? `cs-${item.subject_slug}` : undefined} className="border-t border-hairline">
+                <CaseStudyCard item={item} subjectName={subjectName(item)} variant="line" />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {page === 1
+        ? shelves.map(({ subject, items: shelfItems }) => (
+            <section key={subject.slug} aria-labelledby={`cs-shelf-${subject.slug}`} className="border-t border-hairline py-10">
               <div className="flex items-baseline justify-between gap-4">
-                <h2 id={`cs-${subject.slug}`} className="font-label text-section font-semibold text-ink">
+                <h2 id={`cs-shelf-${subject.slug}`} className="font-label text-section font-semibold text-ink">
                   <Link href={`/${subject.slug}`} className="hover:text-accent">
                     {subject.name}
                   </Link>
@@ -80,35 +115,9 @@ export function CaseStudyLibrary({
                   <CaseStudyCard key={item.id} item={item} subjectName={null} />
                 ))}
               </div>
-              {shelfItems.length > 4 ? (
-                <ul className="mt-8 grid gap-x-10 gap-y-6 md:grid-cols-2">
-                  {shelfItems.slice(4).map((item) => (
-                    <li key={item.id}>
-                      <CaseStudyCard item={item} subjectName={null} variant="row" />
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
             </section>
-          ))}
-          {unfiled.length ? (
-            <section className="border-t border-hairline py-10">
-              <h2 className="font-label text-section font-semibold text-ink">More case studies</h2>
-              <div className="mt-6 grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
-                {unfiled.map((item) => (
-                  <CaseStudyCard key={item.id} item={item} />
-                ))}
-              </div>
-            </section>
-          ) : null}
-        </>
-      ) : (
-        <div className="grid gap-x-6 gap-y-10 py-10 sm:grid-cols-2 lg:grid-cols-3">
-          {rest.map((item) => (
-            <CaseStudyCard key={item.id} item={item} subjectName={subjectName(item)} />
-          ))}
-        </div>
-      )}
+          ))
+        : null}
 
       {page > 1 || hasOlder ? (
         <nav aria-label="Case studies pages" className="flex items-center justify-between border-t border-hairline py-8 text-body">
