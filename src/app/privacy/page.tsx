@@ -38,9 +38,10 @@ export default function PrivacyPage() {
               or your browser&rsquo;s user-agent string.
             </>,
             <>
-              We do not build advertising profiles and we do not sell reader
-              data. The companies that host this site and run its sign-in do
-              record IP addresses for security.
+              We do not build advertising profiles ourselves and we do not sell
+              reader data. The companies that host this site, run its sign-in
+              and serve its advertisements do record IP addresses for security;
+              advertising is described below.
             </>,
           ],
         },
@@ -138,6 +139,33 @@ export default function PrivacyPage() {
               When you do press play, the video comes from YouTube&rsquo;s
               privacy-enhanced service, and YouTube&rsquo;s own privacy policy
               covers what it records from then on.
+            </>,
+          ],
+        },
+        {
+          id: "advertising",
+          join: true,
+          title: "Advertisements",
+          items: [
+            <>
+              Advertisements on this site are served by Google AdSense. Google
+              and the advertising partners it certifies may use cookies and
+              similar identifiers to show you advertisements based on your
+              visits to this and other sites, to limit how often you see one,
+              and to measure them.
+            </>,
+            <>
+              Where the law requires your consent before such cookies are set,
+              you are asked first. You can turn off personalised advertising at
+              any time in Google&rsquo;s{" "}
+              <a href="https://adssettings.google.com" className="underline underline-offset-4">
+                Ads Settings
+              </a>
+              , and Google&rsquo;s{" "}
+              <a href="https://policies.google.com/technologies/ads" className="underline underline-offset-4">
+                advertising privacy notice
+              </a>{" "}
+              describes what it records.
             </>,
           ],
         },
