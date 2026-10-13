@@ -1,5 +1,7 @@
 import { revalidatePath } from "next/cache";
 
+import { purgeEdge } from "@/lib/cache/cloudflare";
+
 /**
  * Rebuild cached pages now: POST { "paths": ["/section/slug", "/"] } with the
  * CRON_SECRET bearer.
@@ -26,5 +28,6 @@ export async function POST(request: Request) {
   if (!paths.length) return Response.json({ error: "No paths given" }, { status: 400 });
 
   for (const path of paths) revalidatePath(path);
-  return Response.json({ ok: true, revalidated: paths });
+  const edge = await purgeEdge(paths);
+  return Response.json({ ok: true, revalidated: paths, edgePurged: edge.purged });
 }
