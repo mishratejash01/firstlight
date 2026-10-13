@@ -2,6 +2,8 @@ import "server-only";
 
 import { revalidatePath } from "next/cache";
 
+import { purgeEdge } from "./cloudflare";
+
 /**
  * Rebuild a story's cached page now, with its section front and the front
  * page, after the desk changes it.
@@ -12,9 +14,14 @@ import { revalidatePath } from "next/cache";
  * not up to an hour later.
  */
 export function revalidateStory(categorySlug: string | null | undefined, slug: string | null | undefined) {
-  if (categorySlug && slug) revalidatePath(`/${categorySlug}/${slug}`);
-  if (categorySlug) revalidatePath(`/${categorySlug}`);
-  revalidatePath("/");
+  const paths: string[] = [];
+  if (categorySlug && slug) paths.push(`/${categorySlug}/${slug}`);
+  if (categorySlug) paths.push(`/${categorySlug}`);
+  paths.push("/");
+  for (const path of paths) revalidatePath(path);
+  // The edge's copies go too. Not awaited: the caller is usually a form
+  // action answering an editor, and the purge logs its own failure.
+  void purgeEdge(paths);
 }
 
 /** The category slug from a Supabase row's embedded `categories ( slug )`. */
