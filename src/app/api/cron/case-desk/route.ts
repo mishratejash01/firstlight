@@ -1,4 +1,4 @@
-import { CASE_SECTION_SLUG, loadSubjects, runCaseDesk, topUpQuestionBank, writeCaseStudy } from "@/lib/engine/case-desk";
+import { CASE_SECTION_SLUG, backfillCovers, loadSubjects, runCaseDesk, topUpQuestionBank, writeCaseStudy } from "@/lib/engine/case-desk";
 import { metered } from "@/lib/engine/metered";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * every two hours. Also, for an administrator with the secret:
  *   ?question=…&subject=health   write this question now, past the gate
  *   ?propose=1                   top the question bank up
+ *   ?covers=1                    make covers for case studies that have none
  */
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -26,6 +27,10 @@ async function handle(request: Request) {
   if (!leased) return Response.json({ ok: true, skipped: "another pass holds the case desk" });
 
   try {
+    if (params.get("covers")) {
+      return Response.json({ ok: true, covers: await backfillCovers(supabase) });
+    }
+
     if (params.get("propose")) {
       const subjects = await loadSubjects(supabase);
       const added = await topUpQuestionBank(supabase, subjects, true);
