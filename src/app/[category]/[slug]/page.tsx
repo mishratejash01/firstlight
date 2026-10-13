@@ -86,11 +86,15 @@ export async function generateMetadata(
     article.summary ??
     undefined;
   const modified = modifiedTime(article) ?? undefined;
-  const shareImage = cloudinaryCrop(
-    article.hero_image_url,
-    SHARE_IMAGE_SHAPE.width,
-    SHARE_IMAGE_SHAPE.height,
-  );
+  // A case study shares its cover, already the share shape; a story its picture.
+  const cover = article.format === "case_study" ? (article.case_study as { cover?: { url?: string } } | null)?.cover?.url : undefined;
+  const shareImage =
+    cover ??
+    cloudinaryCrop(
+      article.hero_image_url,
+      SHARE_IMAGE_SHAPE.width,
+      SHARE_IMAGE_SHAPE.height,
+    );
   const images = shareImage
     ? [
         {
