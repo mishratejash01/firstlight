@@ -58,10 +58,13 @@ export async function getLatestArticles({
   limit = 50,
   categorySlug,
   since,
+  format,
 }: {
   limit?: number;
   categorySlug?: string;
   since?: string;
+  /** Only this format; by default every format, case studies included. */
+  format?: "story" | "case_study";
 } = {}): Promise<SyndicatedArticle[]> {
   const supabase = createAnonymousClient();
   let query = supabase
@@ -74,6 +77,7 @@ export async function getLatestArticles({
 
   if (categorySlug) query = query.eq("categories.slug", categorySlug);
   if (since) query = query.gte("published_at", since);
+  if (format) query = query.eq("format", format);
 
   const { data } = await query;
   return (data ?? []) as unknown as SyndicatedArticle[];
