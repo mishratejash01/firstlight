@@ -5,6 +5,8 @@ import { z } from "zod";
 
 import { runWithChain } from "@/lib/ai/config";
 
+import { captionImage, captionsConfigured } from "./captions";
+
 /**
  * The picture editor: a model that looks at the candidate pictures beside
  * the story and says which one, if any, a serious paper would run.
@@ -69,7 +71,11 @@ You are the picture editor of The India Decade, a serious Indian news site.
 You are shown a story and numbered candidate pictures. Choose the one a
 careful paper would run at the top of the page, or none.
 
-Judge the pixels, not the titles. Score every candidate on every field.
+Judge the pixels, not the titles. Return a verdict for every picture shown,
+in order, scoring every field; a picture without a verdict cannot be run.
+Judge whether a picture is right and well made for a newspaper page, not
+whether a better one could be imagined: a correct, clear picture of the
+right subject is a 7 or 8 even when it is quiet.
 
 What is right:
 - A verified portrait of the person the story is about, for a story about
@@ -98,7 +104,7 @@ picture; a wrong picture is what tells readers a machine chose it.
 const KIND_NOTES: Record<StoryKind, string> = {
   statement: "This story is about what a named person said or did; their own portrait is the right picture if one is offered.",
   conflict: "This story is a row, accusation or dispute. No party or company logo. A portrait of the main speaker, or the real place, or nothing.",
-  market: "This is an Indian market story. Prefer the BSE building, Dalal Street, a Sensex board or an Indian broker's screen; refuse foreign trading floors.",
+  market: "This is an Indian market story. The BSE building, Dalal Street, a Sensex board or an Indian broker's screen are the standard pictures for it and score 7 or 8 when clear and well made; a foreign trading floor scores 3 at most.",
   court: "This is a court story. The court's own building, or the main party's portrait; never a gavel.",
   incident: "This is an incident in a specific place. A scene must visibly be that kind of place in that country; otherwise nothing, and a map will be used.",
   general: "",
@@ -108,26 +114,77 @@ const KIND_NOTES: Record<StoryKind, string> = {
 const JUDGE_BUDGET_MS = 110_000;
 const MAX_ATTEMPTS = 8;
 /** One attempt may take this long; the next key or provider then gets its turn. */
-const ATTEMPT_MS = 45_000;
+const ATTEMPT_MS = 30_000;
+/** Kept back from the vision chain so the caption route can still run. */
+const CAPTION_RESERVE_MS = 45_000;
 const THUMB_MAX_BYTES = 600_000;
 
-/** A thumbnail's bytes, fetched once so every attempt reuses them; null if it cannot be had quickly. */
-async function fetchThumb(url: string): Promise<{ data: Buffer; mediaType: string } | null> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8_000);
-  try {
-    const response = await fetch(url, { signal: controller.signal, headers: { "User-Agent": "TheIndiaDecade picture desk (https://www.theindiadecade.com)" } });
-    if (!response.ok) return null;
-    const mediaType = (response.headers.get("content-type") ?? "image/jpeg").split(";")[0].trim();
-    if (!mediaType.startsWith("image/")) return null;
-    const data = Buffer.from(await response.arrayBuffer());
-    if (!data.length || data.length > THUMB_MAX_BYTES) return null;
-    return { data, mediaType };
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timeout);
+const FETCH_UA = "TheIndiaDecade picture desk (https://www.theindiadecade.com; contact@theindiadecade.com)";
+/** Thumbnails are fetched a few at a time: Wikimedia answers a burst with 429s. */
+const FETCH_CONCURRENCY = 4;
+const THUMB_WIDTH = 512;
+
+async function fetchBytes(url: string, maxBytes: number): Promise<{ data: Buffer; mediaType: string; status: number } | null> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12_000);
+    try {
+      const response = await fetch(url, { signal: controller.signal, headers: { "User-Agent": FETCH_UA } });
+      if (response.status === 429 && attempt === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 2_000));
+        continue;
+      }
+      if (!response.ok) return { data: Buffer.alloc(0), mediaType: "", status: response.status };
+      const mediaType = (response.headers.get("content-type") ?? "image/jpeg").split(";")[0].trim();
+      if (!mediaType.startsWith("image/")) return null;
+      const data = Buffer.from(await response.arrayBuffer());
+      if (!data.length || data.length > maxBytes) return null;
+      return { data, mediaType, status: response.status };
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
+  return null;
+}
+
+/** The full file behind a Commons thumbnail URL. */
+function commonsOriginal(url: string): string | null {
+  const match = url.match(/^https?:\/\/(?:upload|thumb)\.wikimedia\.org\/wikipedia\/commons\/thumb\/([^/]+\/[^/]+\/[^/]+)\/\d+px-[^/?]+/);
+  return match ? `https://upload.wikimedia.org/wikipedia/commons/${match[1]}` : null;
+}
+
+/**
+ * A thumbnail's bytes, fetched once so every attempt reuses them, and
+ * reduced to a width the judge needs. Commons serves thumbnails only at its
+ * own widths; a refused size falls back to the full file, shrunk here.
+ */
+async function fetchThumb(url: string): Promise<{ data: Buffer; mediaType: string } | null> {
+  const first = await fetchBytes(url, 12 * 1024 * 1024);
+  let got = first && first.status === 200 ? first : null;
+  if (!got) {
+    const original = commonsOriginal(url);
+    if (original) {
+      const full = await fetchBytes(original, 12 * 1024 * 1024);
+      if (full && full.status === 200) got = full;
+    }
+  }
+  if (!got) return null;
+  try {
+    const sharp = (await import("sharp")).default;
+    const data = await sharp(got.data).rotate().resize({ width: THUMB_WIDTH, withoutEnlargement: true }).jpeg({ quality: 72 }).toBuffer();
+    return { data, mediaType: "image/jpeg" };
+  } catch {
+    return got.data.length <= THUMB_MAX_BYTES ? { data: got.data, mediaType: got.mediaType } : null;
+  }
+}
+
+/** Runs `work` over items a few at a time, in order. */
+async function inBatches<T, R>(items: T[], size: number, work: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = [];
+  for (let i = 0; i < items.length; i += size) out.push(...(await Promise.all(items.slice(i, i + size).map(work))));
+  return out;
 }
 
 export async function judgePictures(
@@ -135,7 +192,7 @@ export async function judgePictures(
   candidates: JudgeCandidate[],
 ): Promise<{ judgement: Judgement; modelId: string; seen: number[]; unseen: number[] }> {
   const started = Date.now();
-  const thumbs = await Promise.all(candidates.map((candidate) => fetchThumb(candidate.thumbUrl)));
+  const thumbs = await inBatches(candidates, FETCH_CONCURRENCY, (candidate) => fetchThumb(candidate.thumbUrl));
   // The pictures the model sees are numbered 1..n in the order shown; every
   // index in its answer is mapped back to the caller's numbering afterwards.
   const shown = candidates.map((candidate, i) => ({ candidate, thumb: thumbs[i] })).filter((entry): entry is { candidate: JudgeCandidate; thumb: NonNullable<(typeof thumbs)[number]> } => Boolean(entry.thumb));
@@ -172,10 +229,12 @@ export async function judgePictures(
     verdicts: judgement.verdicts.filter((v) => v.index >= 1 && v.index <= shown.length).map((v) => ({ ...v, index: original(v.index) })),
   });
 
-  const result = await runWithChain(
+  let result: { judgement: Judgement; modelId: string };
+  try {
+    result = await runWithChain(
     "picture",
     async (model, entry) => {
-      const abortSignal = AbortSignal.timeout(Math.min(ATTEMPT_MS, Math.max(10_000, JUDGE_BUDGET_MS - (Date.now() - started))));
+      const abortSignal = AbortSignal.timeout(Math.min(ATTEMPT_MS, Math.max(10_000, JUDGE_BUDGET_MS - CAPTION_RESERVE_MS - (Date.now() - started))));
       // Gemini takes a schema; the open models on OpenRouter are asked for
       // JSON in words and read back, which is what they reliably do.
       if (entry.provider === "google") {
@@ -190,10 +249,10 @@ export async function judgePictures(
         if (finishReason === "length") throw new Error("The judge ran out of room.");
         return { judgement: remap(output as Judgement), modelId: entry.modelId };
       }
-      if (entry.provider === "openrouter") {
+      if (entry.provider === "openrouter" || entry.provider === "mistral") {
         // Spoken to directly: the SDK's reading of these replies fails on the
-        // reasoning they carry, and the raw reply is plain to read.
-        const text = await askOpenRouter(entry.apiKey, entry.modelId, [...content, { type: "text", text: JSON_INSTRUCTION }], abortSignal);
+        // reasoning some carry, and the raw reply is plain to read.
+        const text = await askCompatible(entry.provider, entry.apiKey, entry.modelId, [...content, { type: "text", text: JSON_INSTRUCTION }], abortSignal);
         return { judgement: remap(parseJudgement(text)), modelId: entry.modelId };
       }
       const { text, finishReason } = await generateText({
@@ -206,8 +265,30 @@ export async function judgePictures(
       if (finishReason === "length") throw new Error("The judge ran out of room.");
       return { judgement: remap(parseJudgement(text)), modelId: entry.modelId };
     },
-    { maxAttempts: MAX_ATTEMPTS, deadline: started + JUDGE_BUDGET_MS },
-  );
+    { maxAttempts: MAX_ATTEMPTS, deadline: started + JUDGE_BUDGET_MS - CAPTION_RESERVE_MS },
+    );
+  } catch (error) {
+    // No model that can see is reachable: describe each picture in words
+    // (Cloudflare's LLaVA, one picture a call) and let a text model judge the
+    // descriptions. Weaker eyes, but eyes.
+    if (!captionsConfigured() || Date.now() - started > JUDGE_BUDGET_MS - 20_000) throw error;
+    const captions = await Promise.all(shown.map((entry) => captionImage(entry.thumb.data)));
+    const described = shown.map((entry, k) => ({ entry, k, caption: captions[k] })).filter((x): x is { entry: (typeof shown)[number]; k: number; caption: string } => Boolean(x.caption));
+    if (described.length < Math.max(1, Math.ceil(shown.length / 2))) throw error;
+    const listing = described
+      .map(({ entry, k, caption }) => `Picture ${k + 1} — source: ${entry.candidate.source}; title: ${entry.candidate.title ?? "untitled"}; we believe: ${entry.candidate.claim}; what it shows, as described by a captioning model: ${caption}`)
+      .join("\n");
+    const prompt = `${header}\n\nYou cannot see the pictures; you have a description of each from a captioning model. Judge from the descriptions and the titles, and be stricter where a description is vague.\n\n${listing}\n\n${JSON_INSTRUCTION}`;
+    result = await runWithChain(
+      "assist",
+      async (model, entry) => {
+        const { text, finishReason } = await generateText({ model, prompt, maxRetries: 0, maxOutputTokens: 3_000, abortSignal: AbortSignal.timeout(40_000) });
+        if (finishReason === "length") throw new Error("The judge ran out of room.");
+        return { judgement: remap(parseJudgement(text)), modelId: `captions+${entry.modelId}` };
+      },
+      { maxAttempts: 4, deadline: started + JUDGE_BUDGET_MS + 60_000 },
+    );
+  }
   return { ...result, seen: shown.map((entry) => entry.candidate.index), unseen };
 }
 
@@ -217,41 +298,47 @@ Reply with one JSON object and nothing else, of this shape:
 One verdict per picture, in order; "choice" is the index to run or -1; "caption" under 20 words, empty if none.
 `.trim();
 
-/** One non-streaming chat completion on OpenRouter, pictures inline, the reply's text. */
-async function askOpenRouter(
+const COMPATIBLE: Record<"openrouter" | "mistral", { url: string; headers: Record<string, string>; imageAsObject: boolean }> = {
+  openrouter: {
+    url: "https://openrouter.ai/api/v1/chat/completions",
+    headers: { "HTTP-Referer": "https://www.theindiadecade.com", "X-Title": "The India Decade picture desk" },
+    imageAsObject: true,
+  },
+  mistral: { url: "https://api.mistral.ai/v1/chat/completions", headers: {}, imageAsObject: false },
+};
+
+/** One non-streaming chat completion on an OpenAI-compatible provider, pictures inline, the reply's text. */
+async function askCompatible(
+  provider: "openrouter" | "mistral",
   apiKey: string,
   modelId: string,
   parts: ({ type: "text"; text: string } | { type: "file"; mediaType: string; data: Buffer })[],
   abortSignal: AbortSignal,
 ): Promise<string> {
-  const content = parts.map((part) =>
-    part.type === "text"
-      ? { type: "text", text: part.text }
-      : { type: "image_url", image_url: { url: `data:${part.mediaType};base64,${part.data.toString("base64")}` } },
-  );
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+  const target = COMPATIBLE[provider];
+  const content = parts.map((part) => {
+    if (part.type === "text") return { type: "text", text: part.text };
+    const url = `data:${part.mediaType};base64,${part.data.toString("base64")}`;
+    return { type: "image_url", image_url: target.imageAsObject ? { url } : url };
+  });
+  const response = await fetch(target.url, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://www.theindiadecade.com",
-      "X-Title": "The India Decade picture desk",
-    },
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", ...target.headers },
     body: JSON.stringify({ model: modelId, max_tokens: 4_000, messages: [{ role: "user", content }] }),
     signal: abortSignal,
   });
   const raw = await response.text();
-  if (!response.ok) throw new Error(`OpenRouter ${response.status}: ${raw.slice(0, 160)}`);
+  if (!response.ok) throw new Error(`${provider} ${response.status}: ${raw.slice(0, 160)}`);
   let data: { choices?: { message?: { content?: string | { text?: string }[] } }[]; error?: { message?: string } };
   try {
     data = JSON.parse(raw);
   } catch {
-    throw new Error("OpenRouter did not answer in JSON.");
+    throw new Error(`${provider} did not answer in JSON.`);
   }
   if (data.error?.message) throw new Error(data.error.message);
   const message = data.choices?.[0]?.message?.content;
   const text = typeof message === "string" ? message : (message ?? []).map((part) => part.text ?? "").join("");
-  if (!text.trim()) throw new Error("OpenRouter returned no text.");
+  if (!text.trim()) throw new Error(`${provider} returned no text.`);
   return text;
 }
 
