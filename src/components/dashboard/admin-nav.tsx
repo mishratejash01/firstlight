@@ -10,6 +10,7 @@ const PAGES = [
   { href: "/admin/trends", label: "Trending", hint: "What people are searching" },
   { href: "/admin/events", label: "Events", hint: "What is breaking, and why" },
   { href: "/admin/steer", label: "Steer", hint: "Instruct the engine" },
+  { href: "/admin/case-studies", label: "Case studies", hint: "The question behind the news" },
   { href: "/admin/learning", label: "Learning", hint: "Labels, weights, reviewers" },
   { href: "/admin/audience", label: "Audience", hint: "Readers and subscribers" },
 ] as const;
