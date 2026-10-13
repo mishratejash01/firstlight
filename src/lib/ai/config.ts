@@ -28,7 +28,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * can be swapped without a deploy from this file.
  */
 
-export type Provider = "google" | "groq" | "openrouter" | "anthropic" | "gateway";
+export type Provider = "google" | "groq" | "openrouter" | "mistral" | "anthropic" | "gateway";
 export type Kind = "drafting" | "assist" | "picture";
 
 export type ChainEntry = {
@@ -45,6 +45,7 @@ const PROVIDER_LABELS: Record<Provider, string> = {
   google: "Gemini",
   groq: "Groq",
   openrouter: "OpenRouter",
+  mistral: "Mistral",
   anthropic: "Anthropic",
   gateway: "Vercel AI Gateway",
 };
@@ -66,6 +67,8 @@ function keysFor(provider: Provider): string[] {
         return [...list("GROQ_API_KEYS"), ...list("GROQ_API_KEY")];
       case "openrouter":
         return [...list("OPENROUTER_API_KEYS"), ...list("OPENROUTER_API_KEY")];
+      case "mistral":
+        return [...list("MISTRAL_API_KEYS"), ...list("MISTRAL_API_KEY")];
       case "anthropic":
         return list("ANTHROPIC_API_KEY");
       case "gateway":
@@ -106,7 +109,10 @@ const TIERS: Record<Kind, { provider: Provider; modelId: string }[]> = {
   // belong here. Groq's catalogue has none; Gemini's small model is cheap and
   // separate from the drafting quota.
   picture: [
-    { provider: "google", modelId: process.env.AI_PICTURE_MODEL ?? "gemini-3.5-flash-lite" },
+    // Pixtral on Mistral's free tier sees several pictures at once, answers
+    // in seconds and has never been the one that was out; it leads.
+    { provider: "mistral", modelId: process.env.AI_PICTURE_MODEL ?? "pixtral-12b-latest" },
+    { provider: "google", modelId: "gemini-3.5-flash-lite" },
     { provider: "google", modelId: "gemini-3.8-flash" },
     // NVIDIA's free omni model on OpenRouter takes inline images and answers
     // in JSON; it is the judge's way through when Gemini is overloaded.
@@ -138,6 +144,8 @@ function build(provider: Provider, key: string, modelId: string): LanguageModel 
           "X-Title": SITE_NAME,
         },
       })(modelId);
+    case "mistral":
+      return createOpenAICompatible({ name: "mistral", baseURL: "https://api.mistral.ai/v1", apiKey: key })(modelId);
     case "anthropic":
       return createAnthropic({ apiKey: key })(modelId);
     default:
@@ -339,7 +347,7 @@ export const DRAFTING_MODEL = "anthropic/claude-sonnet-5";
 
 /** Which pools are loaded, for the integration status panel. */
 export function aiProviderName(): string | null {
-  const parts = (["google", "groq", "openrouter", "anthropic", "gateway"] as Provider[])
+  const parts = (["google", "groq", "openrouter", "mistral", "anthropic", "gateway"] as Provider[])
     .map((provider) => ({ provider, count: keysFor(provider).length }))
     .filter((p) => p.count > 0)
     .map((p) => `${PROVIDER_LABELS[p.provider]} ×${p.count}`);
@@ -347,7 +355,7 @@ export function aiProviderName(): string | null {
 }
 
 export function aiIsConfigured(): boolean {
-  return (["google", "groq", "openrouter", "anthropic", "gateway"] as Provider[]).some(
+  return (["google", "groq", "openrouter", "mistral", "anthropic", "gateway"] as Provider[]).some(
     (provider) => keysFor(provider).length > 0,
   );
 }
