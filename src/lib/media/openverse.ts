@@ -18,6 +18,8 @@ import { CRAWLER_USER_AGENT } from "@/lib/site";
 
 export type LicensedImage = {
   url: string;
+  /** A small version for judging, where the library offers one. */
+  thumbUrl?: string | null;
   title: string | null;
   creator: string | null;
   licence: string;
@@ -92,6 +94,7 @@ export async function searchLicensedImages(
     const data = (await response.json()) as {
       results?: {
         url?: string;
+        thumbnail?: string;
         title?: string;
         creator?: string;
         license?: string;
@@ -113,6 +116,7 @@ export async function searchLicensedImages(
       if (result.width && result.height && result.height > result.width) continue;
       usable.push({
         url: result.url,
+        thumbUrl: result.thumbnail ?? null,
         title: result.title ?? null,
         creator: result.creator ?? null,
         licence: [result.license, result.license_version].filter(Boolean).join(" "),
@@ -163,6 +167,7 @@ export async function searchLicensedImage(
     const data = (await response.json()) as {
       results?: {
         url?: string;
+        thumbnail?: string;
         title?: string;
         creator?: string;
         license?: string;
@@ -190,6 +195,7 @@ export async function searchLicensedImage(
 
       return {
         url: result.url,
+        thumbUrl: result.thumbnail ?? null,
         title: result.title ?? null,
         creator: result.creator ?? null,
         licence: [result.license, result.license_version].filter(Boolean).join(" "),
