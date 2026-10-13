@@ -36,6 +36,11 @@ export type ArticleDetail = {
   canonical_url: string | null;
   /** The searches the story was written to answer, most important first. */
   search_keywords: string[] | null;
+  /** 'story', or 'case_study' for an explainer with a structured block (see lib/ai/case-study). */
+  format: "story" | "case_study";
+  case_study: unknown;
+  subject_slug: string | null;
+  reviewed_at: string | null;
   categories: { slug: string; name: string };
   authors: {
     slug: string;
@@ -65,6 +70,7 @@ export const getArticle = cache(async function getArticle(
       published_at, updated_at, content_updated_at, is_breaking,
       ai_assisted, ai_unverified_claims, reviewed_by,
       meta_title, meta_description, canonical_url, search_keywords,
+      format, case_study, subject_slug, reviewed_at,
       categories!inner ( slug, name ),
       authors ( slug, display_name, title, bio )
     `,
