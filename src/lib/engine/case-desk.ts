@@ -544,7 +544,11 @@ export async function runCaseDesk({ deadline }: { deadline: number }): Promise<C
     } else {
       report.skipped = outcome.reason;
     }
-  } else if (refresh && timeLeft() > WRITE_BUDGET_MS) {
+  }
+
+  // A page the news caught up with is refreshed in the same pass, after any
+  // new one, while there is time: an update is cheaper than a case study.
+  if (refresh && timeLeft() > WRITE_BUDGET_MS) {
     const { candidate, existing: page } = refresh;
     const outcome = await updateExisting(supabase, page, {
       title: candidate.title,
