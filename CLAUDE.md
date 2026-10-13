@@ -99,6 +99,24 @@ replaces the notes a previous session kept on one Mac. Nothing here is a secret.
 - Everything here is admin-only by RLS (`app.is_admin()`). Never put model calls in page renders;
   the dialogue runs in server actions (`src/app/admin/steer-actions.ts`).
 
+## Cloudflare in front of the site (since 13 Oct 2026)
+- Zone `theindiadecade.com` on the owner's free Cloudflare account; nameservers at GoDaddy point to
+  it. `www` and the apex are proxied; **`engine.theindiadecade.com` is DNS-only** and is what
+  `site_settings.engine_base_url` and the GitHub variable `SITE_URL` point at, because Cloudflare
+  cuts proxied requests at 100 s and the scheduler's passes run up to three minutes. Admin server
+  actions still go through the proxy: "Write it now" therefore only queues.
+- Cache rules (zone dashboard or `scratchpad/cf_setup.py` in the session notes): newsroom, sign-in,
+  search, `/api/*` except `/api/headlines` and `/.well-known/` are never cached; robots, ads.txt and
+  icons an hour; everything else exactly as the page's own `Cache-Control` (`s-maxage`) says. Smart
+  Tiered Cache is on; the apex redirect is an edge redirect rule; SSL is Full (strict).
+- **Always Use HTTPS stays off in Cloudflare.** Caddy does the redirect and renews its Let's Encrypt
+  certificates by HTTP-01 through the proxy, which that setting would break.
+- Purging: `src/lib/cache/cloudflare.ts` (`CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_API_TOKEN` with Cache
+  Purge) runs from `revalidateStory`, `announceNewlyLive`, `/api/revalidate`, front-page pinning and
+  navigation changes. A direct database edit still needs `POST /api/revalidate`, which now purges too.
+- Caddy's access log is `/var/log/caddy/www.log` (JSON, rolled at 50 MB); `cf-cache-status` on a
+  response says HIT, MISS or DYNAMIC (bypassed).
+
 ## Advertising (since 13 Oct 2026)
 - Google AdSense, publisher id in `NEXT_PUBLIC_ADSENSE_CLIENT` (set locally and on the server; it is
   public, it sits in every page's HTML). `src/components/ads/adsense-tag.tsx` renders the plain
