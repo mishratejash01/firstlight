@@ -29,7 +29,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
  */
 
 export type Provider = "google" | "groq" | "openrouter" | "anthropic" | "gateway";
-export type Kind = "drafting" | "assist";
+export type Kind = "drafting" | "assist" | "picture";
 
 export type ChainEntry = {
   provider: Provider;
@@ -37,6 +37,8 @@ export type ChainEntry = {
   keyId: string;
   label: string;
   model: LanguageModel;
+  /** The raw key, for the few callers that must speak to a provider directly. Never log it. */
+  apiKey: string;
 };
 
 const PROVIDER_LABELS: Record<Provider, string> = {
@@ -99,6 +101,20 @@ const TIERS: Record<Kind, { provider: Provider; modelId: string }[]> = {
     { provider: "groq", modelId: "openai/gpt-oss-120b" },
     { provider: "anthropic", modelId: "claude-haiku-4.5" },
     { provider: "gateway", modelId: "anthropic/claude-haiku-4.5" },
+  ],
+  // The picture judge looks at thumbnails, so only models that take images
+  // belong here. Groq's catalogue has none; Gemini's small model is cheap and
+  // separate from the drafting quota.
+  picture: [
+    { provider: "google", modelId: process.env.AI_PICTURE_MODEL ?? "gemini-3.5-flash-lite" },
+    { provider: "google", modelId: "gemini-3.8-flash" },
+    // NVIDIA's free omni model on OpenRouter takes inline images and answers
+    // in JSON; it is the judge's way through when Gemini is overloaded.
+    { provider: "openrouter", modelId: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free" },
+    { provider: "google", modelId: "gemini-3.5-flash" },
+    { provider: "openrouter", modelId: "google/gemma-4-31b-it:free" },
+    { provider: "openrouter", modelId: "google/gemma-4-26b-a4b-it:free" },
+    { provider: "anthropic", modelId: "claude-haiku-4.5" },
   ],
 };
 
@@ -252,12 +268,26 @@ export async function chainFor(kind: Kind): Promise<ChainEntry[]> {
         keyId: id,
         label: `${PROVIDER_LABELS[tier.provider]} …${key === "gateway" ? "" : key.slice(-4)}`,
         model: build(tier.provider, key, tier.modelId),
+        apiKey: key,
       });
     }
   }
 
   const available = entries.filter((entry) => (cooling.get(entry.keyId) ?? 0) < Date.now());
-  return available.length ? available : entries;
+  const chain = available.length ? available : entries;
+  if (kind !== "picture") return chain;
+
+  // The picture judge must answer within a story's time: two keys that are
+  // not cooling per model, then the next model or provider, rather than every
+  // Gemini key before any other.
+  const perTier = new Map<string, number>();
+  return chain.filter((entry) => {
+    const tag = `${entry.provider}|${entry.modelId}`;
+    const n = perTier.get(tag) ?? 0;
+    if (n >= 2) return false;
+    perTier.set(tag, n + 1);
+    return true;
+  });
 }
 
 /**
@@ -268,12 +298,22 @@ export async function chainFor(kind: Kind): Promise<ChainEntry[]> {
 export async function runWithChain<T>(
   kind: Kind,
   job: (model: LanguageModel, entry: ChainEntry) => Promise<T>,
+  options: {
+    /** Stop trying further keys after this many attempts. */
+    maxAttempts?: number;
+    /** Stop trying further keys after this time (epoch ms). */
+    deadline?: number;
+  } = {},
 ): Promise<T> {
   const entries = await chainFor(kind);
   if (!entries.length) throw new Error(AI_UNAVAILABLE_MESSAGE);
 
   let lastError: unknown = null;
+  let attempts = 0;
   for (const entry of entries) {
+    if (options.maxAttempts && attempts >= options.maxAttempts) break;
+    if (options.deadline && Date.now() > options.deadline) break;
+    attempts += 1;
     try {
       const result = await job(entry.model, entry);
       await record(entry, true);
