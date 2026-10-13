@@ -474,3 +474,71 @@ export async function recordSameAs(
   }
   return recorded;
 }
+
+/** A 320-pixel version of a Commons thumbnail URL, for judging rather than publishing. */
+export function commonsThumb(url: string, width = 320): string {
+  return url.replace(/\/(\d+)px-/, `/${width}px-`);
+}
+
+/**
+ * Several photographs of a subject from its Commons category: a person's
+ * category holds many portraits, an institution's its building from several
+ * angles and seasons, which is how the same file stops appearing on every
+ * story. Up to `limit` files, each with its licence and size checked as a
+ * single Commons file would be.
+ */
+export async function commonsCategoryImages(qid: string, limit = 8): Promise<LicensedImage[]> {
+  const entities = await getJson<{ entities?: Record<string, Entity> }>(
+    "https://www.wikidata.org/w/api.php?action=wbgetentities&props=claims&format=json&ids=" + qid,
+  );
+  const category = claimValues(entities?.entities?.[qid] ?? { id: qid }, "P373")[0];
+  if (typeof category !== "string" || !category) return [];
+
+  const data = await getJson<ImageInfo>(
+    "https://commons.wikimedia.org/w/api.php?action=query&generator=categorymembers&gcmtype=file&gcmlimit=" +
+      Math.min(Math.max(limit * 2, 4), 40) +
+      "&prop=imageinfo&iiprop=url|size|extmetadata&iiurlwidth=1600&format=json&gcmtitle=" +
+      encodeURIComponent(`Category:${category}`),
+  );
+  const images: LicensedImage[] = [];
+  for (const page of Object.values(data?.query?.pages ?? {})) {
+    const info = page?.imageinfo?.[0];
+    if (!info || !/\.(jpe?g|png|webp)$/i.test(page.title)) continue;
+    const meta = info.extmetadata ?? {};
+    const licence = stripHtml(meta.LicenseShortName?.value) ?? "";
+    if (!OPEN_LICENCES.test(licence)) continue;
+    const title = stripHtml(meta.ObjectName?.value) ?? page.title.replace(/^File:/, "");
+    if (looksLikeSymbol(page.title) || looksLikeSymbol(title)) continue;
+    // A category holds the institution's whole life: its banknotes, stamps,
+    // maps and scans as well as its building. Only photographs will do.
+    if (/\b(banknote|coin|stamp|rupee|seal|emblem|flag|map|plan|scan|document|certificate|letter|poster|chart|diagram|screenshot)\b/i.test(`${page.title} ${title}`)) continue;
+    if (info.width < 900 || info.width < info.height) continue;
+    const url = info.thumburl ?? info.url;
+    images.push({
+      url,
+      thumbUrl: commonsThumb(url),
+      title,
+      creator: stripHtml(meta.Artist?.value),
+      licence,
+      licenceUrl: stripHtml(meta.LicenseUrl?.value),
+      sourceUrl: info.descriptionurl,
+      provider: "wikimedia_commons",
+      width: info.thumbwidth ?? info.width,
+      height: info.thumbheight ?? info.height,
+    });
+    if (images.length >= limit) break;
+  }
+  return images;
+}
+
+/** Where a place is, from its Wikidata coordinates (P625). */
+export async function wikidataCoordinates(qid: string): Promise<{ lat: number; lon: number } | null> {
+  const entities = await getJson<{ entities?: Record<string, Entity> }>(
+    "https://www.wikidata.org/w/api.php?action=wbgetentities&props=claims&format=json&ids=" + qid,
+  );
+  const value = claimValues(entities?.entities?.[qid] ?? { id: qid }, "P625")[0] as
+    | { latitude?: number; longitude?: number }
+    | undefined;
+  if (!value || typeof value.latitude !== "number" || typeof value.longitude !== "number") return null;
+  return { lat: value.latitude, lon: value.longitude };
+}
