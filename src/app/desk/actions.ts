@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
+import { purgeEdge } from "@/lib/cache/cloudflare";
+
 import { categorySlugOf, revalidateStory } from "@/lib/cache/revalidate-story";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser, isEditorial } from "@/lib/auth/roles";
@@ -183,6 +185,7 @@ export async function pinToHomepage(formData: FormData): Promise<ActionResult> {
 
   revalidatePath("/desk");
   revalidatePath("/");
+  void purgeEdge(["/"]);
   return { ok: true };
 }
 
@@ -198,5 +201,6 @@ export async function unpinFromHomepage(formData: FormData): Promise<ActionResul
 
   revalidatePath("/desk");
   revalidatePath("/");
+  void purgeEdge(["/"]);
   return { ok: true };
 }
