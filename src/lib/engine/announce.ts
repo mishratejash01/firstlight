@@ -2,6 +2,7 @@ import "server-only";
 
 import { revalidatePath } from "next/cache";
 
+import { purgeEdge } from "@/lib/cache/cloudflare";
 import { submitToIndexNow } from "@/lib/seo/indexnow";
 import { SITE_URL } from "@/lib/site";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -45,9 +46,13 @@ export async function announceNewlyLive(): Promise<{ rebuilt: number; announced:
   }));
   if (!stories.length) return { rebuilt: 0, announced: 0 };
 
+  const sections = Array.from(new Set(stories.map((story) => story.section)));
   for (const story of stories) revalidatePath(`/${story.section}/${story.slug}`);
-  for (const section of new Set(stories.map((story) => story.section))) revalidatePath(`/${section}`);
+  for (const section of sections) revalidatePath(`/${section}`);
   revalidatePath("/");
+  // The edge may hold the "not found" it was given before the story went
+  // live, and the fronts without it; those copies go now.
+  await purgeEdge([...stories.map((story) => `/${story.section}/${story.slug}`), ...sections.map((section) => `/${section}`), "/"]);
 
   const fresh = stories
     .filter((story) => story.publishedAt > now - ANNOUNCE_WINDOW_MS)
