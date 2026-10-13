@@ -124,6 +124,8 @@ export const caseStudyBlockSchema = caseStudyCoreSchema.extend({
     .array(z.object({ at: z.string(), note: z.string(), href: z.string().nullable() }))
     .default([]),
   trigger: z.object({ title: z.string(), href: z.string().nullable() }).nullable().default(null),
+  /** The generated cover (lib/media/case-study-cover): the question on the paper's ground, for listings and sharing. */
+  cover: z.object({ url: z.string(), publicId: z.string() }).nullable().default(null),
 });
 export type CaseStudyBlock = z.infer<typeof caseStudyBlockSchema>;
 
@@ -140,7 +142,7 @@ const EFFECT_WORDS: Record<CaseStudyBlock["responses"][number]["effect"], string
  * search index, the listen button, the feeds and the plain fallback page read.
  * The model writes the parts once; this is not a second draft.
  */
-export function caseStudyMarkdown(block: Omit<CaseStudyBlock, "updates" | "trigger">): string {
+export function caseStudyMarkdown(block: Omit<CaseStudyBlock, "updates" | "trigger" | "cover">): string {
   const section = (title: string, body: string) => (body.trim() ? `## ${title}\n\n${body.trim()}` : "");
   const list = (items: string[]) => items.map((item) => `- ${item.trim()}`).join("\n");
   return [
