@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
+import { purgeEdgeEverything } from "@/lib/cache/cloudflare";
+
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/roles";
@@ -140,8 +142,10 @@ export async function setCategoryVisibility(formData: FormData): Promise<ActionR
 
   if (error) return { error: error.message };
 
-  // The navigation is rendered on every page, so every page is now stale.
+  // The navigation is rendered on every page, so every page is now stale,
+  // here and at the edge.
   revalidatePath("/", "layout");
   revalidatePath("/admin");
+  void purgeEdgeEverything();
   return { ok: true };
 }
