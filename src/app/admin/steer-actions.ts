@@ -12,7 +12,6 @@ import {
   type TranscriptTurn,
 } from "@/lib/ai/steer";
 import { getSessionUser } from "@/lib/auth/roles";
-import { writeCommission } from "@/lib/engine/commission";
 import { loadActiveDirectives } from "@/lib/engine/directives";
 import { ACCEPTED_IMAGE_TYPES, MAX_IMAGE_BYTES, uploadToCloudinary } from "@/lib/media/cloudinary";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -516,20 +515,21 @@ export async function writeCommissionNow(formData: FormData): Promise<ActionResu
   if (!admin) return { error: "Administrator role required." };
 
   const id = String(formData.get("commission_id") ?? "");
-  // A failed commission is given its attempts back; the brief is unchanged.
+  // Back to the front of the queue, with its attempts given back if it had
+  // failed; the brief is unchanged. The desk's next pass, within two minutes,
+  // writes commissions before anything else. It is not written here, inside
+  // the admin's own request: writing takes a minute or two, longer than the
+  // edge in front of the site will wait for an answer.
   const supabase = await createClient();
-  await supabase.from("commissioned_posts").update({ status: "queued", attempts: 0 }).eq("id", id).eq("status", "failed");
-
-  const outcome = await writeCommission(id);
+  const { data, error } = await supabase
+    .from("commissioned_posts")
+    .update({ status: "queued", attempts: 0, claimed_at: null, last_error: null })
+    .eq("id", id)
+    .in("status", ["queued", "failed"])
+    .select("id")
+    .maybeSingle();
+  if (error) return { error: error.message };
+  if (!data) return { error: "This commission is not waiting to be written." };
   revalidatePath("/admin/steer");
-  if (outcome.status !== "done") return { error: outcome.reason ?? "Writing failed." };
-  return {
-    ok: true,
-    note:
-      outcome.articleStatus === "published"
-        ? "Written and live."
-        : outcome.articleStatus === "scheduled"
-          ? "Written; it goes live after the usual delay."
-          : "Written as a draft for the desk.",
-  };
+  return { ok: true, note: "Queued first for the desk's next pass, within about two minutes." };
 }
