@@ -11,6 +11,7 @@ import { createAnonymousClient } from "@/lib/supabase/anonymous";
 const FIELDS = `
   id, slug, headline, standfirst, summary, hero_image_url, hero_image_alt,
   published_at, reviewed_at, subject_slug,
+  cover:case_study->cover,
   categories!inner ( slug, name )
 `;
 
@@ -27,6 +28,8 @@ export type CaseStudyCardData = {
   published_at: string | null;
   reviewed_at: string | null;
   subject_slug: string | null;
+  /** The generated cover, or null for case studies made before covers existed. */
+  cover: { url: string; publicId?: string } | null;
   categories: { slug: string; name: string };
 };
 
