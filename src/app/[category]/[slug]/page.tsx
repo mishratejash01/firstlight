@@ -5,6 +5,8 @@ import type { Metadata } from "next";
 
 import { ArticleCard } from "@/components/article/article-card";
 import { Eyebrow } from "@/components/article/eyebrow";
+import { CaseStudyBox } from "@/components/case-study/case-study-box";
+import { CaseStudyPage } from "@/components/case-study/case-study-page";
 import { JsonLd } from "@/components/seo/json-ld";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
@@ -12,6 +14,9 @@ import { NewsletterSignup } from "@/components/site/newsletter-signup";
 import { PageViewBeacon } from "@/components/analytics/page-view-beacon";
 import { ReadingInstrumentation } from "@/components/analytics/reading-instrumentation";
 import { getArticle, getRelatedArticles } from "@/lib/queries/article-detail";
+import { getCaseStudyFor } from "@/lib/queries/case-studies";
+import { getAllSections } from "@/lib/queries/navigation";
+import { readableCredit } from "@/lib/format/credit";
 import { InlineLatest } from "@/components/site/live-headlines";
 import { ListenButton } from "@/components/article/listen-button";
 import { renderMarkdown } from "@/lib/format/markdown";
@@ -37,24 +42,6 @@ import { PUBLISHER, SITE_NAME, SITE_URL, X_HANDLE, absoluteUrl } from "@/lib/sit
  * minutes is not an update a reader needs told about.
  */
 const UPDATE_NOTICE_AFTER_MS = 15 * 60 * 1000;
-
-/**
- * Picture libraries as their names are written, not as the picture search
- * records them ("via wikimedia_commons").
- */
-const LIBRARY_NAMES: Record<string, string> = {
-  wikimedia_commons: "Wikimedia Commons",
-  wikimedia: "Wikimedia Commons",
-  flickr: "Flickr",
-  rawpixel: "rawpixel",
-  geographorguk: "Geograph",
-};
-
-function readableCredit(credit: string): string {
-  return credit.replace(/ via ([a-z_]+)$/, (whole, key: string) =>
-    LIBRARY_NAMES[key] ? ` via ${LIBRARY_NAMES[key]}` : whole,
-  );
-}
 
 function modifiedTime(article: { published_at: string | null; content_updated_at: string | null }) {
   if (!article.published_at) return null;
@@ -157,6 +144,15 @@ export default async function ArticlePage(
 
   const { article, tags, entities, keyFacts, faqs, events } = result;
   const related = await getRelatedArticles(article.id, 3);
+
+  // A case study is the same row with a different page (see lib/ai/case-study).
+  if (article.format === "case_study") {
+    const sections = await getAllSections();
+    const subjectName = sections.find((section) => section.slug === article.subject_slug)?.name ?? null;
+    return <CaseStudyPage result={result} related={related} subjectName={subjectName} />;
+  }
+  // The case study that answers the question behind this story, if there is one.
+  const caseStudy = article.origin === "curated" ? null : await getCaseStudyFor(article.id);
   const url = absoluteUrl(`/${article.categories.slug}/${article.slug}`);
   // What the listen button will read: the body with its markup stripped,
   // computed here so the client is sent words rather than Markdown.
@@ -369,6 +365,7 @@ export default async function ArticlePage(
                     them, at the end. */}
                 {renderMarkdown(article.body, {
                   inserts: [
+                    ...(caseStudy ? [{ afterParagraph: 2, node: <CaseStudyBox item={caseStudy} /> }] : []),
                     {
                       afterParagraph: 3,
                       node: <InlineLatest excludeId={article.id} from={0} count={3} label="Latest" />,
