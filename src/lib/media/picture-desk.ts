@@ -74,8 +74,9 @@ export type DeskOutcome = {
 type Supabase = ReturnType<typeof createAdminClient>;
 
 const LOGO_TYPES = new Set(["Organization", "Corporation", "SportsTeam", "Brand"]);
-const MAX_CANDIDATES = 10;
-const MAX_SCENES = 7;
+/** Pixtral, the judge's first model, takes at most eight pictures in one request. */
+const MAX_CANDIDATES = 8;
+const MAX_SCENES = 6;
 const MAX_PORTRAITS = 3;
 const RECENT_DAYS = 7;
 /** Commons titles that name a person are not scenes; official libraries title portraits like this. */
@@ -136,8 +137,10 @@ function placeFitsStory(match: WikidataMatch, abroad: boolean): boolean {
 }
 
 function thumbOf(image: LicensedImage): string {
-  if (image.thumbUrl) return image.thumbUrl;
-  if (image.provider === "wikimedia_commons") return commonsThumb(image.url);
+  // A Commons file, from Commons or mirrored by Openverse: its own thumbnail
+  // service. Openverse's thumbnail address for these answers 400.
+  if (/upload\.wikimedia\.org\/wikipedia\/commons\/thumb\//.test(image.url)) return commonsThumb(image.url);
+  if (image.thumbUrl && !/thumb\.wikimedia\.org/.test(image.thumbUrl)) return image.thumbUrl;
   return image.url;
 }
 
@@ -537,28 +540,48 @@ export async function pictureDesk<T>(
   const scored = describeAll(scores);
   const by = judgement.modelId;
 
+  const passes = (candidate: Candidate, verdict: (typeof judgement.judgement.verdicts)[number] | undefined) =>
+    Boolean(
+      verdict &&
+        !verdict.misleading &&
+        !verdict.synthetic &&
+        !verdict.textHeavy &&
+        verdict.quality >= 5 &&
+        verdict.relevance >= (verdict.cliche ? Math.max(minScore, 9) : minScore) &&
+        !(candidate.role === "logo" && (kind === "conflict" || kind === "incident")) &&
+        !(verdict.setting === "elsewhere" && !abroad && candidate.role === "scene"),
+    );
+  const verdictOf = (index: number) => judgement.judgement.verdicts.find((v) => v.index === index);
   const choice = judgement.judgement.choice;
   const chosen = choice >= 1 && choice <= pool.length ? pool[choice - 1] : null;
-  const verdict = chosen ? judgement.judgement.verdicts.find((v) => v.index === choice) : null;
-  const passes =
-    chosen &&
-    verdict &&
-    !verdict.misleading &&
-    !verdict.synthetic &&
-    !verdict.textHeavy &&
-    verdict.quality >= 5 &&
-    verdict.relevance >= (verdict.cliche ? Math.max(minScore, 9) : minScore) &&
-    !(chosen.role === "logo" && (kind === "conflict" || kind === "incident")) &&
-    !(verdict.setting === "elsewhere" && !abroad && chosen.role === "scene");
 
-  if (!passes) {
-    const why = chosen && verdict ? `The judge's pick (${choice}) did not clear the bar: ${judgement.judgement.reason}` : `The judge chose none: ${judgement.judgement.reason}`;
+  if (!chosen || !passes(chosen, verdictOf(choice))) {
+    const why = chosen ? `The judge's pick (${choice}) did not clear the bar: ${judgement.judgement.reason}` : `The judge chose none: ${judgement.judgement.reason}`;
     return fallbackMap(why, by, scored);
   }
 
-  const caption = judgement.judgement.caption?.trim() || (chosen.role === "scene" ? `${briefs[0] ?? chosen.image.title} (file image)` : (chosen.subject ?? chosen.image.title ?? input.headline));
-  const illustration = await publish(chosen.image, chosen.role === "logo" ? `${chosen.subject} logo` : caption, { pad: chosen.role === "logo" });
-  if (!illustration) return fallbackMap("The chosen picture could not be copied.", by, scored);
-  const decisionId = await record(chosen.role === "logo" ? "logo" : "photo", judgement.judgement.reason, by, scored, chosen);
-  return { outcome: chosen.role === "logo" ? "logo" : "photo", chosen, caption, decisionId, sameAs, illustration };
+  // The judge's choice first; if it cannot be copied, the others that passed,
+  // best first, so a rate-limited library does not cost the story its picture.
+  const order = [
+    chosen,
+    ...pool
+      .map((candidate, i) => ({ candidate, verdict: verdictOf(i + 1) }))
+      .filter(({ candidate, verdict }) => candidate !== chosen && passes(candidate, verdict))
+      .sort((a, b) => (b.verdict?.relevance ?? 0) - (a.verdict?.relevance ?? 0))
+      .map(({ candidate }) => candidate),
+  ];
+  for (const pick of order) {
+    const caption =
+      pick === chosen && judgement.judgement.caption?.trim()
+        ? judgement.judgement.caption.trim()
+        : pick.role === "scene"
+          ? `${briefs[0] ?? pick.image.title} (file image)`
+          : (pick.subject ?? pick.image.title ?? input.headline);
+    const illustration = await publish(pick.image, pick.role === "logo" ? `${pick.subject} logo` : caption, { pad: pick.role === "logo" });
+    if (!illustration) continue;
+    const reason = pick === chosen ? judgement.judgement.reason : `${judgement.judgement.reason} The judge's first choice could not be copied; this one also passed.`;
+    const decisionId = await record(pick.role === "logo" ? "logo" : "photo", reason, by, scored, pick);
+    return { outcome: pick.role === "logo" ? "logo" : "photo", chosen: pick, caption, decisionId, sameAs, illustration };
+  }
+  return fallbackMap("No passing picture could be copied.", by, scored);
 }
