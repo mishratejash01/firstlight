@@ -82,7 +82,7 @@ export const caseStudyCoreSchema = z.object({
   now: z
     .string()
     .describe(
-      "Markdown, two to four paragraphs: what is happening now that makes this question matter — the event, the numbers, who said what — dated, so it still reads correctly later.",
+      "Markdown, three to five paragraphs: what is happening now that makes this question matter — the event, the numbers, who said what — dated, so it still reads correctly later.",
     ),
   mechanism: z.object({
     title: z.string().describe("A heading for the steps, e.g. 'How a heart attack happens'."),
@@ -92,7 +92,7 @@ export const caseStudyCoreSchema = z.object({
   }),
   affects: z
     .string()
-    .describe("Markdown, one to three paragraphs: who this affects and how many, India first, with attributed figures."),
+    .describe("Markdown, two to four paragraphs: who this affects and how many, India first, with attributed figures."),
   responses: z
     .array(
       z.object({
@@ -347,7 +347,7 @@ export async function draftCaseStudy({
   documents,
   coverage,
   searchResearch,
-  lengthWords = 1200,
+  lengthWords = 1400,
 }: {
   question: string;
   subject: CaseSubject;
