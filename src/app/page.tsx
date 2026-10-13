@@ -11,8 +11,10 @@ import { BulletinBoard } from "@/components/article/bulletin-board";
 import { SectionDigest } from "@/components/article/section-digest";
 import { SectionShelf } from "@/components/article/section-shelf";
 import { OpinionShelf } from "@/components/article/opinion-shelf";
+import { CaseStudyShelf } from "@/components/case-study/case-study-shelf";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
+import { getRecentCaseStudies } from "@/lib/queries/case-studies";
 import { getNavCategories } from "@/lib/queries/navigation";
 import {
   getLivePlacements,
@@ -61,11 +63,12 @@ export const metadata: Metadata = {
 export const revalidate = 180;
 
 export default async function HomePage() {
-  const [articles, placements, categories, dayTop] = await Promise.all([
+  const [articles, placements, categories, dayTop, caseStudies] = await Promise.all([
     getRecentArticles(90),
     getLivePlacements(),
     getNavCategories(),
     getTopOfDay(50),
+    getRecentCaseStudies(4),
   ]);
 
   if (!articles.length) {
@@ -228,6 +231,21 @@ export default async function HomePage() {
         {boardItems.length ? (
           <div className="mx-auto max-w-wide px-4 pt-10 sm:px-6">
             <BulletinBoard items={boardItems} />
+          </div>
+        ) : null}
+
+        {/* The case studies: the question behind the news, between the day's
+            board and the sections. Only the newest few; the section has the
+            rest, shelved by subject. */}
+        {caseStudies.length ? (
+          <div className="mx-auto max-w-page px-4 pt-14 sm:px-6">
+            <div className="border-b border-muted/35 pb-12">
+              <CaseStudyShelf
+                items={caseStudies}
+                subjects={categories.filter((c) => c.layout === "standard")}
+                iconUrl={categories.find((c) => c.layout === "case_studies")?.icon_url ?? null}
+              />
+            </div>
           </div>
         ) : null}
 
