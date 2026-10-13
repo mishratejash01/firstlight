@@ -2,8 +2,10 @@ import "server-only";
 
 import { cosine, embedTexts } from "@/lib/engine/embeddings";
 import {
+  commonsCategoryFiles,
   commonsCategoryImages,
   commonsImage,
+  commonsSearchCategories,
   commonsLogo,
   commonsSearchTitles,
   commonsThumb,
@@ -259,11 +261,32 @@ async function sceneCandidates(
     found.push({ image, thumbUrl: thumbOf(image), role: "scene", source, claim: `a library picture titled "${image.title}"` });
   };
 
-  const commonsTitles: string[] = [];
   const note = (source: string, query: string) => (error: unknown) => {
     errors.push(`${source} "${query}": ${error instanceof Error ? error.message.slice(0, 80) : "failed"}`);
     return [] as never[];
   };
+
+  // The Commons categories a picture editor would browse: "<term> in India"
+  // for an Indian story, "<term> <place>" for one abroad. These hold the
+  // Indian scenes the file search never surfaces, filed by people who were
+  // there.
+  const categoryQueries = (abroad ? [places[0]].filter(Boolean).flatMap((place) => plainTerms.slice(0, 2).map((term) => `${term} ${place}`)) : plainTerms.slice(0, 2).map((term) => `${term} in India`)).concat(
+    !abroad && core.length === 2 ? [`${core.join(" ")} India`] : [],
+  );
+  await Promise.all(
+    categoryQueries.slice(0, 3).map(async (query) => {
+      const categories = (await commonsSearchCategories(query, 4).catch(note("commons categories", query)))
+        // An Indian story browses Indian categories only; "Paediatric hospitals" at large is Ilorin and Kano.
+        .filter((category) => abroad || INDIAN.test(category))
+        .slice(0, 2);
+      for (const category of categories) {
+        const files = await commonsCategoryFiles(category, 4).catch(note("commons category files", category));
+        for (const image of files) consider(image, "Wikimedia Commons");
+      }
+    }),
+  );
+
+  const commonsTitles: string[] = [];
   // Openverse allows few anonymous requests a minute, so it gets the two best
   // queries; Commons and Pexels take all of them.
   await Promise.all(
