@@ -226,6 +226,7 @@ export function newsArticleJsonLd({
   keyFacts,
   tags,
   searchKeywords = [],
+  type = "NewsArticle",
 }: {
   article: ArticleForJsonLd;
   url: string;
@@ -234,6 +235,8 @@ export function newsArticleJsonLd({
   tags: { name: string }[];
   /** The searches the story was written to answer; see lib/seo/search-research. */
   searchKeywords?: string[] | null;
+  /** A case study is an explainer kept current, an Article rather than a NewsArticle. */
+  type?: "NewsArticle" | "Article";
 }) {
   const about = entities.filter((e) => e.relation === "about").map((e) => entityNode(e.entity));
   const mentions = entities.filter((e) => e.relation === "mentions").map((e) => entityNode(e.entity));
@@ -248,7 +251,7 @@ export function newsArticleJsonLd({
 
   return {
     "@context": "https://schema.org",
-    "@type": "NewsArticle",
+    "@type": type,
     "@id": `${url}#article`,
     mainEntityOfPage: {
       "@type": "WebPage",
