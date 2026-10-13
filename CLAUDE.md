@@ -99,6 +99,29 @@ replaces the notes a previous session kept on one Mac. Nothing here is a secret.
 - Everything here is admin-only by RLS (`app.is_admin()`). Never put model calls in page renders;
   the dialogue runs in server actions (`src/app/admin/steer-actions.ts`).
 
+## Pictures: the picture desk (since 13 Oct 2026)
+- `illustrateArticle` (`src/lib/media/illustrate.ts`) now runs the **picture desk** first
+  (`src/lib/media/picture-desk.ts`): it gathers up to ten candidates at once (verified portraits and
+  institutions from Wikidata + their Commons categories, a mark only where a mark is right, scenes
+  from Commons, Openverse and Pexels for the writer's brief and two alternatives, "house picks" by
+  story kind such as the BSE and Dalal Street for market stories), drops anything the site ran in the
+  last week, and hands them to the **judge** (`src/lib/media/judge.ts`): a vision model that scores
+  each picture on relevance, misleading, cliché, setting (India/elsewhere), quality, text, synthetic,
+  and may choose none. Acceptance: relevance ≥ `picture_min_score` (7), not misleading, not synthetic,
+  quality ≥ 5, no logo on a conflict/incident, no foreign scene for an Indian story. Then a Geoapify
+  map of the place for incidents (`GEOAPIFY_API_KEY`), else the typographic card.
+- The judge's chain is the `picture` kind in `src/lib/ai/config.ts`: Gemini Flash-Lite, Gemini 3.8
+  Flash, NVIDIA's free omni model on OpenRouter (spoken to directly, pictures inline), Gemini Flash,
+  Gemma. Two non-cooling keys per model, at most eight attempts, 110 s in all. When every provider is
+  out, the outcome is `unjudged` and the old search ladder decides; the half-hour slot of the desk
+  pass offers those stories to the judge again (`reillustrateCards(2, "unjudged")`).
+- Every decision is in `picture_decisions` (candidates with scores, chosen, trace with timings and
+  counts). `/admin/pictures` shows them; mark good or bad there. Rules of thumb that are now code:
+  no gavels for Indian courts, no foreign trading floors, a private person described not named.
+- Keys: `PEXELS_API_KEY` (scenes; without it Pexels is skipped), `GEOAPIFY_API_KEY` (maps),
+  `AI_PICTURE_MODEL` (first judge model). Unsplash is deliberately not used: it requires hotlinking.
+- Pictures policy unchanged: licensed only, copied into Cloudinary, credited; no synthetic images.
+
 ## Case studies (since 13 Oct 2026)
 - The engine's second format: an explainer built around the question readers ask when something
   happens, kept current rather than written again. Articles with `format = 'case_study'`, filed
