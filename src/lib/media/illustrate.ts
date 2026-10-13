@@ -75,13 +75,49 @@ function configureCloudinary(): boolean {
   return true;
 }
 
+const FETCH_UA = "TheIndiaDecade picture desk (https://www.theindiadecade.com; contact@theindiadecade.com)";
+const MAX_SOURCE_BYTES = 15 * 1024 * 1024;
+
+/**
+ * The picture's bytes, fetched by us with a named User-Agent. Wikimedia
+ * rate-limits anonymous fetchers, Cloudinary's among them, with 429s; a
+ * fetch that names itself is served. Falls back to the URL itself, for
+ * Cloudinary to fetch, when the bytes cannot be had.
+ */
+async function sourceFor(sourceUrl: string): Promise<string> {
+  if (!/^https?:/i.test(sourceUrl)) return sourceUrl;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20_000);
+    try {
+      const response = await fetch(sourceUrl, { signal: controller.signal, headers: { "User-Agent": FETCH_UA } });
+      if (response.status === 429 && attempt === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 2_500));
+        continue;
+      }
+      if (!response.ok) return sourceUrl;
+      const type = (response.headers.get("content-type") ?? "image/jpeg").split(";")[0].trim();
+      if (!type.startsWith("image/")) return sourceUrl;
+      const bytes = Buffer.from(await response.arrayBuffer());
+      if (!bytes.length || bytes.length > MAX_SOURCE_BYTES) return sourceUrl;
+      return `data:${type};base64,${bytes.toString("base64")}`;
+    } catch {
+      return sourceUrl;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+  return sourceUrl;
+}
+
 async function uploadRemote(
   sourceUrl: string,
   folder: string,
   options: { pad?: boolean } = {},
 ): Promise<{ url: string; publicId: string; bytes: number } | null> {
   try {
-    const result = await cloudinary.uploader.upload(sourceUrl, {
+    const source = await sourceFor(sourceUrl);
+    const result = await cloudinary.uploader.upload(source, {
       folder,
       resource_type: "image",
       quality: "auto",
