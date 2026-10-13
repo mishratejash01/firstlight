@@ -29,6 +29,7 @@ import { submitToIndexNow } from "@/lib/seo/indexnow";
 import { researchSearch } from "@/lib/seo/search-research";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { searchGoogleNews, type NewsHit } from "@/lib/trends/google-news";
+import { linkPictureDecision } from "@/lib/media/picture-desk";
 
 /**
  * The case desk.
@@ -307,7 +308,9 @@ export async function writeCaseStudy(supabase: Supabase, input: WriteInput): Pro
     subjects: draft.entities.filter((e) => e.relation === "about").map((e) => ({ name: e.name, type: e.type })),
     related: draft.entities.filter((e) => e.relation !== "about").map((e) => ({ name: e.name, type: e.type })),
     brief: draft.imageBrief,
+    alternatives: draft.imageAlternatives,
     terms: draft.imageSearchTerms,
+    standfirst: draft.standfirst,
   });
 
   // The cover: the question on the paper's ground, for the library, the
@@ -378,11 +381,14 @@ export async function writeCaseStudy(supabase: Supabase, input: WriteInput): Pro
     searchKeywords: draft.searchKeywords,
     imageBrief: draft.imageBrief,
     imageSearchTerms: draft.imageSearchTerms,
+    imageAlternatives: draft.imageAlternatives,
     keyFacts: draft.atAGlance,
     entities: draft.entities,
     faqs: draft.faqs,
     unverifiedClaims: draft.unverifiedClaims,
   });
+
+  await linkPictureDecision(illustration?.decisionId, article.id);
 
   if (status === "published") {
     revalidateStory(CASE_SECTION_SLUG, article.slug);
