@@ -104,11 +104,13 @@ async function uploadRemote(
   }
 }
 
-async function uploadSvg(
+export async function uploadSvg(
   svg: string,
   folder: string,
 ): Promise<{ url: string; publicId: string; bytes: number } | null> {
   try {
+    // Callers outside this module (the case desk's covers) have not configured the client.
+    configureCloudinary();
     // Cloudinary rasterises SVG on upload, so the delivered asset is a normal
     // image rather than markup the browser has to trust.
     const dataUri = `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
