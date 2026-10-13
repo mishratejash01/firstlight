@@ -8,6 +8,8 @@ const LIBRARY_NAMES: Record<string, string> = {
   flickr: "Flickr",
   rawpixel: "rawpixel",
   geographorguk: "Geograph",
+  pexels: "Pexels",
+  openstreetmap: "OpenStreetMap",
 };
 
 export function readableCredit(credit: string): string {
