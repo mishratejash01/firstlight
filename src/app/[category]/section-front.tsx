@@ -13,7 +13,9 @@ import { HeroStory } from "@/components/article/hero-story";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SectionMark } from "@/components/site/section-mark";
 import { SiteHeader } from "@/components/site/site-header";
+import { CaseStudyLibrary } from "@/components/case-study/case-study-library";
 import { getArticlesByCategory } from "@/lib/queries/articles";
+import { getCaseStudies } from "@/lib/queries/case-studies";
 import { getAllSections } from "@/lib/queries/navigation";
 import { createAnonymousClient } from "@/lib/supabase/anonymous";
 
@@ -30,7 +32,7 @@ async function getCategory(slug: string) {
   const supabase = createAnonymousClient();
   const { data } = await supabase
     .from("categories")
-    .select("slug, name, description, seo_title")
+    .select("slug, name, description, seo_title, layout")
     .eq("slug", slug)
     .eq("is_active", true)
     .maybeSingle();
@@ -114,6 +116,7 @@ export async function sectionMetadata(slug: string, page: number): Promise<Metad
 export async function SectionFront({ slug, page }: { slug: string; page: number }) {
   const category = await getCategory(slug);
   if (!category) notFound();
+  if (category.layout === "case_studies") return <CaseStudyFront category={category} page={page} />;
 
   // One more than the page shows, to know whether an older page exists.
   const size = page === 1 ? FRONT_COUNT : PAGE_SIZE;
@@ -298,6 +301,62 @@ export async function SectionFront({ slug, page }: { slug: string; page: number 
         ) : null}
       </main>
 
+      <SiteFooter />
+    </>
+  );
+}
+
+/** The library page count: a lead and up to seven shelves of four, then plain pages of thirty. */
+const LIBRARY_FRONT = 29;
+const LIBRARY_PAGE = 30;
+
+/**
+ * The Case studies section: the same shell as any section front, with the
+ * library (components/case-study/case-study-library) in place of the news
+ * layout, and the subjects to shelve by from the sections list.
+ */
+async function CaseStudyFront({
+  category,
+  page,
+}: {
+  category: { slug: string; name: string; description: string | null; seo_title: string | null };
+  page: number;
+}) {
+  const size = page === 1 ? LIBRARY_FRONT : LIBRARY_PAGE;
+  const offset = page === 1 ? 0 : LIBRARY_FRONT + (page - 2) * LIBRARY_PAGE;
+  const [fetched, sections] = await Promise.all([getCaseStudies(size + 1, offset), getAllSections()]);
+  const hasOlder = fetched.length > size;
+  const items = fetched.slice(0, size);
+  if (page > 1 && !items.length) notFound();
+  const subjects = sections.filter((section) => section.slug !== category.slug && section.layout === "standard");
+  const url = absoluteUrl(sectionPath(category.slug, page));
+
+  return (
+    <>
+      <SiteHeader activeSlug={category.slug} />
+      <JsonLd
+        data={collectionPageJsonLd({
+          url,
+          name: page === 1 ? searchTitle(category) : `${category.name}: Page ${page}`,
+          description: category.description,
+          items: items.map((item) => ({ url: absoluteUrl(`/${item.categories.slug}/${item.slug}`), name: item.headline })),
+        })}
+      />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: "Home", url: absoluteUrl("/") },
+          { name: category.name, url: absoluteUrl(`/${category.slug}`) },
+        ])}
+      />
+      <main className="route-enter mx-auto max-w-page px-4 sm:px-6">
+        <CaseStudyLibrary
+          items={items}
+          subjects={subjects}
+          page={page}
+          hasOlder={hasOlder}
+          pageHref={(n) => sectionPath(category.slug, n)}
+        />
+      </main>
       <SiteFooter />
     </>
   );
