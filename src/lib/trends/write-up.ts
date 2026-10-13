@@ -16,6 +16,7 @@ import {
   loadActiveDirectives,
 } from "@/lib/engine/directives";
 import type { TrendNewsItem } from "./google-trends";
+import { linkPictureDecision } from "@/lib/media/picture-desk";
 
 /**
  * Turns triaged trends into articles.
@@ -268,12 +269,19 @@ export async function writeUpTrends(limit = 3): Promise<WriteUpReport> {
     // as a hole where the picture should be.
     const illustration = await illustrateArticle({
       headline: draft.headline,
+      standfirst: draft.standfirst,
       section: section.name,
       // Entities the model marked as the primary subject make far better image
       // search terms than the headline does.
       subjects: draft.entities
         .filter((entity) => entity.relation === "about")
         .map((entity) => ({ name: entity.name, type: entity.type })),
+      related: draft.entities
+        .filter((entity) => entity.relation !== "about")
+        .map((entity) => ({ name: entity.name, type: entity.type })),
+      brief: draft.imageBrief,
+      alternatives: draft.imageAlternatives,
+      terms: draft.imageSearchTerms,
     });
 
     const { data: article, error } = await supabase
@@ -313,6 +321,7 @@ export async function writeUpTrends(limit = 3): Promise<WriteUpReport> {
     // but carries no entity markup, no key-numbers block, and nothing for the
     // recommendation engine to relate it to.
     await attachStructuredData(supabase, article.id, draft);
+    await linkPictureDecision(illustration?.decisionId, article.id);
 
     if (trend.cluster_key) clustersWrittenThisRun.add(trend.cluster_key);
 
