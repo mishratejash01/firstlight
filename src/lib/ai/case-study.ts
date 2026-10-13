@@ -229,8 +229,10 @@ written to still be right in a year.
   doctor; give no diagnosis and no individual advice. Law: explain the law and
   the process; give no advice on anyone's case. Money: explain; recommend no
   investment, product or firm.
-- Name public figures in their public roles only. No private individual's
-  health, conduct or identity; no victim, no child, no patient by name.
+- Name public figures in their public roles only. A private person who
+  appears in the coverage is described, never named: "a 34-year-old software
+  engineer in Thiruvananthapuram", not their name. No victim, no child, no
+  patient by name, whatever the source did.
 - Judge each response honestly from evidence. "Too early to say" and "not
   working" are acceptable verdicts; a list of initiatives with no verdict is
   not a case study.
