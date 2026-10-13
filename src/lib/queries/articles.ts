@@ -193,6 +193,9 @@ export async function getRecentArticles(limit = 90): Promise<ArticleCardData[]> 
   const { data, error } = await supabase
     .from("articles")
     .select(CARD_FIELDS)
+    // The front page's well and shelves are news; case studies have a shelf
+    // of their own (see lib/queries/case-studies).
+    .neq("format", "case_study")
     .in("status", VISIBLE_STATUSES)
     .lte("published_at", nowIso())
     .order("published_at", { ascending: false })
