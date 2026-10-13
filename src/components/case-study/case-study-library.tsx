@@ -89,8 +89,8 @@ export function CaseStudyLibrary({
           </div>
           <ul className="mt-2 md:grid md:grid-cols-2 md:gap-x-12">
             {rest.map((item) => (
-              <li key={item.id} id={item.subject_slug ? `cs-${item.subject_slug}` : undefined} className="border-t border-hairline">
-                <CaseStudyCard item={item} subjectName={subjectName(item)} variant="line" />
+              <li key={item.id} id={item.subject_slug ? `cs-${item.subject_slug}` : undefined} className="border-t border-hairline py-5">
+                <CaseStudyCard item={item} subjectName={subjectName(item)} variant="row" />
               </li>
             ))}
           </ul>
