@@ -14,6 +14,7 @@ import {
   loadActiveDirectives,
 } from "@/lib/engine/directives";
 import type { DraftedArticle } from "./schemas";
+import { linkPictureDecision } from "@/lib/media/picture-desk";
 
 /**
  * Autonomous article generation and publishing.
@@ -99,7 +100,9 @@ async function publishDraft(
     related: draft.entities
       .filter((entity) => entity.relation !== "about")
       .map((entity) => ({ name: entity.name, type: entity.type })),
+    standfirst: draft.standfirst,
     brief: draft.imageBrief,
+    alternatives: draft.imageAlternatives,
     terms: draft.imageSearchTerms,
   });
 
@@ -134,6 +137,7 @@ async function publishDraft(
   if (error) throw new Error(error.message);
 
   await attachStructuredData(supabase, article.id, draft);
+  await linkPictureDecision(illustration?.decisionId, article.id);
 
   return article.slug;
 }
