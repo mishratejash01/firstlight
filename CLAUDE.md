@@ -99,6 +99,28 @@ replaces the notes a previous session kept on one Mac. Nothing here is a secret.
 - Everything here is admin-only by RLS (`app.is_admin()`). Never put model calls in page renders;
   the dialogue runs in server actions (`src/app/admin/steer-actions.ts`).
 
+## Case studies (since 13 Oct 2026)
+- The engine's second format: an explainer built around the question readers ask when something
+  happens, kept current rather than written again. Articles with `format = 'case_study'`, filed
+  under the `case-studies` section (layout `case_studies`), with the structured block the page
+  renders in `articles.case_study` (`caseStudyBlockSchema`, `src/lib/ai/case-study.ts`), the
+  subject as `subject_slug` (a section slug, deliberately not a foreign key) and `reviewed_at`.
+- **The case desk** (`src/lib/engine/case-desk.ts`, cron `engine-case-desk` every two hours →
+  `/api/cron/case-desk`): gathers the last 72 h of strong story events and 48 h of trends, asks the
+  gate six questions per candidate in one model call (a question behind it, asked now, enough
+  material, lasting, safe, would travel), and writes at most one per pass and
+  `case_studies_daily_cap` (3) a day. A candidate an existing case study answers refreshes that
+  page instead (updates log + reviewed_at). When nothing qualifies it writes one from the
+  question bank (`case_questions`) at most every `case_studies_canon_days` (7), topping the bank
+  up when it runs low. Everything considered is logged in `case_candidates`; `/admin/case-studies`
+  shows it and lets an admin queue, drop or add questions (a queued question goes first).
+  `?question=…&subject=…` on the route writes one on demand; `?propose=1` refills the bank.
+- Never breaking; published after the usual delay; excluded from the news sitemap, the front
+  page's news well and `related_articles`; shown on their own front-page shelf, in the section
+  library, and as the "Case study" box inside any story sharing a topic tag.
+- House rules for the writer are in `CASE_STUDY_RULE`: the question is the headline, the short
+  answer first, dated figures, India first, no individual medical/legal/financial advice.
+
 ## Cloudflare in front of the site (since 13 Oct 2026)
 - Zone `theindiadecade.com` on the owner's free Cloudflare account; nameservers at GoDaddy point to
   it. `www` and the apex are proxied; **`engine.theindiadecade.com` is DNS-only** and is what
