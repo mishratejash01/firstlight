@@ -4,7 +4,7 @@ export type NavCategory = {
   slug: string;
   name: string;
   /** How the section's block presents itself; see the category_layout migration. */
-  layout: "standard" | "opinion";
+  layout: "standard" | "opinion" | "case_studies";
   /** Small mark shown beside the section name; null where none is set. */
   icon_url: string | null;
 };
@@ -48,7 +48,11 @@ export async function getAllSections(): Promise<NavCategory[]> {
       slug: row.slug,
       name: row.name,
       layout:
-        row.layout === "opinion" ? ("opinion" as const) : ("standard" as const),
+        row.layout === "opinion"
+          ? ("opinion" as const)
+          : row.layout === "case_studies"
+            ? ("case_studies" as const)
+            : ("standard" as const),
       icon_url: row.icon_url,
     }));
   }
@@ -87,7 +91,11 @@ export async function getNavCategories(): Promise<NavCategory[]> {
       // casting — a section set to something this build does not know about
       // falls back to the ordinary block instead of rendering nothing.
       layout:
-        row.layout === "opinion" ? ("opinion" as const) : ("standard" as const),
+        row.layout === "opinion"
+          ? ("opinion" as const)
+          : row.layout === "case_studies"
+            ? ("case_studies" as const)
+            : ("standard" as const),
       icon_url: row.icon_url,
     }));
   }
