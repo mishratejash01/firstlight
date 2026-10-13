@@ -128,6 +128,39 @@ export async function findWikidataItem(
       ids.join("|"),
   );
 
+  // People: every human called exactly this, in the search's order, which
+  // is by notability. The story's words then prefer one — an activist's
+  // story takes the activist over the actor — but they never veto the only
+  // or the first one: "Donald Trump considers strikes" shares no word with
+  // "president of the United States", and vetoing him handed the story his
+  // grandson, whose description does say "Donald Trump".
+  if (wantHuman) {
+    const humans = ids
+      .map((id) => entities?.entities?.[id])
+      .filter((entity): entity is NonNullable<typeof entity> => Boolean(entity))
+      .filter((entity) => instanceIds(entity).includes("Q5") && !instanceIds(entity).includes("Q4167410"))
+      .filter((entity) => {
+        const label = entity.labels?.en?.value ?? "";
+        // The label itself, or an alias that is the whole name: an alias
+        // that merely contains it ("Donald Trump" on his grandson) is not.
+        return normaliseName(label) === target || (entity.aliases?.en ?? []).some((a) => normaliseName(a.value) === target && !/\b(son|daughter|grandson|granddaughter|nephew|niece|father|mother|brother|sister|wife|husband)\b/i.test(entity.descriptions?.en?.value ?? ""));
+      });
+    const preferred =
+      humans.find((entity) => {
+        if (!contextWords.size) return false;
+        const description = normaliseName(entity.descriptions?.en?.value ?? "");
+        return description.split(" ").some((word) => word.length > 3 && contextWords.has(word));
+      }) ?? humans[0];
+    if (!preferred) return null;
+    const image = claimValues(preferred, "P18")[0];
+    return {
+      qid: preferred.id,
+      label: preferred.labels?.en?.value ?? name,
+      description: preferred.descriptions?.en?.value ?? null,
+      imageFile: typeof image === "string" ? image : null,
+    };
+  }
+
   for (const id of ids) {
     const entity = entities?.entities?.[id];
     if (!entity) continue;
@@ -136,22 +169,7 @@ export async function findWikidataItem(
     const isDisambiguation = instances.includes("Q4167410");
     if (isDisambiguation) continue;
 
-    if (wantHuman) {
-      // A person must be a human, must be called exactly this — the search
-      // is fuzzy and "Saurav Das" once came back as "Sourav Das", a different
-      // man — and, where the story gives any context, must be the kind of
-      // person the story is about: an activist's story does not get the
-      // portrait of an actor who shares the name.
-      if (!isHuman) continue;
-      const label = entity.labels?.en?.value ?? "";
-      const aliases = (entity.aliases?.en ?? []).map((a) => a.value);
-      if (![label, ...aliases].map(normaliseName).includes(target)) continue;
-      if (contextWords.size) {
-        const description = normaliseName(entity.descriptions?.en?.value ?? "");
-        const shares = description.split(" ").some((word) => word.length > 3 && contextWords.has(word));
-        if (!shares) continue;
-      }
-    } else {
+    {
       // Anything else must not be a human, and must actually be called what
       // we asked for: the search is fuzzy, the identity must not be.
       if (isHuman) continue;
@@ -475,8 +493,13 @@ export async function recordSameAs(
   return recorded;
 }
 
-/** A 320-pixel version of a Commons thumbnail URL, for judging rather than publishing. */
-export function commonsThumb(url: string, width = 320): string {
+/**
+ * A small version of a Commons thumbnail URL, for judging rather than
+ * publishing. Commons serves thumbnails only at its own widths — 250, 330,
+ * 500, 1280, 1920 among them — and answers 400 to any other, so the width
+ * here must be one of those.
+ */
+export function commonsThumb(url: string, width: 250 | 330 | 500 = 330): string {
   return url.replace(/\/(\d+)px-/, `/${width}px-`);
 }
 
