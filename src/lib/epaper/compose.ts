@@ -31,7 +31,7 @@ const SECONDS = 2;
 export type EpaperPage = {
   number: number;
   kind: "front" | "section" | "cases" | "puzzles" | "index";
-  /** "Politics", "Science · Health · Environment", "Politics, continued". */
+  /** "Politics", "Science · Health · Environment". A section over several pages carries its name on each. */
   title: string;
   lead: EditionArticle | null;
   seconds: EditionArticle[];
@@ -112,7 +112,7 @@ export function composeEdition(
       ga.name.localeCompare(gb.name),
   );
 
-  type Draft = { names: string[]; stories: EditionArticle[]; continued: boolean };
+  type Draft = { names: string[]; stories: EditionArticle[] };
   const drafts: Draft[] = [];
   let shared: Draft | null = null;
   const flush = () => {
@@ -123,8 +123,8 @@ export function composeEdition(
   for (const [, group] of sections) {
     if (group.stories.length > SMALL_SECTION) {
       flush();
-      chunk(group.stories).forEach((stories, index) =>
-        drafts.push({ names: [group.name], stories, continued: index > 0 }),
+      chunk(group.stories).forEach((stories) =>
+        drafts.push({ names: [group.name], stories }),
       );
       continue;
     }
@@ -138,7 +138,7 @@ export function composeEdition(
       current.stories.push(...group.stories);
     } else {
       flush();
-      shared = { names: [group.name], stories: [...group.stories], continued: false };
+      shared = { names: [group.name], stories: [...group.stories] };
     }
   }
   flush();
@@ -151,7 +151,7 @@ export function composeEdition(
     pages.push({
       number: pages.length + 1,
       kind: "section",
-      title: `${draft.names.join(" · ")}${draft.continued ? ", continued" : ""}`,
+      title: draft.names.join(" · "),
       ...arrange([...draft.stories].sort(byWeight)),
     });
   }
