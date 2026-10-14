@@ -56,6 +56,7 @@ const ABOUT_LINKS = [
 const LEGAL_LINKS = [
   { href: "/sections", label: "All sections" },
   { href: "/bulletin", label: "News bulletin" },
+  { href: "/epaper", label: "E-paper" },
   { href: "/breaking", label: "Breaking" },
   { href: "/corrections", label: "Corrections" },
   { href: "/privacy", label: "Privacy" },
