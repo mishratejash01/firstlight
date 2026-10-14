@@ -182,6 +182,34 @@ export async function SiteHeader({
           </p>
 
           <div className="flex items-center justify-end gap-3.5 sm:gap-4 lg:order-3">
+            {/* The day's paper, page by page. /epaper always sends the reader
+                to the newest edition, so this link never has to change. On a
+                phone the row has no room for the word beside the date and
+                sign-in, so the mark stands alone there and the name is read
+                out to screen readers. */}
+            <Link
+              href="/epaper"
+              prefetch={false}
+              title="E-paper"
+              className="inline-flex items-center gap-1.5 rounded-control border border-ink p-1.5 font-label text-meta font-semibold whitespace-nowrap text-ink transition hover:bg-ink hover:text-paper sm:px-2.5"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+              >
+                <path d="M4 5h13v14H6a2 2 0 0 1-2-2z" />
+                <path d="M17 9h3v8a2 2 0 0 1-2 2h-1" />
+                <path d="M7 9h7M7 12.5h7M7 16h4" strokeLinecap="round" />
+              </svg>
+              <span className="sr-only sm:not-sr-only">E-paper</span>
+            </Link>
             <SearchBox />
             <SocialLinks />
             {/* On a phone the section strip has the row below to itself, so
