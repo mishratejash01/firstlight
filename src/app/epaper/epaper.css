@@ -1,0 +1,984 @@
+/* ---------------------------------------------------------------------------
+   The e-paper.
+
+   Loaded by the edition pages only. Unlayered on purpose: it has to win over
+   the Tailwind utilities the story renderer puts on paragraphs, headings and
+   figures (sized for a story page's single wide column), which here sit in
+   newspaper columns a third of that width.
+
+   The look is the paper's, in print: white sheets on a grey desk, a serif for
+   headlines and text, justified columns divided by hairline rules, a double
+   rule under the nameplate and each running head, a drop cap on each lead.
+   --------------------------------------------------------------------------- */
+
+.ep {
+  --ep-rule: #d5d8de;
+  --ep-serif: var(--font-epaper), "Source Serif 4", Georgia, "Times New Roman", serif;
+  background: #e8eaee;
+  color: var(--color-ink);
+}
+
+.ep-viewer {
+  max-width: 1240px;
+  margin-inline: auto;
+  padding: 20px 16px 48px;
+}
+
+/* --- Toolbar: editions on one side, the pager on the other. --------------- */
+
+.ep-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  margin-bottom: 16px;
+  font-family: var(--font-label);
+}
+.ep-editions {
+  display: flex;
+  gap: 18px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.ep-editions a {
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.ep-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.ep-button {
+  border: 1px solid var(--color-ink);
+  border-radius: 3px;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  padding: 9px 14px;
+  font-family: var(--font-label);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ep-button-solid {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+.ep-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.ep-select select {
+  max-width: 17rem;
+  border: 1px solid color-mix(in srgb, var(--color-ink) 30%, transparent);
+  border-radius: 3px;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  padding: 9px 10px;
+  font-family: var(--font-label);
+  font-size: 14px;
+}
+
+/* --- The sheet. ----------------------------------------------------------- */
+
+.ep-desk {
+  perspective: 2400px;
+}
+.ep-sheet {
+  position: relative;
+  background: #ffffff;
+  padding: 24px 28px 18px;
+  box-shadow:
+    0 1px 2px rgb(20 22 28 / 0.08),
+    0 14px 34px rgb(20 22 28 / 0.12);
+}
+
+.ep-nameplate {
+  text-align: center;
+  border-bottom: 4px double var(--color-ink);
+  padding-bottom: 10px;
+}
+.ep-nameplate-art {
+  display: block;
+  height: clamp(48px, 8.5vw, 96px);
+  width: auto;
+  margin-inline: auto;
+}
+.ep-edition-line {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 18px;
+  margin-top: 14px;
+  border-top: 1px solid var(--color-ink);
+  padding-top: 8px;
+  font-family: var(--font-label);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.ep-running-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: 12px;
+  border-bottom: 4px double var(--color-ink);
+  padding-bottom: 8px;
+  font-family: var(--font-label);
+  font-size: 12.5px;
+  color: var(--color-muted);
+}
+.ep-running-head > :last-child {
+  text-align: right;
+}
+.ep-page-title {
+  margin: 0;
+  font-family: var(--ep-serif);
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+  color: var(--color-ink);
+}
+
+/* --- Stories: the lead, then the rest flowing through balanced columns. --- */
+
+.ep-stories {
+  margin-top: 20px;
+}
+.ep-flow {
+  columns: 3 16rem;
+  column-gap: 26px;
+  column-rule: 1px solid var(--ep-rule);
+  margin-top: 26px;
+  border-top: 2px solid var(--color-ink);
+  padding-top: 18px;
+}
+.ep-flow > * {
+  break-inside: avoid;
+}
+.ep-flow-label,
+.ep-rail-title {
+  margin: 0 0 4px;
+  border-bottom: 2px solid var(--color-ink);
+  padding-bottom: 6px;
+  font-family: var(--ep-serif);
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+.ep-flow-label {
+  break-after: avoid;
+}
+
+/* The front page's "Inside" strip, under the edition line. */
+.ep-inside-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  margin-top: 10px;
+  border-top: 1px solid var(--color-ink);
+  padding-top: 10px;
+  font-family: var(--font-label);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.ep-inside-label {
+  font-family: var(--ep-serif);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.ep-inside-strip a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-ink);
+  text-decoration: none;
+}
+.ep-inside-strip a:hover {
+  text-decoration: underline;
+}
+
+/* --- Type. ---------------------------------------------------------------- */
+
+.ep-hed {
+  margin: 0;
+  font-family: var(--ep-serif);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+  color: var(--color-ink);
+}
+.ep-hed-front {
+  font-size: clamp(2rem, 4.2vw, 3.3rem);
+  font-weight: 800;
+  line-height: 1.04;
+}
+.ep-hed-lead {
+  font-size: clamp(1.7rem, 3vw, 2.4rem);
+  line-height: 1.08;
+}
+.ep-hed-second {
+  margin-top: 10px;
+  font-size: 1.45rem;
+  line-height: 1.15;
+}
+.ep-hed-brief {
+  font-size: 1.1rem;
+  line-height: 1.22;
+}
+.ep-dek {
+  margin: 10px 0 0;
+  font-family: var(--ep-serif);
+  font-size: 1.2rem;
+  font-style: italic;
+  line-height: 1.45;
+  color: #2a2d35;
+}
+.ep-byline {
+  margin: 8px 0 0;
+  font-family: var(--font-label);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+/* Newspaper pictures are square-cut: no rounded corners, no rough edge. */
+.ep-figure {
+  margin: 14px 0 0;
+}
+.ep-pic {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-hairline);
+}
+.ep-pic-wide {
+  aspect-ratio: 16 / 9;
+}
+.ep-pic-second {
+  aspect-ratio: 3 / 2;
+}
+/* The credits for the edition's pictures, on the last page. */
+.ep-credits {
+  margin-top: 28px;
+}
+.ep-credits ol {
+  columns: 2 22rem;
+  column-gap: 28px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-label);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+.ep-credits li {
+  break-inside: avoid;
+  margin-bottom: 6px;
+}
+.ep-credits-page {
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.ep-credits-story {
+  color: var(--color-ink);
+}
+
+/* --- Story text, set as newsprint. --------------------------------------- */
+
+.ep-body {
+  margin-top: 14px;
+  font-family: var(--ep-serif);
+  font-size: 16.5px;
+  line-height: 1.5;
+  color: var(--color-ink);
+}
+.ep-body p {
+  margin: 0 0 0.7em;
+  font-size: inherit;
+  line-height: inherit;
+  text-align: justify;
+  hyphens: auto;
+}
+.ep-body h2,
+.ep-body h3 {
+  margin: 0.9em 0 0.35em;
+  font-family: var(--ep-serif);
+  font-size: 1.08em;
+  font-weight: 700;
+  line-height: 1.25;
+  break-after: avoid;
+}
+.ep-body ul,
+.ep-body ol {
+  margin: 0 0 0.7em;
+  padding-left: 1.2em;
+  font-size: inherit;
+}
+.ep-body blockquote {
+  margin: 0.6em 0;
+  border-left: 2px solid var(--color-ink);
+  padding-left: 0.8em;
+  font-size: 1.05em;
+  font-style: italic;
+}
+.ep-body figure,
+.ep-body .media-wide {
+  width: 100%;
+  margin: 0.4em 0 0.8em;
+  break-inside: avoid;
+}
+.ep-body .media-wide img {
+  max-height: 22rem;
+  border-radius: 0;
+}
+.ep-body .table-wrap {
+  margin: 0.6em 0;
+  break-inside: avoid;
+}
+.ep-body .data-table {
+  font-size: 13px;
+}
+.ep-columns {
+  columns: 3 15rem;
+  column-gap: 26px;
+  column-rule: 1px solid var(--ep-rule);
+}
+.ep-columns > p:first-of-type::first-letter {
+  float: left;
+  padding: 6px 8px 0 0;
+  font-size: 3.6em;
+  font-weight: 700;
+  line-height: 0.78;
+}
+
+/* --- Second stories and briefs. ------------------------------------------ */
+
+.ep-second {
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--ep-rule);
+  padding-bottom: 16px;
+}
+.ep-second .ep-figure {
+  margin-top: 0;
+}
+.ep-brief {
+  border-bottom: 1px solid var(--color-hairline);
+  padding: 12px 0;
+}
+.ep-brief:last-child {
+  border-bottom: 0;
+}
+.ep-brief-text {
+  margin: 6px 0 0;
+  font-family: var(--ep-serif);
+  font-size: 15px;
+  line-height: 1.45;
+  text-align: justify;
+  hyphens: auto;
+}
+
+/* --- The front page's "Inside" panel and the index. ----------------------- */
+
+.ep-index-number {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 22px;
+  border-radius: 2px;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font-family: var(--font-label);
+  font-size: 12px;
+  font-weight: 700;
+}
+.ep-index {
+  margin-top: 20px;
+}
+.ep-index-list {
+  columns: 3 16rem;
+  column-gap: 28px;
+  column-rule: 1px solid var(--ep-rule);
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.ep-index-page {
+  break-inside: avoid;
+  margin-bottom: 20px;
+}
+.ep-index-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--ep-serif);
+  font-size: 1.12rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  text-decoration: none;
+}
+.ep-index-page ul {
+  display: grid;
+  gap: 5px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.ep-index-page ul li {
+  font-family: var(--ep-serif);
+  font-size: 14.5px;
+  line-height: 1.35;
+  color: var(--color-ink);
+}
+
+.ep-sheet-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-top: 24px;
+  border-top: 4px double var(--color-ink);
+  padding-top: 8px;
+  font-family: var(--font-label);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.ep-next {
+  color: var(--color-accent);
+}
+
+/* --- The page turn: the new page folds in from the spine. ---------------- */
+
+@keyframes ep-fold-forward {
+  from {
+    transform: rotateY(-70deg);
+    opacity: 0.25;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes ep-fold-back {
+  from {
+    transform: rotateY(70deg);
+    opacity: 0.25;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.ep-turn-forward {
+  transform-origin: left center;
+  animation: ep-fold-forward 0.6s cubic-bezier(0.22, 0.8, 0.3, 1) both;
+}
+.ep-turn-back {
+  transform-origin: right center;
+  animation: ep-fold-back 0.6s cubic-bezier(0.22, 0.8, 0.3, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ep-turn-forward,
+  .ep-turn-back {
+    animation: none;
+  }
+}
+
+/* --- Narrow screens: one column, the rail under the stories. -------------- */
+
+/* Tablets: tighter margins round the sheet and inside it. */
+@media (max-width: 1024px) {
+  .ep-viewer {
+    padding: 12px 10px 36px;
+  }
+  .ep-sheet {
+    padding: 18px 18px 14px;
+  }
+}
+
+/* Phones: the sheet runs edge to edge, with only a little margin inside the
+   paper, so the text has the whole width of the screen. */
+@media (max-width: 640px) {
+  .ep-viewer {
+    padding: 8px 0 28px;
+  }
+  .ep-toolbar {
+    padding-inline: 10px;
+  }
+  /* The pager on one row: the page list takes what the buttons leave. */
+  .ep-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .ep-pager {
+    flex-wrap: nowrap;
+  }
+  .ep-select {
+    flex: 1;
+    min-width: 0;
+  }
+  .ep-select select {
+    width: 100%;
+    max-width: none;
+  }
+  .ep-button {
+    padding: 9px 11px;
+  }
+  .ep-wide {
+    display: none;
+  }
+  .ep-sheet {
+    padding: 14px 12px 12px;
+    box-shadow: none;
+    border-block: 1px solid var(--ep-rule);
+  }
+  .ep-running-head {
+    grid-template-columns: minmax(0, 1fr);
+    text-align: center;
+  }
+  .ep-running-head > :first-child {
+    display: none;
+  }
+  .ep-running-head > :last-child {
+    text-align: center;
+  }
+  .ep-body {
+    font-size: 16px;
+  }
+}
+
+/* --- Puzzles. ------------------------------------------------------------- */
+
+.ep-puzzles {
+  margin-top: 20px;
+}
+.ep-crossword {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px 30px;
+}
+.ep-puzzle-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 30px;
+  margin-top: 28px;
+  border-top: 2px solid var(--color-ink);
+  padding-top: 18px;
+}
+.ep-puzzle-pair > .ep-puzzle + .ep-puzzle {
+  border-left: 1px solid var(--ep-rule);
+  padding-left: 30px;
+}
+@media (min-width: 1000px) {
+  .ep-crossword {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  }
+  .ep-crossword .ep-clue-lists {
+    margin-top: 0;
+    align-content: start;
+  }
+}
+.ep-puzzle-title {
+  margin: 0;
+  border-bottom: 2px solid var(--color-ink);
+  padding-bottom: 6px;
+  font-family: var(--ep-serif);
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+.ep-puzzle-note {
+  margin: 8px 0 14px;
+  font-family: var(--ep-serif);
+  font-size: 15px;
+  font-style: italic;
+  line-height: 1.45;
+  color: #2a2d35;
+}
+.ep-puzzle-subhead {
+  margin: 0 0 6px;
+  font-family: var(--font-label);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.ep-puzzle-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.ep-puzzle-actions .ep-button {
+  padding: 7px 12px;
+  font-size: 13px;
+}
+.ep-puzzle-done {
+  margin: 10px 0 0;
+  font-family: var(--font-label);
+  font-size: 14px;
+  font-weight: 700;
+  color: #1d5e36;
+}
+
+/* The crossword: black squares, numbered white ones, the answer in hand shaded. */
+.ep-cw-grid {
+  display: grid;
+  max-width: 560px;
+  border: 2px solid var(--color-ink);
+  background: var(--color-ink);
+  gap: 1px;
+}
+.ep-cw-block {
+  aspect-ratio: 1;
+  background: var(--color-ink);
+}
+.ep-cw-cell {
+  position: relative;
+  aspect-ratio: 1;
+  background: #ffffff;
+}
+.ep-cw-cell input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  padding: 18% 0 0;
+  text-align: center;
+  text-transform: uppercase;
+  font-family: var(--font-label);
+  font-size: clamp(11px, 2.2vw, 17px);
+  font-weight: 700;
+  color: var(--color-ink);
+  caret-color: transparent;
+  outline: none;
+}
+.ep-cw-number {
+  position: absolute;
+  top: 1px;
+  left: 2px;
+  font-family: var(--font-label);
+  font-size: clamp(7px, 1vw, 9.5px);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--color-ink);
+  pointer-events: none;
+}
+.ep-cw-word {
+  background: #dfe9f8;
+}
+.ep-cw-active {
+  background: #f9d878;
+}
+.ep-cw-wrong input {
+  color: #b42318;
+  text-decoration: line-through;
+}
+.ep-cw-current {
+  margin: 12px 0 0;
+  max-width: 560px;
+  background: #f1f6fd;
+  padding: 8px 12px;
+  font-family: var(--ep-serif);
+  font-size: 15px;
+  line-height: 1.4;
+}
+.ep-clue-lists {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 24px;
+  margin-top: 18px;
+}
+.ep-clues {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ep-clue {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  padding: 4px 6px;
+  text-align: left;
+  font-family: var(--ep-serif);
+  font-size: 14.5px;
+  line-height: 1.4;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+.ep-clue b {
+  margin-right: 4px;
+  font-family: var(--font-label);
+}
+.ep-clue-on {
+  background: #dfe9f8;
+}
+
+/* The sudoku: thin lines between squares, thick ones round each box. */
+.ep-sd-grid {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  max-width: 480px;
+  border: 2px solid var(--color-ink);
+}
+.ep-sd-cell {
+  position: relative;
+  aspect-ratio: 1;
+  border-right: 1px solid #b9bdc6;
+  border-bottom: 1px solid #b9bdc6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-label);
+  font-size: clamp(14px, 2.4vw, 19px);
+}
+.ep-sd-cell:nth-child(9n) {
+  border-right: 0;
+}
+.ep-sd-cell:nth-last-child(-n + 9) {
+  border-bottom: 0;
+}
+.ep-sd-right {
+  border-right: 2px solid var(--color-ink);
+}
+.ep-sd-bottom {
+  border-bottom: 2px solid var(--color-ink);
+}
+.ep-sd-given {
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.ep-sd-cell input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  text-align: center;
+  font: inherit;
+  color: var(--color-accent);
+  outline: none;
+}
+.ep-sd-cell input:focus {
+  background: #f9d878;
+}
+.ep-sd-wrong input {
+  color: #b42318;
+  background: #fbe6e6;
+}
+
+/* The word search. */
+.ep-ws-grid {
+  display: grid;
+  max-width: 480px;
+  border: 2px solid var(--color-ink);
+}
+.ep-ws-cell {
+  aspect-ratio: 1;
+  border: 0;
+  background: #ffffff;
+  padding: 0;
+  font-family: var(--font-label);
+  font-size: clamp(12px, 2vw, 15px);
+  font-weight: 600;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+.ep-ws-found {
+  background: #dfe9f8;
+  color: var(--color-accent);
+}
+.ep-ws-start {
+  background: #f9d878;
+}
+.ep-ws-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-label);
+  font-size: 13px;
+  font-weight: 600;
+}
+.ep-ws-done {
+  color: var(--color-muted);
+  text-decoration: line-through;
+}
+
+/* Yesterday's solutions, small, at the foot of the page. */
+.ep-solutions {
+  margin-top: 30px;
+  border-top: 1px solid var(--ep-rule);
+  padding-top: 16px;
+}
+.ep-solutions-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 24px;
+  margin-top: 10px;
+}
+.ep-solution-text {
+  margin: 0 0 16px;
+  font-family: var(--font-label);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--color-ink);
+}
+.ep-sd-mini {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  max-width: 180px;
+  border: 1.5px solid var(--color-ink);
+  font-family: var(--font-label);
+  font-size: 11px;
+  text-align: center;
+}
+.ep-sd-mini span {
+  border-right: 1px solid #d5d8de;
+  border-bottom: 1px solid #d5d8de;
+  line-height: 18px;
+}
+.ep-sd-mini .ep-sd-right {
+  border-right: 1.5px solid var(--color-ink);
+}
+.ep-sd-mini .ep-sd-bottom {
+  border-bottom: 1.5px solid var(--color-ink);
+}
+
+@media (max-width: 900px) {
+  .ep-puzzle-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ep-puzzle-pair > .ep-puzzle + .ep-puzzle {
+    margin-top: 24px;
+    border-left: 0;
+    border-top: 1px solid var(--ep-rule);
+    padding: 20px 0 0;
+  }
+  .ep-solutions-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .ep-clue-lists {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+}
+
+/* --- The paper's own advertisement, closing each page's columns. --------- */
+
+.ep-flow-solo {
+  columns: auto;
+  column-rule: none;
+}
+.ep-flow-solo .ep-second {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 0 26px;
+  align-items: start;
+}
+.ep-flow-solo .ep-second .ep-figure {
+  grid-row: span 3;
+}
+.ep-flow-solo .ep-ad {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "mark mark mark"
+    "head text mail";
+  align-items: center;
+  gap: 6px 24px;
+  text-align: left;
+}
+.ep-flow-solo .ep-ad-mark {
+  grid-area: mark;
+}
+.ep-flow-solo .ep-ad-head {
+  grid-area: head;
+}
+.ep-flow-solo .ep-ad-text {
+  grid-area: text;
+}
+.ep-flow-solo .ep-ad-mail {
+  grid-area: mail;
+}
+.ep-flow-solo .ep-ad > * {
+  margin: 0;
+}
+.ep-flow-solo .ep-ad-mail {
+  border-top: 0;
+  border-left: 1px solid var(--color-ink);
+  padding: 0 0 0 20px;
+}
+@media (max-width: 760px) {
+  .ep-flow-solo .ep-second {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ep-flow-solo .ep-ad {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "mark" "head" "text" "mail";
+    text-align: center;
+  }
+  .ep-flow-solo .ep-second {
+    text-align: left;
+  }
+  .ep-flow-solo .ep-ad-mail {
+    border-left: 0;
+    border-top: 1px solid var(--color-ink);
+    padding: 10px 0 0;
+  }
+}
+.ep-ad {
+  border: 3px solid var(--color-ink);
+  padding: 16px 18px 18px;
+  text-align: center;
+}
+.ep-ad-mark {
+  margin: 0;
+  font-family: var(--font-label);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.ep-ad-head {
+  margin: 6px 0 0;
+  font-family: var(--ep-serif);
+  font-size: 1.55rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--color-ink);
+}
+.ep-ad-text {
+  margin: 8px 0 0;
+  font-family: var(--ep-serif);
+  font-size: 15px;
+  font-style: italic;
+  line-height: 1.45;
+}
+.ep-ad-mail {
+  margin: 10px 0 0;
+  border-top: 1px solid var(--color-ink);
+  padding-top: 10px;
+  font-family: var(--font-label);
+  font-size: 14px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
