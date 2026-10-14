@@ -10,7 +10,15 @@ import {
   type ReactNode,
 } from "react";
 
-import { isReleased, shiftDate } from "@/lib/epaper/edition";
+import { formatEditionDate, isReleased, shiftDate } from "@/lib/epaper/edition";
+import { SITE_HOST, SITE_NAME } from "@/lib/site";
+
+import {
+  playPageTurn,
+  setSound,
+  soundOn,
+  subscribeToSound,
+} from "./page-sound";
 
 /**
  * Turns the pages of an edition.
@@ -27,6 +35,10 @@ import { isReleased, shiftDate } from "@/lib/epaper/edition";
  * Whether the next edition is out depends on the time, so it is decided here
  * in the reader's browser, after the page has loaded; the edition page itself
  * is cached and must not carry it.
+ *
+ * A turn makes the sound of a page turning (page-sound), which the reader can
+ * switch off; and the whole edition can be downloaded as a watermarked PDF,
+ * made in the browser (edition-pdf, loaded only when asked for).
  */
 
 type Turn = "forward" | "back" | null;
@@ -53,6 +65,14 @@ export function EpaperViewer({
 }) {
   const [current, setCurrent] = useState(0);
   const [turn, setTurn] = useState<Turn>(null);
+  const [pdf, setPdf] = useState<{
+    state: "idle" | "working" | "failed";
+    progress: number;
+  }>({
+    state: "idle",
+    progress: 0,
+  });
+  const sound = useSyncExternalStore(subscribeToSound, soundOn, () => true);
   const top = useRef<HTMLDivElement>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const count = pages.length;
@@ -63,12 +83,14 @@ export function EpaperViewer({
     (index: number, push = true, animate = true) => {
       if (index < 0 || index >= count || index === shown.current) return;
       setTurn(animate ? (index > shown.current ? "forward" : "back") : null);
+      if (animate) playPageTurn();
       shown.current = index;
       setCurrent(index);
       if (push) window.history.pushState(null, "", `#page-${index + 1}`);
       // Back to the head of the sheet, below the sticky section strip.
       const box = top.current?.getBoundingClientRect();
-      if (box && box.top < 0) window.scrollTo({ top: window.scrollY + box.top - 120 });
+      if (box && box.top < 0)
+        window.scrollTo({ top: window.scrollY + box.top - 120 });
     },
     [count],
   );
@@ -101,7 +123,8 @@ export function EpaperViewer({
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
+      if (target?.closest("input, textarea, select, [contenteditable='true']"))
+        return;
       if (event.altKey || event.ctrlKey || event.metaKey) return;
       if (event.key === "ArrowRight") show(current + 1);
       if (event.key === "ArrowLeft") show(current - 1);
@@ -130,14 +153,118 @@ export function EpaperViewer({
     show(dx < 0 ? current + 1 : current - 1);
   };
 
+  const download = async () => {
+    const box = top.current;
+    if (!box || pdf.state === "working") return;
+    setPdf({ state: "working", progress: 0 });
+    try {
+      const { downloadEditionPdf } = await import("./edition-pdf");
+      await downloadEditionPdf({
+        sheets: [
+          ...box.querySelectorAll<HTMLElement>(
+            ".ep-desk > section > .ep-sheet",
+          ),
+        ],
+        host: box,
+        date,
+        dateLabel: formatEditionDate(date),
+        siteName: SITE_NAME,
+        siteAddress: SITE_HOST.replace(/^www\./, ""),
+        onProgress: (progress) => setPdf({ state: "working", progress }),
+      });
+      setPdf({ state: "idle", progress: 0 });
+    } catch {
+      setPdf({ state: "failed", progress: 0 });
+    }
+  };
+
+  const tools = (
+    <div className="ep-tools">
+      <button
+        type="button"
+        className="ep-button ep-icon-button"
+        aria-pressed={sound}
+        aria-label={sound ? "Page sound on" : "Page sound off"}
+        title={sound ? "Turn page sound off" : "Turn page sound on"}
+        onClick={() => setSound(!sound)}
+      >
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" />
+          {sound ? (
+            <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" />
+          ) : (
+            <path d="M16 9.5l5 5M21 9.5l-5 5" />
+          )}
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="ep-button"
+        onClick={download}
+        disabled={pdf.state === "working"}
+      >
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          width="16"
+          height="16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="ep-button-icon"
+        >
+          <path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14" />
+        </svg>
+        {pdf.state === "working" ? "Preparing PDF…" : "Download PDF"}
+      </button>
+      {pdf.state === "working" ? (
+        <span
+          className="ep-progress"
+          role="progressbar"
+          aria-label="Preparing the PDF"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(pdf.progress * 100)}
+        >
+          <span style={{ width: `${Math.max(4, pdf.progress * 100)}%` }} />
+        </span>
+      ) : null}
+      {pdf.state === "failed" ? (
+        <span role="alert" className="ep-tools-note">
+          The PDF could not be made. Please try again.
+        </span>
+      ) : null}
+    </div>
+  );
+
   const pager = (
     <div className="ep-pager">
-      <button type="button" onClick={() => show(current - 1)} disabled={current === 0} className="ep-button">
-        Previous<span className="ep-wide"> page</span>
+      <button
+        type="button"
+        onClick={() => show(current - 1)}
+        disabled={current === 0}
+        className="ep-button"
+      >
+        Previous<span className="ep-wide">page</span>
       </button>
       <label className="ep-select">
         <span className="sr-only">Go to page</span>
-        <select value={current} onChange={(event) => show(Number(event.target.value))}>
+        <select
+          value={current}
+          onChange={(event) => show(Number(event.target.value))}
+        >
           {titles.map((title, index) => (
             <option key={index} value={index}>
               {index + 1}. {title}
@@ -151,7 +278,7 @@ export function EpaperViewer({
         disabled={current === count - 1}
         className="ep-button ep-button-solid"
       >
-        Next<span className="ep-wide"> page</span>
+        Next<span className="ep-wide">page</span>
       </button>
     </div>
   );
@@ -161,14 +288,21 @@ export function EpaperViewer({
       <div className="ep-toolbar">
         <nav className="ep-editions" aria-label="Editions">
           <Link href={`/epaper/${shiftDate(date, -1)}`}>Previous edition</Link>
-          {nextOut ? <Link href={`/epaper/${shiftDate(date, 1)}`}>Next edition</Link> : null}
+          {nextOut ? (
+            <Link href={`/epaper/${shiftDate(date, 1)}`}>Next edition</Link>
+          ) : null}
         </nav>
+        {tools}
         {pager}
       </div>
 
       {/* The sheets. Only the current one shows; the key restarts the fold
           each time the page changes. */}
-      <div className="ep-desk" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      <div
+        className="ep-desk"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
         {pages.map((page, index) => (
           <section
             key={index === current ? `shown-${index}` : index}
@@ -187,7 +321,6 @@ export function EpaperViewer({
           </section>
         ))}
       </div>
-
     </div>
   );
 }
