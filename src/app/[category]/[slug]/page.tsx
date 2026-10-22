@@ -298,50 +298,53 @@ export default async function ArticlePage(
             </div>
           </header>
 
-          {article.hero_image_url ? (
-            <figure className="media-wide">
-              <div className="relative aspect-[16/9] w-full overflow-hidden rounded-media bg-hairline">
-                <Image
-                  src={
-                    cloudinaryImage(article.hero_image_url, "hero") ??
-                    article.hero_image_url
-                  }
-                  alt={article.hero_image_alt ?? ""}
-                  fill
-                  loading="eager"
-                  fetchPriority="high"
-                  sizes="(max-width: 640px) calc(100vw - 32px), (max-width: 1024px) calc(100vw - 48px), 672px"
-                  className="object-cover"
-                />
-              </div>
-              {/* The credit follows the caption after a middle dot: a
-                  picture desk credit is an attribution, not a sentence. It
-                  wraps wherever it must, even inside a long file name or
-                  code in a library credit, because a caption that cannot
-                  break widens the page past a phone's screen. */}
-              {article.hero_image_alt || article.hero_image_credit ? (
-                <figcaption className="mt-2 text-meta text-muted [overflow-wrap:anywhere]">
-                  {article.hero_image_alt}
-                  {article.hero_image_credit ? (
-                    <>
-                      {" "}
-                      &middot; {readableCredit(article.hero_image_credit)}
-                    </>
-                  ) : null}
-                </figcaption>
-              ) : null}
-            </figure>
-          ) : null}
-
           {/* The column is the reading measure. On larger screens the type
               steps up with it, so a line stays under about seventy-five
               characters. */}
-          <div className="lg:[--text-prose:1.1875rem] xl:[--text-prose:1.25rem]">
+          <div className="article-flow mt-7 lg:[--text-prose:1.1875rem] xl:[--text-prose:1.25rem]">
+            {/* The picture sits small on the left with the story running
+                beside it and on underneath, as a magazine sets a photograph
+                into its text; on a phone it runs the full width above. It is
+                inside the text's own block so the paragraphs wrap round it. */}
+            {article.hero_image_url ? (
+              <figure className="media-float">
+                <div className="relative aspect-[16/9] w-full overflow-hidden rounded-media bg-hairline">
+                  <Image
+                    src={
+                      cloudinaryImage(article.hero_image_url, "hero") ??
+                      article.hero_image_url
+                    }
+                    alt={article.hero_image_alt ?? ""}
+                    fill
+                    loading="eager"
+                    fetchPriority="high"
+                    sizes="(max-width: 640px) calc(100vw - 32px), 480px"
+                    className="object-cover"
+                  />
+                </div>
+                {/* The credit follows the caption after a middle dot: a
+                    picture desk credit is an attribution, not a sentence. It
+                    wraps wherever it must, even inside a long file name or
+                    code in a library credit, because a caption that cannot
+                    break widens the page past a phone's screen. */}
+                {article.hero_image_alt || article.hero_image_credit ? (
+                  <figcaption className="mt-2 text-meta text-muted [overflow-wrap:anywhere]">
+                    {article.hero_image_alt}
+                    {article.hero_image_credit ? (
+                      <>
+                        {" "}
+                        &middot; {readableCredit(article.hero_image_credit)}
+                      </>
+                    ) : null}
+                  </figcaption>
+                ) : null}
+              </figure>
+            ) : null}
             {/* A curated item is a summary and a link. There is no body column on
  the row to render, by database constraint, so this branch cannot
  silently reproduce someone else's article. */}
             {article.origin === "curated" ? (
-              <div className="mt-6">
+              <div>
                 <p className="font-label text-prose text-ink">
                   {article.summary}
                 </p>
@@ -362,7 +365,7 @@ export default async function ArticlePage(
                 <InlineLatest excludeId={article.id} from={0} count={3} label="Latest" />
               </div>
             ) : (
-              <div className="font-label mt-7">
+              <div className="font-label">
                 {/* Other stories go in after the third paragraph, once the
                     reader is into the piece, and again after the eighth in a
                     long one. A story too short to reach either still carries
