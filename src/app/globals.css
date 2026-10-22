@@ -662,3 +662,35 @@
   -webkit-mask-composite: source-in, source-over, source-over, source-over, source-over, source-over;
   mask-composite: intersect, add, add, add, add, add;
 }
+
+/* ---------------------------------------------------------------------------
+   A story's photograph, set small into the text: floated left on a tablet or
+   wider, so the opening paragraphs run beside it and the rest underneath. On
+   a phone it runs the full width above the text. Panels, tables and pictures
+   inside the story start below it rather than squeezing beside it.
+   --------------------------------------------------------------------------- */
+.media-float {
+  margin: 0 0 1.25rem;
+}
+@media (min-width: 640px) {
+  .media-float {
+    float: left;
+    width: 50%;
+    margin: 0.35rem 1.75rem 1rem 0;
+  }
+}
+.article-flow::after {
+  content: "";
+  display: table;
+  clear: both;
+}
+.article-flow aside,
+.article-flow .table-wrap,
+.article-flow figure:not(.media-float) {
+  clear: both;
+}
+/* The story's first line, a paragraph or a subheading, starts level with the
+   top of the picture beside it. */
+.article-flow > .font-label > :first-child {
+  margin-top: 0;
+}
