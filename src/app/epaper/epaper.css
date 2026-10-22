@@ -174,35 +174,6 @@
   break-after: avoid;
 }
 
-/* The front page's "Inside" strip, under the edition line. */
-.ep-inside-strip {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 18px;
-  margin-top: 10px;
-  border-top: 1px solid var(--color-ink);
-  padding-top: 10px;
-  font-family: var(--font-label);
-  font-size: 13.5px;
-  font-weight: 500;
-}
-.ep-inside-label {
-  font-family: var(--ep-serif);
-  font-size: 1.05rem;
-  font-weight: 700;
-}
-.ep-inside-strip a {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--color-ink);
-  text-decoration: none;
-}
-.ep-inside-strip a:hover {
-  text-decoration: underline;
-}
-
 /* --- Type. ---------------------------------------------------------------- */
 
 .ep-hed {
@@ -384,7 +355,7 @@
   hyphens: auto;
 }
 
-/* --- The front page's "Inside" panel and the index. ----------------------- */
+/* --- Page numbers and the index. ------------------------------------------ */
 
 .ep-index-number {
   display: inline-flex;
