@@ -15,14 +15,14 @@ import { PUBLISHER, SITE_NAME } from "@/lib/site";
 /**
  * One page of the e-paper, as a sheet of newsprint.
  *
- * The front carries the nameplate, the edition line and an "Inside" panel of
- * the pages behind it; every other page a running head, as a printed paper
+ * The front carries the nameplate and the edition line; every other page a
+ * running head, as a printed paper
  * does. Then the same three tiers on every page: the lead in full, set in
  * justified columns; two seconds with their opening paragraphs; and briefs.
  *
  * Read like a newspaper, not clicked through like the site: no headline is a
  * link and no story points elsewhere (see lib/epaper/text). The only things
- * that move the reader are the page jumps, in "Inside", the index and the
+ * that move the reader are the page jumps, in the index and the
  * foot of each page, which are how a reader turns to a page.
  *
  * Pictures carry no credit line on the page; the credits are gathered on the
@@ -283,20 +283,6 @@ export function EpaperSheet({
             <span>Morning edition</span>
             <span>{windowLabel(date)}</span>
           </div>
-          {/* What is inside, as a strip under the nameplate rather than a
-              column beside the stories: a column that ended before the
-              stories did left the rest of the front page empty. */}
-          <nav className="ep-inside-strip" aria-label="Inside this edition">
-            <span className="ep-inside-label">Inside</span>
-            {pages
-              .filter((p) => p.kind !== "front")
-              .map((p) => (
-                <a key={p.number} href={`#page-${p.number}`}>
-                  <span className="ep-index-number">{p.number}</span>
-                  {p.title}
-                </a>
-              ))}
-          </nav>
         </header>
       ) : (
         <header className="ep-running-head">
