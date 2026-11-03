@@ -50,6 +50,10 @@ export type DeskInput = {
   /** The writer's scene and its alternatives, best first. */
   briefs: string[];
   terms: string | null;
+  /** The owning desk's own picture rule for the judge, if it has one. */
+  policy?: string | null;
+  /** The relevance a picture must reach for this desk; the site setting otherwise. */
+  minScore?: number | null;
 };
 
 export type Candidate = {
@@ -518,6 +522,7 @@ export async function pictureDesk<T>(
     briefs,
     places: placeNames,
     abroad,
+    policy: input.policy ?? null,
   };
   const judgeInput: JudgeCandidate[] = pool.map((c, i) => ({ index: i + 1, thumbUrl: c.thumbUrl, source: c.source, title: c.image.title, claim: c.claim }));
 
@@ -534,7 +539,7 @@ export async function pictureDesk<T>(
     return { outcome: "unjudged", chosen: null, caption: null, decisionId, sameAs, illustration: null };
   }
 
-  const minScore = await readSetting<number>(supabase, "picture_min_score", 7);
+  const minScore = input.minScore ?? (await readSetting<number>(supabase, "picture_min_score", 7));
   const scores = new Map<number, Record<string, unknown>>();
   for (const v of judgement.judgement.verdicts) scores.set(v.index, { relevance: v.relevance, misleading: v.misleading, cliche: v.cliche, setting: v.setting, quality: v.quality, textHeavy: v.textHeavy, synthetic: v.synthetic, note: v.note });
   const scored = describeAll(scores);
