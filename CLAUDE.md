@@ -1,6 +1,6 @@
 @AGENTS.md
 
-# Current state — read this first (updated 2 Oct 2026)
+# Current state — read this first (updated 4 Nov 2026)
 
 Where this section disagrees with the original spec further down, this section wins. It
 replaces the notes a previous session kept on one Mac. Nothing here is a secret.
@@ -11,29 +11,60 @@ replaces the notes a previous session kept on one Mac. Nothing here is a secret.
   been renamed twice before.
 - Repo `github.com/mishratejash01/firstlight` (private). **Every push to `main` deploys to
   production.**
-- **Hosting since 3 Oct 2026: our own VPS** (Hostinger, Ubuntu 26.04, 2 vCPU / 8 GB, IP
-  62.72.29.5). Vercel paused the old project for exceeding Hobby limits, so Vercel is no longer used.
+- **Hosting: our own VPS** (Hostinger, Ubuntu, 8 vCPU / 32 GB / 390 GB, IP 62.72.29.5, Mumbai).
+  Vercel is no longer used. The box also runs the owner's other projects (Quiz Space, Jitsi,
+  a Quiz Space database standby in `/srv/supabase-standby`): never touch those.
   - Caddy terminates HTTPS and redirects the bare domain to www. PM2 runs the app as user `app`.
-  - www.theindiadecade.tech is a second domain on the same server (Hostinger DNS). With
-    `CANONICAL_REDIRECT=1` its pages redirect to the .com; its API routes still answer. Redirects
-    are built with `publicOrigin()` (`src/lib/auth/origin.ts`), because behind Caddy `request.url`
-    says https://localhost:3000; it trusts only SITE_URL and `SITE_ALIAS_ORIGINS`.
+  - www.theindiadecade.tech is a second domain on the same server. With `CANONICAL_REDIRECT=1`
+    its pages redirect to the .com; its API routes still answer. Redirects are built with
+    `publicOrigin()` (`src/lib/auth/origin.ts`); it trusts only SITE_URL and `SITE_ALIAS_ORIGINS`.
   - The GitHub Action `.github/workflows/deploy.yml` SSHes in with a key that can only run
-    `/srv/tid/deploy.sh`. That script builds each commit in `/srv/tid/releases/<sha>`, repoints
-    `/srv/tid/current`, reloads PM2 and keeps three releases.
-  - Secrets on the server are in `/srv/tid/shared/.env.local`. Admin login is by SSH key only;
-    password login is off.
-  - With no per-request billing, the Vercel Hobby rules below now apply only as good practice.
-- Supabase project `jjucyhrrlntziuwesvfw`: Pro plan, Micro compute. The engine's schedule lives in
-  pg_cron, inside the database.
-- Secrets live in `.env.local` (gitignored) and in the server's `/srv/tid/shared/.env.local`. Names are in `.env.local.example`.
-  Never print or commit values. The Management API (`SUPABASE_ACCESS_TOKEN`) runs SQL.
+    `/srv/tid/deploy.sh`. That script builds each commit in `/srv/tid/releases/<sha>`
+    (`npm ci`, so the lockfile must carry every platform's optional packages: resolve it with the
+    server's npm, `npx npm@11 install --package-lock-only`), repoints `/srv/tid/current`, reloads
+    PM2 and keeps three releases.
+  - Secrets on the server are in `/srv/tid/shared/.env.local`. Admin login is by SSH key only.
+
+## The backend: our own Supabase on the VPS (since 4 Nov 2026)
+- The cloud project `jjucyhrrlntziuwesvfw` is **retired**: on the Free plan it was restricted for
+  exceeding the 500 MB size quota (the engine had been dead since 28 Oct). Its cron jobs are
+  paused; nothing points at it. Its Management API token still works for reading it.
+- The backend now runs in Docker Compose at `/srv/tid-db` (root, `.env` mode 600 holds the
+  Postgres password, the JWT secret and the anon/service_role JWTs): `supabase/postgres:17.6.1.166`
+  (pgvector, pg_cron, pg_net, vault; `shm_size: 2g`, 2 GB shared buffers), PostgREST v14
+  (`public` schema, 1000 rows a page, `public,extensions` on the search path) and GoTrue v2.197
+  (Google sign-in only, as before). No Storage, Realtime, Studio or Edge Functions: the site never
+  used them. Nightly dumps: `/srv/tid-db/backup.sh` (root crontab 21:20 UTC) into
+  `/srv/tid-db/backups`, seven kept; `restore.sh` restores one.
+- Caddy serves it as **https://api.theindiadecade.com** (`/rest/v1` → PostgREST on 127.0.0.1:3110,
+  `/auth/v1` → GoTrue on 127.0.0.1:9999); DNS-only at Cloudflare. The app's
+  `NEXT_PUBLIC_SUPABASE_URL` is that host; the keys are the JWTs from `/srv/tid-db/.env`
+  (`NEXT_PUBLIC_SUPABASE_ANON_KEY`/`…_PUBLISHABLE_KEY` = anon, `SUPABASE_SERVICE_ROLE_KEY`/
+  `SUPABASE_SECRET_KEY` = service_role). `.env.local` on the Mac points at the same host.
+- **SQL runs through psql on the box**: `docker exec -i tid-db psql -h localhost -U postgres -d
+  postgres -At < file.sql` (the Management API no longer applies). Migrations in
+  `supabase/migrations/` are applied the same way. Types: `supabase gen types typescript --db-url`
+  through an SSH tunnel to 127.0.0.1:5434 needs Docker on the Mac; until then edit
+  `database.types.ts` by hand in the generated shape.
+- The engine's schedule lives in pg_cron inside that database (20 jobs; the list is in the
+  cron section of `/srv/tid-db/post-restore.sql`). `app.engine_call()` reads the secret from
+  vault (`engine_cron_secret` = `CRON_SECRET`) and `site_settings.engine_base_url`
+  (https://engine.theindiadecade.com). Engine jobs return `x-cpu-ms` / `x-wall-ms`, which
+  `net._http_response` stores.
+- **Embeddings run inside the app** (`src/lib/engine/embeddings.ts`): gte-small through
+  `@huggingface/transformers`, fp32, mean pooling, normalised; identical to what the retired edge
+  function produced (cosine 0.999+ against stored vectors). Weights are fetched once into
+  `EMBEDDINGS_CACHE_DIR` (`/srv/tid/shared/transformers-cache`). `next.config.ts` lists the
+  package in `serverExternalPackages`.
+- With no per-request billing anywhere, the old Vercel Hobby rules below are only good practice.
+  What still matters is CPU on the box: the two expensive queries are the vector match and the
+  centroid upserts (HNSW index on `story_events.centroid`).
 
 ## The owner's standing rules
 - **One file per commit.** Conventional prefixes. **No Claude/AI co-author trailer or AI note in
   any commit or PR.** Rebase before pushing. Push in batches: every push is a deploy, and every
   deploy re-renders cached pages against the Hobby limits.
-- **Tell the owner before changing Supabase** (schema, settings, cron, data). Never delete or
+- **Tell the owner before changing the database** (schema, settings, cron, data) beyond what a task they set requires. Never delete or
   unpublish a live article. A backlog clear sets `story_events.status='rejected'` and nothing else.
 - Never tell readers that stories are AI-written, and never claim human review that did not happen.
   Never invent a byline: stories without a writer are credited to the paper.
@@ -44,7 +75,7 @@ replaces the notes a previous session kept on one Mac. Nothing here is a secret.
 - Never call Google Analytics "essential". Don't spend LLM API calls on tests.
 - Ask before running GitHub Actions as an always-on worker; their terms forbid it.
 
-## Hosting budget: Vercel Hobby (the owner cannot upgrade or start a trial)
+## Caching rules (written for Vercel Hobby; still the practice on the VPS)
 - Limits per rolling 30 days: **4 h Active CPU**, **200K ISR write units**, 1M invocations, 10 GB
   Fast Origin Transfer. Going over stops that feature for 30 days, which is how the previous
   project died.
@@ -77,9 +108,8 @@ replaces the notes a previous session kept on one Mac. Nothing here is a secret.
 - **GitHub Actions:** "Generate articles" is active (repo variable `SITE_URL`). "Ingest wire feeds"
   and "Trending topics" are disabled, because pg_cron does the same work and Actions minutes on a
   private repo are limited.
-- **If Supabase struggles** (PostgREST PGRST002 while the database is healthy), pause the engine
-  jobs with `cron.alter_job(jobid, active := false)`, restart the project through the Management
-  API, then turn the jobs back on.
+- **If the engine stalls**, pause the jobs with `cron.alter_job(jobid, active := false)` in
+  tid-db, look at `docker logs tid-db` and `pm2 logs tid`, then turn the jobs back on.
 
 ## Steering the engine (admin → Steer, `/admin/steer`)
 - **Standing instructions** (`engine_directives`): an admin types what the engine should cover and
@@ -180,6 +210,32 @@ replaces the notes a previous session kept on one Mac. Nothing here is a secret.
   names the publisher. The privacy page has an "Advertisements" clause: keep it true.
 - Consent for EEA/UK/Swiss readers is Google's own message, switched on in AdSense under
   Privacy & messaging; the site's banner covers analytics only.
+
+## Partner desk: karostartup.com (since 4 Nov 2026)
+- The engine writes **ten startup stories a day for karostartup.com** and posts them straight into
+  that site's own Supabase project (`svwpvqmqmisoffbnnjdc`, their `articles` table, status
+  published, `source = 'engine'`, their house byline `karostartup`). Nothing computes on their
+  project: the desk reads their categories, recent headlines and slugs, and inserts. Their
+  Cloudinary holds only the covers of stories posted there (folder `karostartup/engine`). Env:
+  `KAROSTARTUP_SUPABASE_URL`, `KAROSTARTUP_SUPABASE_SERVICE_ROLE_KEY`, `KAROSTARTUP_CLOUDINARY_*`.
+- Code: `src/lib/partners/karostartup.ts` (their API), `src/lib/ai/partner-draft.ts` (the gate and
+  the drafter in their voice, "FT meets Inc42", founder-first, data-driven), and
+  `src/lib/engine/partner-desk.ts`: candidates are the engine's own story events of the last 18 h
+  that look like the startup beat; one model call gates up to twelve of them against their recent
+  headlines; the hottest good fit is written from the event's source documents, illustrated by the
+  picture desk (a real photograph only, never our card), and posted. Cap 10 a day on the IST
+  clock, 45 minutes between posts unless breaking, desk hours 06:30–23:30 IST. Every pass is in
+  `partner_posts` (published, failed, skipped with the gate's reason).
+- Route `/api/cron/partner-karostartup` (`CRON_SECRET`): `?dry=1` shows the pick, `?event=<uuid>`
+  writes that event now. pg_cron `engine-partner-karostartup` runs at 3, 23 and 43 past the hour.
+  Settings `partner_karostartup_enabled`, `partner_karostartup_daily_cap`,
+  `partner_karostartup_gap_minutes` override the defaults.
+- 25 startup feeds (TechCrunch, Inc42, YourStory, Entrackr, Crunchbase News, Sifted, Tech in Asia,
+  MediaNama, ET Startups, Mint Companies and more) were added to `sources`/`source_licences` for
+  this; they feed our own sections too.
+- Their repo `roshanyadav-2109/karostartup` (static HTML, Vercel): commits there follow the same
+  rules (one file, conventional prefix, no trailer, as mishratejash01). Their sitemaps regenerate
+  hourly by their own GitHub Action, so posted stories need nothing from us.
 
 ## Content and SEO
 - Contact mailboxes in `PUBLISHER` (`src/lib/site.ts`): contact@, newsroom@, editor@,
