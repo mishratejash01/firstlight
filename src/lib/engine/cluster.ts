@@ -112,6 +112,9 @@ type LiveEvent = {
  */
 const SAME_OUTLET_SIMILARITY = 0.95;
 
+/** External ids per duplicate-check query; they are URLs, so this keeps the query string short. */
+const DEDUPE_CHUNK = 60;
+
 /**
  * Nearest live events by centroid, from the HNSW index.
  *
@@ -310,11 +313,19 @@ export async function ingestMentions(mentions: IncomingMention[]): Promise<Clust
 
   // Drop what we have already seen before spending an embedding on it.
   const ids = mentions.map((m) => m.externalId);
-  const { data: existing } = await supabase
-    .from("signal_mentions")
-    .select("source_kind, external_id")
-    .in("external_id", ids);
-  const seen = new Set((existing ?? []).map((row) => `${row.source_kind}:${row.external_id}`));
+  // In chunks: the ids are mostly URLs, and a pass can bring several hundred.
+  // Sent all at once they made a 50 KB query string that the API refused, and a
+  // refused lookup made every mention look new, so each was embedded, matched
+  // and then rejected by the unique key — four in five inserts failed that way.
+  const seen = new Set<string>();
+  for (let start = 0; start < ids.length; start += DEDUPE_CHUNK) {
+    const { data: existing, error } = await supabase
+      .from("signal_mentions")
+      .select("source_kind, external_id")
+      .in("external_id", ids.slice(start, start + DEDUPE_CHUNK));
+    if (error) console.error("[cluster] duplicate check failed", error.message);
+    for (const row of existing ?? []) seen.add(`${row.source_kind}:${row.external_id}`);
+  }
 
   const unseen = mentions.filter((m) => !seen.has(`${m.sourceKind}:${m.externalId}`));
   report.duplicates = mentions.length - unseen.length;
