@@ -6,7 +6,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * The partner desk's pass for karostartup.com (see lib/engine/partner-desk),
  * called by the scheduler every twenty minutes. For an administrator with the
  * secret:
- *   ?dry=1          show what the desk would pick, without writing
+ *   ?dry=1          show what the desk would pick and its queue, without writing
+ *   ?now=1          post the desk's own pick now, whatever the hour and the spacing
  *   ?event=<uuid>   write this event now, past the gate and the spacing rule
  */
 export const dynamic = "force-dynamic";
@@ -29,6 +30,7 @@ async function handle(request: Request) {
   try {
     const report = await runPartnerDesk({
       dry: params.get("dry") === "1",
+      now: params.get("now") === "1",
       eventId: params.get("event")?.trim() || undefined,
     });
     return Response.json({ ok: true, ...report });
