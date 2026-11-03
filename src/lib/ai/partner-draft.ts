@@ -81,7 +81,9 @@ Voice
 - Indian English spelling. "Rs" with crore and lakh; "$" for dollars.
 
 Shape
-- 650 to 1,000 words. "##" headings in plain words. A Markdown table when
+- 700 to 1,000 words, built from every fact the sources give: the round, the
+  investors, the use of funds, the business (products, stores, revenue, growth),
+  earlier rounds, rivals, the sector. "##" headings in plain words. A Markdown table when
   several figures sit side by side (rounds over time, rival valuations).
 - The kicker is one of the labels offered; "BREAKING" only when the news is
   hours old and still developing.
