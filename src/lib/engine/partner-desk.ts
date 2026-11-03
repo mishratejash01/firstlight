@@ -215,7 +215,8 @@ export async function runPartnerDesk(options: { dry?: boolean; eventId?: string 
   const gapOpen = now.getTime() - lastAt >= gapMinutes * 60_000;
   const deskOpen = clock.minutes >= OPEN_FROM_MINUTES && clock.minutes <= OPEN_UNTIL_MINUTES;
 
-  if (!options.eventId) {
+  // A dry run only looks, so the cap and the hours do not stop it.
+  if (!options.eventId && !options.dry) {
     if (postedToday >= cap) return base("skipped", { postedToday, reason: `today's ${cap} are posted` });
     if (!deskOpen) return base("skipped", { postedToday, reason: "outside the desk's hours" });
   }
