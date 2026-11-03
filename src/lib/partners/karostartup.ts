@@ -18,7 +18,7 @@ export const PARTNER = "karostartup";
 export const PARTNER_NAME = "Karostartup";
 export const PARTNER_SITE = "https://www.karostartup.com";
 /** The byline their imported and desk stories carry: the paper itself. */
-const HOUSE_USERNAME = "karostartup";
+const HOUSE_USERNAME = "karostartup-news-engine";
 /** Where their covers live in their Cloudinary. */
 const COVER_FOLDER = "karostartup/engine";
 
@@ -97,6 +97,29 @@ export async function houseAuthorId(): Promise<string | null> {
   );
   authorCache = rows[0]?.id ?? process.env.KAROSTARTUP_AUTHOR_ID ?? null;
   return authorCache;
+}
+
+export type PartnerArticleSummary = {
+  id: string;
+  slug: string;
+  title: string;
+  subtitle: string | null;
+  summary: string | null;
+  tags: string[] | null;
+  cover_image_url: string | null;
+};
+
+/** One of their articles by slug, the fields the desk needs to revisit it. */
+export async function fetchArticle(slug: string): Promise<PartnerArticleSummary | null> {
+  const rows = await rest<PartnerArticleSummary[]>(
+    `articles?select=id,slug,title,subtitle,summary,tags,cover_image_url&slug=eq.${encodeURIComponent(slug)}&limit=1`,
+  );
+  return rows[0] ?? null;
+}
+
+/** Changes fields on one of their articles: a cover found after posting, for instance. */
+export async function updateArticle(id: string, patch: Partial<Pick<PartnerArticleRow, "cover_image_url" | "cover_caption" | "content">>): Promise<void> {
+  await rest(`articles?id=eq.${encodeURIComponent(id)}`, { method: "PATCH", body: patch, prefer: "return=minimal" });
 }
 
 export async function slugTaken(slug: string): Promise<boolean> {
