@@ -70,6 +70,10 @@ What every story carries
 - What happens next, where the sources say.
 - Quotes only where a source quotes someone; at most two, short, attributed to
   the person.
+- Attribution lives in the text, as their desk writes it: "the company said",
+  "according to the filing", "the regulator's order says", "people familiar
+  with the deal told reporters"; a fact that is only another publication's
+  reporting is "according to reports". Never a list of sources at the end.
 
 Voice
 - Confident, precise, plain. No hype: never "thrilled", "leading", "cutting
@@ -81,10 +85,12 @@ Voice
 - Indian English spelling. "Rs" with crore and lakh; "$" for dollars.
 
 Shape
-- 700 to 1,000 words, built from every fact the sources give: the round, the
-  investors, the use of funds, the business (products, stores, revenue, growth),
-  earlier rounds, rivals, the sector. "##" headings in plain words. A Markdown table when
-  several figures sit side by side (rounds over time, rival valuations).
+- 800 to 1,100 words, the length their own desk writes, built from every fact
+  the sources give: the round, the investors, the use of funds, the business
+  (products, stores, revenue, growth), earlier rounds, rivals, the sector, the
+  people. Fewer than 800 words means a fact was left out, not that the story is
+  small. "##" headings in plain words. A Markdown table when several figures sit
+  side by side (rounds over time, rival valuations).
 - The kicker is one of the labels offered; "BREAKING" only when the news is
   hours old and still developing.
 - The subtitle (standfirst) adds a fact the headline does not carry.
@@ -95,9 +101,48 @@ Shape
 Do not
 - Invent or round a figure, name an investor the sources do not, or present a
   claim from a company as a fact: attribute it.
-- Mention this paper, the engine, AI, or the sources' outlets in the prose; the
-  sources list at the end does that.
+- Mention this paper, the engine, AI, or name the outlets whose reporting the
+  story draws on.
 `.trim();
+
+/**
+ * What their paper's picture editor accepts that ours does not: a clean scene of the
+ * company's trade. Read by the judge after the house rubric.
+ */
+export const PARTNER_PICTURE_POLICY = `
+This story is for Karostartup, a startup paper. Startups rarely have a
+licensed picture of themselves, and their readers expect a picture: when no
+candidate shows the company or its founder, a clean, well-made scene of the
+company's trade in the right country is the right picture and scores 6 to 8
+(a clinic for a clinic chain, a café kitchen for a café brand, a warehouse for
+a logistics firm, an exchange building or a broker's screen for a markets
+story, a fintech story's UPI payment at a shop). It must not show a rival's
+branding, a different company's product, or be a cliché from the list above.
+`.trim();
+/** The relevance their covers need: a scene of the trade clears it, a cliché does not. */
+export const PARTNER_PICTURE_MIN_SCORE = 6;
+
+/** The picture desk's inputs, asked for a story that was posted without them. */
+export const pictureBriefSchema = draftedArticleSchema
+  .pick({ imageBrief: true, imageSearchTerms: true, imageAlternatives: true })
+  .extend({
+    subjects: z
+      .array(z.object({ name: z.string(), type: z.string() }))
+      .max(4)
+      .describe("What the story is about, in order, as schema.org types: Organization, Person, Place, GovernmentOrganization, Product."),
+  });
+export type PictureBrief = z.infer<typeof pictureBriefSchema>;
+
+export async function briefPictureFor(story: { headline: string; standfirst: string | null; summary: string | null }): Promise<PictureBrief> {
+  const prompt = [`Headline: ${story.headline}`, story.standfirst ? `Standfirst: ${story.standfirst}` : "", story.summary ? `Summary: ${story.summary}` : ""]
+    .filter(Boolean)
+    .join("\n");
+  return generateStructured("assist", {
+    system: "You are the picture desk of an Indian startup paper. For the story given, name its subjects and describe the scene a photograph should show, as the fields ask.",
+    prompt,
+    schema: pictureBriefSchema,
+  });
+}
 
 const GROUNDING_RULE = `
 Work ONLY from the source material provided. Do not add facts that are not in
