@@ -113,8 +113,8 @@ async function release(eventId: string, reason: string, attempts: number): Promi
     .eq("id", eventId);
 }
 
-type NewsItem = { title: string; url: string; source: string };
-type SourceDoc = {
+export type NewsItem = { title: string; url: string; source: string };
+export type SourceDoc = {
   url: string;
   source: string;
   title: string | null;
@@ -128,7 +128,7 @@ type SourceDoc = {
  * outlets first, from the streams that link to actual articles. Reads up to
  * `maxDocuments` of them; zero means headlines only.
  */
-async function gatherDocuments(
+export async function gatherDocuments(
   eventId: string,
   authority: Map<string, number>,
   maxDocuments: number,
@@ -180,7 +180,7 @@ async function gatherDocuments(
   return { newsItems, documents };
 }
 
-async function loadAuthority(): Promise<Map<string, number>> {
+export async function loadAuthority(): Promise<Map<string, number>> {
   const supabase = createAdminClient();
   const { data: rows } = await supabase.from("source_authority").select("host, weight");
   return new Map((rows ?? []).map((r) => [r.host, Number(r.weight)]));
