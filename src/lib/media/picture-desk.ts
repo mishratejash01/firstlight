@@ -54,6 +54,8 @@ export type DeskInput = {
   policy?: string | null;
   /** The relevance a picture must reach for this desk; the site setting otherwise. */
   minScore?: number | null;
+  /** Whether a map of the place may stand in when no picture passes; a partner's cover slot wants none. */
+  maps?: boolean;
 };
 
 export type Candidate = {
@@ -470,7 +472,7 @@ export async function pictureDesk<T>(
 
   const fallbackMap = async (why: string, judgedBy: string | null, scored: Record<string, unknown>[]): Promise<DeskOutcome & { illustration: T | null }> => {
     const place = places[0];
-    if (mapsConfigured() && place && (kind === "incident" || kind === "general" || kind === "court")) {
+    if (input.maps !== false && mapsConfigured() && place && (kind === "incident" || kind === "general" || kind === "court")) {
       const map = await placeMap({ name: place.match.label, qid: place.match.qid, description: place.match.description }).catch(() => null);
       if (map) {
         const illustration = await publish(map, `Map: ${place.match.label}`);
