@@ -103,6 +103,7 @@ export type PartnerArticleSummary = {
   id: string;
   slug: string;
   title: string;
+  kicker: string | null;
   subtitle: string | null;
   summary: string | null;
   tags: string[] | null;
@@ -112,7 +113,7 @@ export type PartnerArticleSummary = {
 /** One of their articles by slug, the fields the desk needs to revisit it. */
 export async function fetchArticle(slug: string): Promise<PartnerArticleSummary | null> {
   const rows = await rest<PartnerArticleSummary[]>(
-    `articles?select=id,slug,title,subtitle,summary,tags,cover_image_url&slug=eq.${encodeURIComponent(slug)}&limit=1`,
+    `articles?select=id,slug,title,kicker,subtitle,summary,tags,cover_image_url&slug=eq.${encodeURIComponent(slug)}&limit=1`,
   );
   return rows[0] ?? null;
 }
@@ -168,6 +169,24 @@ export async function uploadCover(source: string, slug: string, options: { pad?:
       : [{ width: 1600, height: 900, crop: "fill", gravity: "auto" }],
   });
   // Their pages hot-link with automatic format and quality, as their own importer does.
+  return String(result.secure_url).replace("/image/upload/", "/image/upload/f_auto,q_auto/");
+}
+
+/** Their typographic cover, rasterised by Cloudinary on the way in, under the story's slug. */
+export async function uploadCoverCard(svg: string, slug: string): Promise<string | null> {
+  const target = cloud();
+  if (!target) return null;
+  const dataUri = `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+  const result = await cloudinary.uploader.upload(dataUri, {
+    ...target,
+    folder: COVER_FOLDER,
+    public_id: slug.slice(0, 120),
+    overwrite: true,
+    resource_type: "image",
+    invalidate: true,
+    format: "png",
+    quality: "auto",
+  });
   return String(result.secure_url).replace("/image/upload/", "/image/upload/f_auto,q_auto/");
 }
 
