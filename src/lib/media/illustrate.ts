@@ -402,6 +402,8 @@ export async function illustrateArticle({
   relevantOnly = false,
   uploadedBy,
   upload,
+  policy = null,
+  minScore = null,
 }: {
   headline: string;
   /** The standfirst, which the picture judge reads beside the headline. */
@@ -426,6 +428,9 @@ export async function illustrateArticle({
    * answers with the delivered URL. Nothing is then recorded in media_assets.
    */
   upload?: (source: string, options: { pad?: boolean }) => Promise<{ url: string } | null>;
+  /** The calling desk's own picture rule for the judge, and the relevance it asks for. */
+  policy?: string | null;
+  minScore?: number | null;
 }): Promise<Illustration | null> {
   if (!upload && !configureCloudinary()) return null;
 
@@ -491,6 +496,8 @@ export async function illustrateArticle({
         related,
         briefs: [brief ?? "", ...alternatives].filter(Boolean),
         terms,
+        policy,
+        minScore,
       },
       publish,
     ).catch((error) => {
