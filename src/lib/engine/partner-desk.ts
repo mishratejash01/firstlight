@@ -42,8 +42,12 @@ const DEFAULT_GAP_MINUTES = 45;
 /** The desk's day: nothing posts in the small hours, when nobody reads it. */
 const OPEN_FROM_MINUTES = 6 * 60 + 30;
 const OPEN_UNTIL_MINUTES = 23 * 60 + 30;
-/** Events seen more recently than this are candidates. */
+/** Only events the engine first saw within this many hours are candidates: the desk posts news, not follow-ups. */
 const CANDIDATE_WINDOW_HOURS = 18;
+/** A story whose newest source was published longer ago than this is stale, whatever the engine's clock says. */
+const STALE_SOURCE_HOURS = 30;
+/** In the ranking, every this-many hours of age costs a story one point against heat and fit. */
+const FRESHNESS_HOURS = 6;
 /** Candidates the gate reads in one call. */
 const GATE_BATCH = 12;
 /** Source documents fetched for the chosen story: many of the beat's outlets sit behind walls, so try several. */
@@ -102,6 +106,7 @@ export type PartnerDeskReport = {
   candidates?: number;
   gated?: number;
   chosen?: { eventId: string; title: string; verdict: GateVerdict } | null;
+  queue?: { eventId: string; title: string; fit: number; heat: number; hoursOld: number; breaking: boolean }[];
   posted?: { slug: string; url: string; headline: string; kicker: string; category: string; breaking: boolean };
   durationMs: number;
 };
@@ -183,7 +188,7 @@ async function record(row: {
   if (error) console.error("[partner-desk] could not record", error.message);
 }
 
-export async function runPartnerDesk(options: { dry?: boolean; eventId?: string } = {}): Promise<PartnerDeskReport> {
+export async function runPartnerDesk(options: { dry?: boolean; eventId?: string; now?: boolean } = {}): Promise<PartnerDeskReport> {
   const started = Date.now();
   const supabase = createAdminClient();
   const cap = await readSetting<number>("partner_karostartup_daily_cap", DEFAULT_DAILY_CAP);
@@ -212,8 +217,9 @@ export async function runPartnerDesk(options: { dry?: boolean; eventId?: string 
   const postedToday = today?.length ?? 0;
   const lastAt = today?.[0]?.published_at ? new Date(today[0].published_at).getTime() : 0;
   const gapMinutes = await readSetting<number>("partner_karostartup_gap_minutes", DEFAULT_GAP_MINUTES);
-  const gapOpen = now.getTime() - lastAt >= gapMinutes * 60_000;
-  const deskOpen = clock.minutes >= OPEN_FROM_MINUTES && clock.minutes <= OPEN_UNTIL_MINUTES;
+  // An administrator's "now" waives the spacing and the hours, never the cap or the gate.
+  const gapOpen = Boolean(options.now) || now.getTime() - lastAt >= gapMinutes * 60_000;
+  const deskOpen = Boolean(options.now) || (clock.minutes >= OPEN_FROM_MINUTES && clock.minutes <= OPEN_UNTIL_MINUTES);
 
   // A dry run only looks, so the cap and the hours do not stop it.
   if (!options.eventId && !options.dry) {
@@ -221,12 +227,13 @@ export async function runPartnerDesk(options: { dry?: boolean; eventId?: string 
     if (!deskOpen) return base("skipped", { postedToday, reason: "outside the desk's hours" });
   }
 
-  // Candidates: what the engine has seen move lately, minus what this desk has handled.
+  // Candidates: what the engine first saw lately, minus what this desk has handled. An old
+  // story that is still collecting mentions is not new, so the window is on first sight.
   const since = new Date(now.getTime() - CANDIDATE_WINDOW_HOURS * 3600_000).toISOString();
   let query = supabase
     .from("story_events")
     .select("id, title, summary, entities, source_keys, mention_count, score, first_seen_at, last_seen_at, status, triage_section, urgency")
-    .gte("last_seen_at", since)
+    .gte("first_seen_at", since)
     .in("status", ["candidate", "newsworthy", "writing", "written"])
     .order("score", { ascending: false })
     .limit(80);
@@ -234,14 +241,20 @@ export async function runPartnerDesk(options: { dry?: boolean; eventId?: string 
   const { data: events, error: eventsError } = await query;
   if (eventsError) return base("failed", { postedToday, reason: eventsError.message });
 
+  // Handled: posted, failed, or turned away. A story the gate turned away is offered again
+  // after six hours, in case the day has changed; a stale one is never offered again.
   const { data: handled } = await supabase
     .from("partner_posts")
-    .select("event_id, status, created_at")
+    .select("event_id, status, reason, created_at")
     .eq("partner", PARTNER)
     .gte("created_at", new Date(now.getTime() - 3 * 86400_000).toISOString());
   const handledIds = new Set(
     (handled ?? [])
-      .filter((row) => row.event_id && (row.status !== "skipped" || hoursSince(row.created_at, now.getTime()) < 6))
+      .filter(
+        (row) =>
+          row.event_id &&
+          (row.status !== "skipped" || row.reason?.startsWith("stale") || hoursSince(row.created_at, now.getTime()) < 6),
+      )
       .map((row) => row.event_id as string),
   );
 
@@ -286,18 +299,29 @@ export async function runPartnerDesk(options: { dry?: boolean; eventId?: string 
     }
   }
 
-  // The pick: breaking first when the gap is closed, otherwise the hottest good fit.
+  // The pick: breaking first when the gap is closed, otherwise the hottest good fit,
+  // the newest winning between equals: every six hours of age costs a point.
   const ranked = verdicts
     .filter((v) => pool[v.index] && v.fit >= MIN_FIT && !v.repeatsRecent)
     .map((v) => {
       const event = pool[v.index];
-      const breaking = v.breaking && hoursSince(event.first_seen_at, now.getTime()) <= BREAKING_MAX_HOURS;
+      const hoursOld = hoursSince(event.first_seen_at, now.getTime());
+      const breaking = v.breaking && hoursOld <= BREAKING_MAX_HOURS;
       const repeat = recent.some((r) => titleOverlap(r.title, event.title) >= 0.7);
-      return { v, event, breaking, repeat };
+      const rank = v.heat + v.fit - hoursOld / FRESHNESS_HOURS;
+      return { v, event, hoursOld, breaking, repeat, rank };
     })
     .filter((item) => !item.repeat)
     .filter((item) => gapOpen || item.breaking || options.eventId)
-    .sort((a, b) => Number(b.breaking) - Number(a.breaking) || b.v.heat + b.v.fit - (a.v.heat + a.v.fit));
+    .sort((a, b) => Number(b.breaking) - Number(a.breaking) || b.rank - a.rank);
+  const queue = ranked.slice(0, 6).map((item) => ({
+    eventId: item.event.id,
+    title: item.event.title,
+    fit: item.v.fit,
+    heat: item.v.heat,
+    hoursOld: Math.round(item.hoursOld * 10) / 10,
+    breaking: item.breaking,
+  }));
 
   // Candidates the gate turned away are remembered for a few hours, so the next pass looks further.
   if (!options.dry && !options.eventId) {
@@ -318,12 +342,26 @@ export async function runPartnerDesk(options: { dry?: boolean; eventId?: string 
     });
   }
   if (options.dry) {
-    return base("planned", { postedToday, candidates: pool.length, gated: verdicts.length, chosen: { eventId: pick.event.id, title: pick.event.title, verdict: pick.v } });
+    return base("planned", { postedToday, candidates: pool.length, gated: verdicts.length, chosen: { eventId: pick.event.id, title: pick.event.title, verdict: pick.v }, queue });
   }
 
   // Sources, as the writer gathers them: the outlets on the event, most authoritative first.
   const authority = await loadAuthority();
   const { newsItems, documents } = await gatherDocuments(pick.event.id, authority, MAX_DOCUMENTS);
+
+  // The sources' own dates decide whether this is still news: a feed without dates can make
+  // a days-old story look new to the engine, and the partner's readers would see it at once.
+  const dated = documents.map((doc) => doc.publishedAt).filter((d): d is string => Boolean(d));
+  if (dated.length) {
+    const newest = Math.max(...dated.map((d) => new Date(d).getTime()));
+    const ageHours = (now.getTime() - newest) / 3600_000;
+    if (ageHours > STALE_SOURCE_HOURS) {
+      const reason = `stale: newest source was published ${Math.round(ageHours)} hours ago`;
+      await record({ event_id: pick.event.id, headline: pick.event.title, status: "skipped", reason, category: pick.v.category, kicker: pick.v.kicker, trace: { dated } });
+      return base("skipped", { postedToday, candidates: pool.length, gated: verdicts.length, reason });
+    }
+  }
+
   const sources: PartnerSource[] = documents
     .filter((doc) => doc.content.length >= MIN_DOCUMENT_CHARS)
     .map((doc) => ({ title: doc.title ?? pick.event.title, outlet: doc.source, publishedAt: doc.publishedAt ?? null, content: doc.content }));
@@ -427,7 +465,7 @@ export async function runPartnerDesk(options: { dry?: boolean; eventId?: string 
       is_breaking: breaking,
       cover_url: coverUrl,
       published_at: publishedAt,
-      trace: { verdict: pick.v, sources: sources.map((s) => s.outlet), words, candidates: pool.length },
+      trace: { verdict: pick.v, sources: sources.map((s) => s.outlet), words, candidates: pool.length, hoursOld: Math.round(pick.hoursOld * 10) / 10 },
     });
     return base("posted", {
       postedToday: postedToday + 1,
