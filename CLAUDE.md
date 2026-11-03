@@ -93,7 +93,8 @@ replaces the notes a previous session kept on one Mac. Nothing here is a secret.
 ## The engine (the news pipeline)
 - Running since 2 Oct 2026, 06:56 IST: `site_settings.engine_base_url` is
   https://www.theindiadecade.com. Auto-write and autonomous publishing are on, with a 5-minute
-  publish delay and no caps.
+  publish delay. **Since 4 Nov `autonomous_daily_limit` is 20** (a rolling 24 h, the owner's
+  temporary cap); the hourly limit stays 0 (none).
 - **`engine_learning_enabled` must stay false** until the old drip learner is removed from
   `src/lib/engine/pulse.ts`, because that learner wrecked the weights. Weights are back on
   version 4 (`model_versions` id 8).
@@ -214,10 +215,20 @@ replaces the notes a previous session kept on one Mac. Nothing here is a secret.
 ## Partner desk: karostartup.com (since 4 Nov 2026)
 - The engine writes **ten startup stories a day for karostartup.com** and posts them straight into
   that site's own Supabase project (`svwpvqmqmisoffbnnjdc`, their `articles` table, status
-  published, `source = 'engine'`, their house byline `karostartup`). Nothing computes on their
-  project: the desk reads their categories, recent headlines and slugs, and inserts. Their
-  Cloudinary holds only the covers of stories posted there (folder `karostartup/engine`). Env:
+  published, `source = 'engine'`, bylined **KaroStartup News Engine**: profile username
+  `karostartup-news-engine`, an auth user `engine@karostartup.com` their trigger turned into a
+  profile, created 4 Nov). Nothing computes on their project: the desk reads their categories,
+  recent headlines and slugs, and inserts. Their Cloudinary holds only the covers of stories
+  posted there (folder `karostartup/engine`); covers go straight from the source into it
+  through the `upload` hook of `illustrateArticle`, never through ours. Env:
   `KAROSTARTUP_SUPABASE_URL`, `KAROSTARTUP_SUPABASE_SERVICE_ROLE_KEY`, `KAROSTARTUP_CLOUDINARY_*`.
+- Owner's rules (4 Nov): no Sources list at the end of a story, attribution lives in the text;
+  length matches their own desk (they average about 780 words, so the drafter aims at 800–1,100
+  and a draft under 600 fails); every story should carry a cover. The judge reads
+  `PARTNER_PICTURE_POLICY` (a clean scene of the company's trade scores 6–8) with a bar of 6
+  instead of the site's 7. A pass that posts nothing looks for a cover for one of the last day's
+  cover-less stories (`coverTries` in the post's trace, at most two tries); `?cover=<slug>` does
+  it on demand.
 - Code: `src/lib/partners/karostartup.ts` (their API), `src/lib/ai/partner-draft.ts` (the gate and
   the drafter in their voice, "FT meets Inc42", founder-first, data-driven), and
   `src/lib/engine/partner-desk.ts`: candidates are the engine's own story events of the last 18 h
@@ -231,7 +242,7 @@ replaces the notes a previous session kept on one Mac. Nothing here is a secret.
   again; the ranking docks a point per six hours of age; the gate scores day-old news low on heat.
 - Route `/api/cron/partner-karostartup` (`CRON_SECRET`): `?dry=1` shows the pick and the queue,
   `?now=1` posts the desk's pick whatever the hour (cap and gate still apply), `?event=<uuid>`
-  writes that event now. pg_cron `engine-partner-karostartup` runs at 3, 23 and 43 past the hour.
+  writes that event now, `?cover=<slug>` finds a cover for a posted story. pg_cron `engine-partner-karostartup` runs at 3, 23 and 43 past the hour.
   Settings `partner_karostartup_enabled`, `partner_karostartup_daily_cap`,
   `partner_karostartup_gap_minutes` override the defaults.
 - 25 startup feeds (TechCrunch, Inc42, YourStory, Entrackr, Crunchbase News, Sifted, Tech in Asia,
