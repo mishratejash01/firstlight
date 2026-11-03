@@ -189,6 +189,8 @@ whether your readers need it today. Score every candidate; do not skip any.
 A press release, a listicle, a how-to, a stock-tip, an opinion piece or a story
 with no company or founder in it scores low on fit. The paper already ran the
 recent headlines listed: a candidate that is the same news repeats them.
+Heat is about now: news first seen more than a day ago is stale unless it is
+still developing, and scores low on heat however big it was.
 `.trim();
 
 export async function gatePartnerCandidates(
