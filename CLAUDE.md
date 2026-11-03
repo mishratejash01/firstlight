@@ -222,6 +222,9 @@ replaces the notes a previous session kept on one Mac. Nothing here is a secret.
   posted there (folder `karostartup/engine`); covers go straight from the source into it
   through the `upload` hook of `illustrateArticle`, never through ours. Env:
   `KAROSTARTUP_SUPABASE_URL`, `KAROSTARTUP_SUPABASE_SERVICE_ROLE_KEY`, `KAROSTARTUP_CLOUDINARY_*`.
+- Their `content` is **HTML** (their editor is a rich-text box; their page shows a Markdown table
+  as a line of pipes), so the drafter's Markdown is converted by
+  `src/lib/partners/markdown-html.ts` before posting.
 - Owner's rules (4 Nov): no Sources list at the end of a story, attribution lives in the text;
   length matches their own desk (they average about 780 words, so the drafter aims at 800–1,100
   and a draft under 600 fails); every story should carry a cover. The judge reads
