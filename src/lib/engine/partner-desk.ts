@@ -406,12 +406,17 @@ export async function runPartnerDesk(options: { dry?: boolean; eventId?: string;
   let slug = slugify(draft.headline) || slugify(pick.event.title) || "story";
   if (await slugTaken(slug)) slug = withUniqueSuffix(slug);
 
-  // The cover: the picture desk chooses as it does for our own stories; only a real
-  // photograph travels to the partner's Cloudinary, never a typographic card of ours.
+  // The cover: the picture desk chooses as it does for our own stories, but the picture goes
+  // straight from its source into the partner's Cloudinary, never through ours; only a real
+  // photograph, never a typographic card of ours.
   let coverUrl: string | null = null;
   let coverCaption: string | null = null;
   try {
     const illustration = await illustrateArticle({
+      upload: async (source, options) => {
+        const url = await uploadCover(source, slug, options);
+        return url ? { url } : null;
+      },
       headline: draft.headline,
       standfirst: draft.standfirst,
       section: "startups",
@@ -423,7 +428,7 @@ export async function runPartnerDesk(options: { dry?: boolean; eventId?: string;
       relevantOnly: true,
     });
     if (illustration?.kind === "photo") {
-      coverUrl = await uploadCover(illustration.url, slug);
+      coverUrl = illustration.url;
       coverCaption = illustration.credit ? `${illustration.alt} (${illustration.credit})` : illustration.alt;
     }
   } catch (error) {
