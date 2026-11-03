@@ -226,7 +226,11 @@ replaces the notes a previous session kept on one Mac. Nothing here is a secret.
   picture desk (a real photograph only, never our card), and posted. Cap 10 a day on the IST
   clock, 45 minutes between posts unless breaking, desk hours 06:30–23:30 IST. Every pass is in
   `partner_posts` (published, failed, skipped with the gate's reason).
-- Route `/api/cron/partner-karostartup` (`CRON_SECRET`): `?dry=1` shows the pick, `?event=<uuid>`
+- Freshness: only events the engine **first saw** in the last 18 h are candidates; a pick whose
+  newest source page was published more than 30 h ago is skipped as stale and never offered
+  again; the ranking docks a point per six hours of age; the gate scores day-old news low on heat.
+- Route `/api/cron/partner-karostartup` (`CRON_SECRET`): `?dry=1` shows the pick and the queue,
+  `?now=1` posts the desk's pick whatever the hour (cap and gate still apply), `?event=<uuid>`
   writes that event now. pg_cron `engine-partner-karostartup` runs at 3, 23 and 43 past the hour.
   Settings `partner_karostartup_enabled`, `partner_karostartup_daily_cap`,
   `partner_karostartup_gap_minutes` override the defaults.
