@@ -4,14 +4,18 @@ import type { Json } from "@/lib/supabase/database.types";
 import { slugify, withUniqueSuffix } from "@/lib/format/slug";
 import { illustrateArticle } from "@/lib/media/illustrate";
 import {
+  briefPictureFor,
   draftPartnerArticle,
   gatePartnerCandidates,
+  PARTNER_PICTURE_MIN_SCORE,
+  PARTNER_PICTURE_POLICY,
   type GateCandidate,
   type GateVerdict,
   type PartnerSource,
 } from "@/lib/ai/partner-draft";
 import {
   articleUrl,
+  fetchArticle,
   fetchCategories,
   houseAuthorId,
   karostartupConfigured,
@@ -19,6 +23,7 @@ import {
   postArticle,
   recentTitles,
   slugTaken,
+  updateArticle,
   uploadCover,
 } from "@/lib/partners/karostartup";
 import { gatherDocuments, loadAuthority } from "./write";
@@ -53,7 +58,10 @@ const GATE_BATCH = 12;
 /** Source documents fetched for the chosen story: many of the beat's outlets sit behind walls, so try several. */
 const MAX_DOCUMENTS = 7;
 const MIN_DOCUMENT_CHARS = 500;
-const MIN_WORDS = 420;
+/** Their desk averages about 780 words; a draft under this left facts out. */
+const MIN_WORDS = 600;
+/** How often the picture desk looks for a cover for one story: once when it is posted, once more later. */
+const MAX_COVER_TRIES = 2;
 /** A breaking story is one still hours old. */
 const BREAKING_MAX_HOURS = 3;
 /** The gate's bar: below this the story is not theirs. */
@@ -108,7 +116,20 @@ export type PartnerDeskReport = {
   chosen?: { eventId: string; title: string; verdict: GateVerdict } | null;
   queue?: { eventId: string; title: string; fit: number; heat: number; hoursOld: number; breaking: boolean }[];
   posted?: { slug: string; url: string; headline: string; kicker: string; category: string; breaking: boolean };
+  /** A cover found for an earlier story, when the pass had nothing to post. */
+  cover?: CoverReport;
   durationMs: number;
+};
+
+export type CoverReport = { slug: string; outcome: "covered" | "none" | "has-cover" | "unknown" | "failed"; url?: string; reason?: string };
+
+/** What the picture desk needs to revisit a story, kept in the post's trace. */
+type PictureInputs = {
+  subjects: { name: string; type: string }[];
+  related: { name: string; type: string }[];
+  brief: string | null;
+  terms: string | null;
+  alternatives: string[];
 };
 
 async function readSetting<T>(key: string, fallback: T): Promise<T> {
@@ -188,7 +209,107 @@ async function record(row: {
   if (error) console.error("[partner-desk] could not record", error.message);
 }
 
+/**
+ * The picture desk's choice for one of their stories, copied straight into their Cloudinary
+ * under the story's slug. A real photograph or nothing: never our typographic card.
+ */
+async function findCover(
+  headline: string,
+  standfirst: string | null,
+  picture: PictureInputs,
+  slug: string,
+): Promise<{ url: string; caption: string } | null> {
+  const illustration = await illustrateArticle({
+    upload: async (source, options) => {
+      const url = await uploadCover(source, slug, options);
+      return url ? { url } : null;
+    },
+    headline,
+    standfirst,
+    section: "startups",
+    subjects: picture.subjects,
+    related: picture.related,
+    brief: picture.brief,
+    terms: picture.terms,
+    alternatives: picture.alternatives,
+    relevantOnly: true,
+    policy: PARTNER_PICTURE_POLICY,
+    minScore: PARTNER_PICTURE_MIN_SCORE,
+  });
+  if (illustration?.kind !== "photo") return null;
+  return { url: illustration.url, caption: illustration.credit ? `${illustration.alt} (${illustration.credit})` : illustration.alt };
+}
+
+/** Finds a cover for a story already posted without one, and files it on their article. */
+export async function coverPartnerPost(slug: string): Promise<CoverReport> {
+  const supabase = createAdminClient();
+  const { data: row } = await supabase
+    .from("partner_posts")
+    .select("id, trace")
+    .eq("partner", PARTNER)
+    .eq("status", "published")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (!row) return { slug, outcome: "unknown", reason: "no published post with that slug" };
+  const article = await fetchArticle(slug);
+  if (!article) return { slug, outcome: "unknown", reason: "not found on the partner's site" };
+  if (article.cover_image_url) return { slug, outcome: "has-cover", url: article.cover_image_url };
+
+  const trace = (row.trace && typeof row.trace === "object" && !Array.isArray(row.trace) ? row.trace : {}) as Record<string, unknown>;
+  let picture = trace.picture as PictureInputs | undefined;
+  if (!picture) {
+    // Posted before the desk kept its picture brief: ask for one from the story itself.
+    const brief = await briefPictureFor({ headline: article.title, standfirst: article.subtitle, summary: article.summary });
+    picture = { subjects: brief.subjects, related: [], brief: brief.imageBrief, terms: brief.imageSearchTerms, alternatives: brief.imageAlternatives };
+  }
+  const tries = Number(trace.coverTries ?? 0) + 1;
+  const cover = await findCover(article.title, article.subtitle, picture, slug);
+  await supabase
+    .from("partner_posts")
+    .update({ cover_url: cover?.url ?? null, trace: { ...trace, picture, coverTries: tries } as Json })
+    .eq("id", row.id);
+  if (!cover) return { slug, outcome: "none", reason: "the picture desk found no photograph" };
+  await updateArticle(article.id, { cover_image_url: cover.url, cover_caption: cover.caption });
+  return { slug, outcome: "covered", url: cover.url };
+}
+
+/** One of the last day's stories still without a cover, tried again; at most once per pass. */
+async function backfillOneCover(now: Date): Promise<CoverReport | null> {
+  const supabase = createAdminClient();
+  const { data: rows } = await supabase
+    .from("partner_posts")
+    .select("slug, trace")
+    .eq("partner", PARTNER)
+    .eq("status", "published")
+    .is("cover_url", null)
+    .gte("published_at", new Date(now.getTime() - 86400_000).toISOString())
+    .order("published_at", { ascending: false })
+    .limit(20);
+  const next = (rows ?? []).find((row) => {
+    const trace = (row.trace ?? {}) as Record<string, unknown>;
+    return row.slug && Number(trace.coverTries ?? 0) < MAX_COVER_TRIES;
+  });
+  if (!next?.slug) return null;
+  try {
+    return await coverPartnerPost(next.slug);
+  } catch (error) {
+    return { slug: next.slug, outcome: "failed", reason: (error as Error).message };
+  }
+}
+
 export async function runPartnerDesk(options: { dry?: boolean; eventId?: string; now?: boolean } = {}): Promise<PartnerDeskReport> {
+  const started = Date.now();
+  const report = await pass(options);
+  // A pass that posted nothing uses its time to find covers for stories that went out without one.
+  if (!options.dry && !options.eventId && report.outcome !== "posted" && report.outcome !== "paused") {
+    const cover = await backfillOneCover(new Date());
+    if (cover) report.cover = cover;
+    report.durationMs = Date.now() - started;
+  }
+  return report;
+}
+
+async function pass(options: { dry?: boolean; eventId?: string; now?: boolean }): Promise<PartnerDeskReport> {
   const started = Date.now();
   const supabase = createAdminClient();
   const cap = await readSetting<number>("partner_karostartup_daily_cap", DEFAULT_DAILY_CAP);
@@ -406,40 +527,30 @@ export async function runPartnerDesk(options: { dry?: boolean; eventId?: string;
   let slug = slugify(draft.headline) || slugify(pick.event.title) || "story";
   if (await slugTaken(slug)) slug = withUniqueSuffix(slug);
 
-  // The cover: the picture desk chooses as it does for our own stories, but the picture goes
-  // straight from its source into the partner's Cloudinary, never through ours; only a real
-  // photograph, never a typographic card of ours.
+  // The cover: the picture desk chooses by their rule (a scene of the trade will do), and the
+  // picture goes straight from its source into their Cloudinary, never through ours; only a
+  // real photograph, never a typographic card of ours. The brief is kept so a later pass can try again.
+  const picture: PictureInputs = {
+    subjects: draft.entities.filter((e) => e.relation === "about").map((e) => ({ name: e.name, type: e.type })),
+    related: draft.entities.filter((e) => e.relation === "mentions").map((e) => ({ name: e.name, type: e.type })),
+    brief: draft.imageBrief,
+    terms: draft.imageSearchTerms,
+    alternatives: draft.imageAlternatives,
+  };
   let coverUrl: string | null = null;
   let coverCaption: string | null = null;
   try {
-    const illustration = await illustrateArticle({
-      upload: async (source, options) => {
-        const url = await uploadCover(source, slug, options);
-        return url ? { url } : null;
-      },
-      headline: draft.headline,
-      standfirst: draft.standfirst,
-      section: "startups",
-      subjects: draft.entities.filter((e) => e.relation === "about").map((e) => ({ name: e.name, type: e.type })),
-      related: draft.entities.filter((e) => e.relation === "mentions").map((e) => ({ name: e.name, type: e.type })),
-      brief: draft.imageBrief,
-      terms: draft.imageSearchTerms,
-      alternatives: draft.imageAlternatives,
-      relevantOnly: true,
-    });
-    if (illustration?.kind === "photo") {
-      coverUrl = illustration.url;
-      coverCaption = illustration.credit ? `${illustration.alt} (${illustration.credit})` : illustration.alt;
+    const cover = await findCover(draft.headline, draft.standfirst, picture, slug);
+    if (cover) {
+      coverUrl = cover.url;
+      coverCaption = cover.caption;
     }
   } catch (error) {
     console.error("[partner-desk] cover failed", (error as Error).message);
   }
 
-  const attribution = newsItems
-    .slice(0, 6)
-    .map((item) => `- [${item.title}](${item.url}) — ${item.source}`)
-    .join("\n");
-  const content = attribution ? `${body}\n\n## Sources\n\n${attribution}` : body;
+  // Attribution lives in the text, as their desk writes it; no list of outlets at the end.
+  const content = body;
   const breaking = pick.breaking || draft.kicker === "BREAKING";
   const publishedAt = new Date().toISOString();
 
@@ -470,7 +581,7 @@ export async function runPartnerDesk(options: { dry?: boolean; eventId?: string;
       is_breaking: breaking,
       cover_url: coverUrl,
       published_at: publishedAt,
-      trace: { verdict: pick.v, sources: sources.map((s) => s.outlet), words, candidates: pool.length, hoursOld: Math.round(pick.hoursOld * 10) / 10 },
+      trace: { verdict: pick.v, sources: sources.map((s) => s.outlet), words, candidates: pool.length, hoursOld: Math.round(pick.hoursOld * 10) / 10, picture, coverTries: 1 },
     });
     return base("posted", {
       postedToday: postedToday + 1,
