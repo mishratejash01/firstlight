@@ -235,6 +235,8 @@ async function findCover(
     relevantOnly: true,
     policy: PARTNER_PICTURE_POLICY,
     minScore: PARTNER_PICTURE_MIN_SCORE,
+    // A map of the company's city is not a cover for a funding story.
+    maps: false,
   });
   if (illustration?.kind !== "photo") return null;
   return { url: illustration.url, caption: illustration.credit ? `${illustration.alt} (${illustration.credit})` : illustration.alt };
