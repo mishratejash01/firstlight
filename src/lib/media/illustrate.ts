@@ -401,6 +401,7 @@ export async function illustrateArticle({
   terms = null,
   relevantOnly = false,
   uploadedBy,
+  upload,
 }: {
   headline: string;
   /** The standfirst, which the picture judge reads beside the headline. */
@@ -419,8 +420,14 @@ export async function illustrateArticle({
   /** Stop after the relevant tiers — subject identity and the brief — rather than falling back. */
   relevantOnly?: boolean;
   uploadedBy?: string | null;
+  /**
+   * Where a chosen picture goes instead of our own library: a partner desk hands its own
+   * uploader, receives the fetched bytes (a data URI, or the URL when fetching failed) and
+   * answers with the delivered URL. Nothing is then recorded in media_assets.
+   */
+  upload?: (source: string, options: { pad?: boolean }) => Promise<{ url: string } | null>;
 }): Promise<Illustration | null> {
-  if (!configureCloudinary()) return null;
+  if (!upload && !configureCloudinary()) return null;
 
   const enabled = await readSetting<boolean>("illustration_enabled", true);
   if (!enabled) return null;
@@ -436,6 +443,16 @@ export async function illustrateArticle({
     alt: string,
     options: { pad?: boolean } = {},
   ): Promise<Illustration | null> => {
+    if (upload) {
+      try {
+        const delivered = await upload(await sourceFor(image.url), options);
+        if (!delivered) return null;
+        return { url: delivered.url, alt, credit: attributionFor(image), kind: "photo", sameAs };
+      } catch (error) {
+        console.error("[illustrate] partner upload failed", (error as Error).message);
+        return null;
+      }
+    }
     const uploaded = await uploadRemote(image.url, "newswebsite/illustrations", options);
     if (!uploaded) return null;
 
