@@ -25,7 +25,9 @@ import {
   slugTaken,
   updateArticle,
   uploadCover,
+  uploadCoverCard,
 } from "@/lib/partners/karostartup";
+import { buildKarostartupCover } from "@/lib/partners/karostartup-cover";
 import { gatherDocuments, loadAuthority } from "./write";
 
 /**
@@ -121,7 +123,7 @@ export type PartnerDeskReport = {
   durationMs: number;
 };
 
-export type CoverReport = { slug: string; outcome: "covered" | "none" | "has-cover" | "unknown" | "failed"; url?: string; reason?: string };
+export type CoverReport = { slug: string; outcome: "covered" | "none" | "has-cover" | "unknown" | "failed"; kind?: "photo" | "card"; url?: string; reason?: string };
 
 /** What the picture desk needs to revisit a story, kept in the post's trace. */
 type PictureInputs = {
@@ -210,15 +212,16 @@ async function record(row: {
 }
 
 /**
- * The picture desk's choice for one of their stories, copied straight into their Cloudinary
- * under the story's slug. A real photograph or nothing: never our typographic card.
+ * The cover for one of their stories, in their Cloudinary under the story's slug: the picture
+ * desk's photograph when one fits, otherwise a cover in their own dress (never our card).
  */
 async function findCover(
   headline: string,
   standfirst: string | null,
+  kicker: string,
   picture: PictureInputs,
   slug: string,
-): Promise<{ url: string; caption: string } | null> {
+): Promise<{ url: string; caption: string | null; kind: "photo" | "card" } | null> {
   const illustration = await illustrateArticle({
     upload: async (source, options) => {
       const url = await uploadCover(source, slug, options);
@@ -238,8 +241,11 @@ async function findCover(
     // A map of the company's city is not a cover for a funding story.
     maps: false,
   });
-  if (illustration?.kind !== "photo") return null;
-  return { url: illustration.url, caption: illustration.credit ? `${illustration.alt} (${illustration.credit})` : illustration.alt };
+  if (illustration?.kind === "photo") {
+    return { url: illustration.url, caption: illustration.credit ? `${illustration.alt} (${illustration.credit})` : illustration.alt, kind: "photo" };
+  }
+  const url = await uploadCoverCard(buildKarostartupCover({ headline, kicker }), slug);
+  return url ? { url, caption: null, kind: "card" } : null;
 }
 
 /** Finds a cover for a story already posted without one, and files it on their article. */
@@ -265,14 +271,14 @@ export async function coverPartnerPost(slug: string): Promise<CoverReport> {
     picture = { subjects: brief.subjects, related: [], brief: brief.imageBrief, terms: brief.imageSearchTerms, alternatives: brief.imageAlternatives };
   }
   const tries = Number(trace.coverTries ?? 0) + 1;
-  const cover = await findCover(article.title, article.subtitle, picture, slug);
+  const cover = await findCover(article.title, article.subtitle, article.kicker ?? "STARTUPS", picture, slug);
   await supabase
     .from("partner_posts")
-    .update({ cover_url: cover?.url ?? null, trace: { ...trace, picture, coverTries: tries } as Json })
+    .update({ cover_url: cover?.url ?? null, trace: { ...trace, picture, coverTries: tries, coverKind: cover?.kind ?? null } as Json })
     .eq("id", row.id);
-  if (!cover) return { slug, outcome: "none", reason: "the picture desk found no photograph" };
+  if (!cover) return { slug, outcome: "none", reason: "no photograph, and the cover could not be uploaded" };
   await updateArticle(article.id, { cover_image_url: cover.url, cover_caption: cover.caption });
-  return { slug, outcome: "covered", url: cover.url };
+  return { slug, outcome: "covered", kind: cover.kind, url: cover.url };
 }
 
 /** One of the last day's stories still without a cover, tried again; at most once per pass. */
@@ -539,13 +545,16 @@ async function pass(options: { dry?: boolean; eventId?: string; now?: boolean })
     terms: draft.imageSearchTerms,
     alternatives: draft.imageAlternatives,
   };
+  const breaking = pick.breaking || draft.kicker === "BREAKING";
   let coverUrl: string | null = null;
   let coverCaption: string | null = null;
+  let coverKind: "photo" | "card" | null = null;
   try {
-    const cover = await findCover(draft.headline, draft.standfirst, picture, slug);
+    const cover = await findCover(draft.headline, draft.standfirst, breaking ? "BREAKING" : draft.kicker, picture, slug);
     if (cover) {
       coverUrl = cover.url;
       coverCaption = cover.caption;
+      coverKind = cover.kind;
     }
   } catch (error) {
     console.error("[partner-desk] cover failed", (error as Error).message);
@@ -553,7 +562,6 @@ async function pass(options: { dry?: boolean; eventId?: string; now?: boolean })
 
   // Attribution lives in the text, as their desk writes it; no list of outlets at the end.
   const content = body;
-  const breaking = pick.breaking || draft.kicker === "BREAKING";
   const publishedAt = new Date().toISOString();
 
   try {
@@ -583,7 +591,7 @@ async function pass(options: { dry?: boolean; eventId?: string; now?: boolean })
       is_breaking: breaking,
       cover_url: coverUrl,
       published_at: publishedAt,
-      trace: { verdict: pick.v, sources: sources.map((s) => s.outlet), words, candidates: pool.length, hoursOld: Math.round(pick.hoursOld * 10) / 10, picture, coverTries: 1 },
+      trace: { verdict: pick.v, sources: sources.map((s) => s.outlet), words, candidates: pool.length, hoursOld: Math.round(pick.hoursOld * 10) / 10, picture, coverTries: 1, coverKind },
     });
     return base("posted", {
       postedToday: postedToday + 1,
