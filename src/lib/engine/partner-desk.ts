@@ -46,10 +46,10 @@ const OPEN_UNTIL_MINUTES = 23 * 60 + 30;
 const CANDIDATE_WINDOW_HOURS = 18;
 /** Candidates the gate reads in one call. */
 const GATE_BATCH = 12;
-/** Source documents fetched for the chosen story. */
-const MAX_DOCUMENTS = 4;
+/** Source documents fetched for the chosen story: many of the beat's outlets sit behind walls, so try several. */
+const MAX_DOCUMENTS = 7;
 const MIN_DOCUMENT_CHARS = 500;
-const MIN_WORDS = 450;
+const MIN_WORDS = 420;
 /** A breaking story is one still hours old. */
 const BREAKING_MAX_HOURS = 3;
 /** The gate's bar: below this the story is not theirs. */
@@ -352,7 +352,7 @@ export async function runPartnerDesk(options: { dry?: boolean; eventId?: string 
   const words = wordCount(body);
   if (words < MIN_WORDS || !/[.!?"'\)\]|]$/.test(body)) {
     const reason = words < MIN_WORDS ? `draft too short (${words} words)` : "draft ended mid-sentence";
-    await record({ event_id: pick.event.id, headline: draft.headline, status: "failed", reason, category: draft.category, kicker: draft.kicker });
+    await record({ event_id: pick.event.id, headline: draft.headline, status: "failed", reason, category: draft.category, kicker: draft.kicker, trace: { sources: sources.map((s) => ({ outlet: s.outlet, chars: s.content.length })), words } });
     return base("failed", { postedToday, candidates: pool.length, gated: verdicts.length, reason });
   }
 
