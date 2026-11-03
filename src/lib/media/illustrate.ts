@@ -404,6 +404,7 @@ export async function illustrateArticle({
   upload,
   policy = null,
   minScore = null,
+  maps = true,
 }: {
   headline: string;
   /** The standfirst, which the picture judge reads beside the headline. */
@@ -431,6 +432,8 @@ export async function illustrateArticle({
   /** The calling desk's own picture rule for the judge, and the relevance it asks for. */
   policy?: string | null;
   minScore?: number | null;
+  /** False when a map must not stand in for a missing picture. */
+  maps?: boolean;
 }): Promise<Illustration | null> {
   if (!upload && !configureCloudinary()) return null;
 
@@ -498,6 +501,7 @@ export async function illustrateArticle({
         terms,
         policy,
         minScore,
+        maps,
       },
       publish,
     ).catch((error) => {
