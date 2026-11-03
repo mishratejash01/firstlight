@@ -28,6 +28,7 @@ import {
   uploadCoverCard,
 } from "@/lib/partners/karostartup";
 import { buildKarostartupCover } from "@/lib/partners/karostartup-cover";
+import { markdownToPartnerHtml } from "@/lib/partners/markdown-html";
 import { gatherDocuments, loadAuthority } from "./write";
 
 /**
@@ -560,8 +561,9 @@ async function pass(options: { dry?: boolean; eventId?: string; now?: boolean })
     console.error("[partner-desk] cover failed", (error as Error).message);
   }
 
-  // Attribution lives in the text, as their desk writes it; no list of outlets at the end.
-  const content = body;
+  // Their body is HTML, as their own editor saves it; attribution lives in the text, as
+  // their desk writes it, with no list of outlets at the end.
+  const content = markdownToPartnerHtml(body);
   const publishedAt = new Date().toISOString();
 
   try {
