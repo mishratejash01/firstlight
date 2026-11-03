@@ -226,9 +226,12 @@ replaces the notes a previous session kept on one Mac. Nothing here is a secret.
   length matches their own desk (they average about 780 words, so the drafter aims at 800–1,100
   and a draft under 600 fails); every story should carry a cover. The judge reads
   `PARTNER_PICTURE_POLICY` (a clean scene of the company's trade scores 6–8) with a bar of 6
-  instead of the site's 7. A pass that posts nothing looks for a cover for one of the last day's
-  cover-less stories (`coverTries` in the post's trace, at most two tries); `?cover=<slug>` does
-  it on demand.
+  instead of the site's 7, and no map ever stands in. When no photograph fits, the story gets a
+  cover in their own dress (`src/lib/partners/karostartup-cover.ts`: headline, kicker and wordmark
+  on their paper, in their colours; `coverKind: "card"` in the trace), so no story goes out
+  bare. A pass that posts nothing looks for a cover for one of the last day's cover-less
+  stories (`coverTries` in the post's trace, at most two tries); `?cover=<slug>` does it on
+  demand.
 - Code: `src/lib/partners/karostartup.ts` (their API), `src/lib/ai/partner-draft.ts` (the gate and
   the drafter in their voice, "FT meets Inc42", founder-first, data-driven), and
   `src/lib/engine/partner-desk.ts`: candidates are the engine's own story events of the last 18 h
