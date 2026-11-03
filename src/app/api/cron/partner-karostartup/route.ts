@@ -1,4 +1,4 @@
-import { runPartnerDesk } from "@/lib/engine/partner-desk";
+import { coverPartnerPost, runPartnerDesk } from "@/lib/engine/partner-desk";
 import { metered } from "@/lib/engine/metered";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -9,6 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
  *   ?dry=1          show what the desk would pick and its queue, without writing
  *   ?now=1          post the desk's own pick now, whatever the hour and the spacing
  *   ?event=<uuid>   write this event now, past the gate and the spacing rule
+ *   ?cover=<slug>   look for a cover for a story posted without one
  */
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -28,6 +29,8 @@ async function handle(request: Request) {
   if (!leased) return Response.json({ ok: true, skipped: "another pass holds the partner desk" });
 
   try {
+    const cover = params.get("cover")?.trim();
+    if (cover) return Response.json({ ok: true, cover: await coverPartnerPost(cover) });
     const report = await runPartnerDesk({
       dry: params.get("dry") === "1",
       now: params.get("now") === "1",
