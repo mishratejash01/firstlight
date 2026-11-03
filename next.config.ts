@@ -101,6 +101,9 @@ const nextConfig: NextConfig = {
   // Remove this before ever enabling cacheComponents: with partial
   // prerendering it would force every request to render dynamically.
   htmlLimitedBots: /.*/,
+  // The embedding model (ONNX runtime, native binaries) is loaded by Node at
+  // run time rather than bundled: bundling it breaks its binary lookups.
+  serverExternalPackages: ["@huggingface/transformers", "onnxruntime-node", "sharp"],
   experimental: {
     serverActions: {
       // Media uploads travel through a Server Action so the Cloudinary secret
