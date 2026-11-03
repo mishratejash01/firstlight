@@ -1625,6 +1625,71 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_posts: {
+        Row: {
+          category: string | null
+          cover_url: string | null
+          created_at: string
+          event_id: string | null
+          headline: string
+          id: string
+          is_breaking: boolean
+          kicker: string | null
+          model_id: string | null
+          partner: string
+          published_at: string | null
+          reason: string | null
+          remote_id: string | null
+          slug: string | null
+          status: string
+          trace: Json | null
+        }
+        Insert: {
+          category?: string | null
+          cover_url?: string | null
+          created_at?: string
+          event_id?: string | null
+          headline: string
+          id?: string
+          is_breaking?: boolean
+          kicker?: string | null
+          model_id?: string | null
+          partner: string
+          published_at?: string | null
+          reason?: string | null
+          remote_id?: string | null
+          slug?: string | null
+          status: string
+          trace?: Json | null
+        }
+        Update: {
+          category?: string | null
+          cover_url?: string | null
+          created_at?: string
+          event_id?: string | null
+          headline?: string
+          id?: string
+          is_breaking?: boolean
+          kicker?: string | null
+          model_id?: string | null
+          partner?: string
+          published_at?: string | null
+          reason?: string | null
+          remote_id?: string | null
+          slug?: string | null
+          status?: string
+          trace?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_posts_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "story_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       picture_decisions: {
         Row: {
           admin_note: string | null
