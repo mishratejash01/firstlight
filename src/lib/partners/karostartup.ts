@@ -119,16 +119,29 @@ export async function recentTitles(hours = 48, limit = 80): Promise<RecentTitle[
  * null when their Cloudinary is not configured, in which case the story goes
  * out without a cover rather than hot-linking ours.
  */
-export async function uploadCover(sourceUrl: string, slug: string): Promise<string | null> {
+/**
+ * Copies a chosen picture into the partner's Cloudinary as the story's cover. The source is
+ * what the picture desk fetched (a data URI, or a URL); a photograph is cropped to the shape
+ * their cards expect, a logo is set in the middle of that shape on a plain ground.
+ */
+export async function uploadCover(source: string, slug: string, options: { pad?: boolean } = {}): Promise<string | null> {
   const target = cloud();
   if (!target) return null;
-  const result = await cloudinary.uploader.upload(sourceUrl, {
+  const result = await cloudinary.uploader.upload(source, {
     ...target,
     folder: COVER_FOLDER,
     public_id: slug.slice(0, 120),
     overwrite: false,
     resource_type: "image",
     invalidate: true,
+    quality: "auto",
+    fetch_format: "auto",
+    transformation: options.pad
+      ? [
+          { width: 760, height: 430, crop: "fit" },
+          { width: 1600, height: 900, crop: "pad", background: "#F4F4F5" },
+        ]
+      : [{ width: 1600, height: 900, crop: "fill", gravity: "auto" }],
   });
   // Their pages hot-link with automatic format and quality, as their own importer does.
   return String(result.secure_url).replace("/image/upload/", "/image/upload/f_auto,q_auto/");
