@@ -34,6 +34,8 @@ export type JudgeStory = {
   /** Where the story is set, as far as the desk knows: "Mansa, Punjab", "Riyadh". */
   places: string[];
   abroad: boolean;
+  /** A line from the desk that owns the story, read after the rubric: a partner paper's own picture rule. */
+  policy?: string | null;
 };
 
 export type JudgeCandidate = {
@@ -208,6 +210,7 @@ export async function judgePictures(
     story.places.length ? `Where it is set: ${story.places.join(", ")}${story.abroad ? " (outside India)" : " (India)"}` : story.abroad ? "Set outside India." : "Set in India.",
     story.briefs.length ? `Scenes the writer suggested: ${story.briefs.join(" | ")}` : "",
     KIND_NOTES[story.kind],
+    story.policy ?? "",
     "",
     `${shown.length} candidates follow, each with what we believe it shows.`,
   ]
