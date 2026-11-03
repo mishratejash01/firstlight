@@ -154,7 +154,8 @@ export async function uploadCover(source: string, slug: string, options: { pad?:
     ...target,
     folder: COVER_FOLDER,
     public_id: slug.slice(0, 120),
-    overwrite: false,
+    // A later, better choice for the same story replaces the earlier one under the same name.
+    overwrite: true,
     resource_type: "image",
     invalidate: true,
     quality: "auto",
